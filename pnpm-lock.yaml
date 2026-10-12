@@ -142,6 +142,9 @@ importers:
       happy-dom:
         specifier: ^20.14.6
         version: 20.14.6
+      postgres:
+        specifier: ^3.4.9
+        version: 3.4.9
       vite:
         specifier: ^8.3.4
         version: 8.3.4(@types/node@26.6.5)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1)

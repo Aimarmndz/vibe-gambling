@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Playwright contra la pila de verdad: el servidor compilado (sirviendo la build de la web) y el
-// GitHub falso, contra la base de datos de DATABASE_URL (el CI la pone; en local, la del compose de
-// desarrollo). Cada ejecución usa un usuario de GitHub falso nuevo, así que empieza con saldo limpio.
+// GitHub falso, contra la base de datos de DATABASE_URL (el CI la pone). En local, sin DATABASE_URL,
+// usa E2E_DATABASE_URL: una base aparte (`vibe_e2e`) en el Postgres de la pila de desarrollo, que
+// se crea sola si no existe (e2e/ensure-db.ts), para no llenar el ranking de desarrollo de
+// usuarios `e2e-*`. Cada ejecución usa un usuario de GitHub falso nuevo: empieza con saldo limpio.
 // Requisitos: `pnpm build` (servidor y web) y Postgres accesible.
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -17,7 +19,9 @@ const serverDir = resolve(repoRoot, 'packages/server')
 const e2eSchema = z.object({
   E2E_SERVER_PORT: z.coerce.number().int().min(1).max(65535),
   E2E_FAKE_GITHUB_PORT: z.coerce.number().int().min(1).max(65535),
-  E2E_DATABASE_URL: z.url(),
+  E2E_DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
+  /** Base de mantenimiento a la que conectarse para crear la del E2E si no existe. */
+  E2E_ADMIN_DATABASE: z.string().regex(/^[A-Za-z0-9_]{1,63}$/),
   /**
    * Opcional: servidor de navegadores de Playwright (`playwright run-server`) para WebKit/Firefox
    * cuando el sistema no puede ejecutarlos (p. ej. WebKit en Arch: le faltan bibliotecas de
@@ -65,6 +69,7 @@ const env: Record<string, string> = {
   FAKE_GITHUB_USER_ID: fakeUserId,
   FAKE_GITHUB_USER_LOGIN: `e2e-${runId}`,
   LOG_LEVEL: 'warn',
+  E2E_ADMIN_DATABASE: e2e.E2E_ADMIN_DATABASE,
 }
 
 /** Conectar a un servidor de navegadores remoto si se ha configurado uno. */
@@ -124,7 +129,8 @@ export default defineConfig({
       timeout: 30_000,
     },
     {
-      command: 'node --env-file=../../deploy/dev.env dist/main.js',
+      // Primero, la base de datos del E2E (si no existe); el servidor aplica las migraciones.
+      command: `node ${resolve(here, 'e2e/ensure-db.ts')} && node --env-file=../../deploy/dev.env dist/main.js`,
       cwd: serverDir,
       url: `${baseURL}/healthz`,
       env,
