@@ -46,6 +46,18 @@ describe('parseConfig', () => {
     expect(normalizeServerUrl('javascript:alert(1)')).toBeNull()
     expect(normalizeServerUrl('not a url')).toBeNull()
   })
+
+  test('plain http only for loopback addresses', () => {
+    expect(normalizeServerUrl('http://127.0.0.1:8787')).toBe('http://127.0.0.1:8787')
+    expect(normalizeServerUrl('http://[::1]:8787')).toBe('http://[::1]:8787')
+    expect(normalizeServerUrl('http://dev.localhost')).toBe('http://dev.localhost')
+    expect(normalizeServerUrl('http://vibe.example.test')).toBeNull()
+    expect(normalizeServerUrl('http://localhost.evil.test')).toBeNull()
+    expect(normalizeServerUrl('http://192.168.1.2')).toBeNull()
+    const parsed = parseConfig({ ...TEST_OPTIONS, serverUrl: 'http://vibe.example.test' })
+    expect(parsed.ok).toBe(false)
+    if (!parsed.ok) expect(parsed.errors.join()).toContain('https')
+  })
 })
 
 test(
@@ -70,7 +82,7 @@ test(
   async ($, on) => {
     const w = world(on, {
       routes: happyCasino(true),
-      store: { 'session:http://casino.test': { token: 'T'.repeat(43), login: 'octocat' } },
+      store: { 'session:https://casino.test': { token: 'T'.repeat(43), login: 'octocat' } },
     })
     await startSession($, w)
     expect(w.lastStatus()).toBe('🎰 /vibe-login')

@@ -30,20 +30,26 @@
     "turnTimeoutMs": {
       "type": "number",
       "title": "Turn request timeout (ms)",
-      "description": "Timeout of the requests made during a turn (100-1500). A turn never waits longer.",
-      "default": 1500
+      "description": "Timeout of the requests made during a turn. A turn never waits longer.",
+      "default": 1500,
+      "min": 100,
+      "max": 1500
     },
     "commandTimeoutMs": {
       "type": "number",
       "title": "Command request timeout (ms)",
-      "description": "Timeout of the requests made by the slash commands (500-30000).",
-      "default": 5000
+      "description": "Timeout of the requests made by the slash commands.",
+      "default": 5000,
+      "min": 500,
+      "max": 30000
     },
     "windowReopenCooldownMs": {
       "type": "number",
       "title": "Window reopen cooldown (ms)",
       "description": "After opening the window, how long to wait for it to connect before opening another one.",
-      "default": 60000
+      "default": 60000,
+      "min": 0,
+      "max": 3600000
     },
     "windowSize": {
       "type": "string",
@@ -54,14 +60,18 @@
     "launchTimeoutMs": {
       "type": "number",
       "title": "Browser launch timeout (ms)",
-      "description": "How long the browser launcher may take to return (500-30000).",
-      "default": 5000
+      "description": "How long the browser launcher may take to return.",
+      "default": 5000,
+      "min": 500,
+      "max": 30000
     },
     "revealMaxDelayMs": {
       "type": "number",
       "title": "Max result reveal delay (ms)",
-      "description": "Longest wait before the result toast, so it never spoils the spin (0-120000).",
-      "default": 30000
+      "description": "Longest wait before the result toast, so it never spoils the spin.",
+      "default": 30000,
+      "min": 0,
+      "max": 120000
     }
   }
 }
