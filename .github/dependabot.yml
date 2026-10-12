@@ -1,0 +1,69 @@
+# Actualizaciones automáticas de dependencias: npm (workspace pnpm), GitHub Actions y Docker.
+# Las actualizaciones menores y de parche se agrupan en un solo PR por ecosistema; las mayores
+# llegan por separado para revisarlas con calma.
+version: 2
+updates:
+  - package-ecosystem: npm
+    # Dependabot detecta pnpm-lock.yaml en la raíz y actualiza todos los paquetes del workspace.
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      timezone: Europe/Madrid
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: 'build(deps)'
+      prefix-development: 'build(deps-dev)'
+    labels: ['dependencies']
+    groups:
+      npm-minor-patch:
+        update-types: ['minor', 'patch']
+    ignore:
+      # typescript-eslint 8.x solo admite TypeScript < 6.1 (ver docs/DECISIONES.md).
+      - dependency-name: typescript
+        update-types: ['version-update:semver-major', 'version-update:semver-minor']
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      timezone: Europe/Madrid
+    commit-message:
+      prefix: 'ci(deps)'
+    labels: ['dependencies', 'ci']
+    groups:
+      actions-minor-patch:
+        update-types: ['minor', 'patch']
+
+  - package-ecosystem: docker
+    # Imagen base del Dockerfile del servidor (en la raíz del repo).
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      timezone: Europe/Madrid
+    commit-message:
+      prefix: 'build(docker)'
+    labels: ['dependencies', 'docker']
+    groups:
+      docker-minor-patch:
+        update-types: ['minor', 'patch']
+
+  - package-ecosystem: docker-compose
+    # Imágenes de los compose de deploy/ (Postgres, Caddy…).
+    directory: /deploy
+    schedule:
+      interval: weekly
+      day: monday
+      timezone: Europe/Madrid
+    commit-message:
+      prefix: 'build(docker)'
+    labels: ['dependencies', 'docker']
+    groups:
+      compose-minor-patch:
+        update-types: ['minor', 'patch']
+    ignore:
+      # Un salto mayor de Postgres exige migrar los datos (pg_upgrade o dump/restore): se hace a mano.
+      - dependency-name: postgres
+        update-types: ['version-update:semver-major']
