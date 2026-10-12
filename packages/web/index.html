@@ -7,13 +7,16 @@
     <meta name="color-scheme" content="dark" />
     <meta name="theme-color" content="#08070d" />
     <!-- Metadatos estáticos (en inglés) para buscadores y previsualizaciones; el resto de textos
-         sale de src/i18n. La imagen Open Graph se genera con scripts de Playwright (docs/). -->
+         sale de src/i18n. La imagen Open Graph se genera con scripts de Playwright (docs/).
+         og:url, og:image y twitter:image van relativos: el servidor los reescribe a absolutos con
+         PUBLIC_URL al servir la página (Twitter/X y otros no aceptan rutas relativas). -->
     <title>vibe-gambling — every prompt is a spin</title>
     <meta
       name="description"
       content="A PS1-style roulette that pops up while Claude Code thinks. Fake coins, real addiction (not really). Global leaderboard of the most broke devs."
     />
     <meta property="og:type" content="website" />
+    <meta property="og:url" content="/" />
     <meta property="og:title" content="vibe-gambling — every prompt is a spin" />
     <meta
       property="og:description"
@@ -27,6 +30,7 @@
       content="A low-poly roulette wheel in PS1 style on a green casino table"
     />
     <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="/og.png" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="preload" href="/fonts/polygone12.woff2" as="font" type="font/woff2" crossorigin />
     <script type="module" src="/src/landing.ts"></script>
@@ -89,25 +93,10 @@
             <h2 id="board-title"></h2>
           </div>
           <div class="board-controls">
-            <div class="tabs" role="tablist">
-              <button
-                type="button"
-                role="tab"
-                data-board="broke"
-                data-i18n="landing.lb.tab.broke"
-              ></button>
-              <button
-                type="button"
-                role="tab"
-                data-board="rich"
-                data-i18n="landing.lb.tab.rich"
-              ></button>
-              <button
-                type="button"
-                role="tab"
-                data-board="spins"
-                data-i18n="landing.lb.tab.spins"
-              ></button>
+            <div class="tabs" role="group" aria-labelledby="board-title">
+              <button type="button" data-board="broke" data-i18n="landing.lb.tab.broke"></button>
+              <button type="button" data-board="rich" data-i18n="landing.lb.tab.rich"></button>
+              <button type="button" data-board="spins" data-i18n="landing.lb.tab.spins"></button>
             </div>
             <label class="season">
               <span class="sr-only" data-i18n="landing.lb.seasonLabel"></span>

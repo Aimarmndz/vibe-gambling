@@ -109,3 +109,26 @@ describe('API HTTP', () => {
     expect(takeCodeFromUrl({ href: 'http://x.invalid/play' } as Location, hist)).toBeNull()
   })
 })
+
+describe('URLs del servidor', () => {
+  it('solo deja pasar http y https', async () => {
+    const { webUrl } = await import('../src/net/urls.ts')
+    expect(webUrl('https://avatars.githubusercontent.com/u/1?v=4')).toBe(
+      'https://avatars.githubusercontent.com/u/1?v=4',
+    )
+    expect(webUrl('http://localhost:8788/avatars/1.svg')).toBe(
+      'http://localhost:8788/avatars/1.svg',
+    )
+    for (const bad of [
+      'javascript:alert(1)',
+      'javascript://example.com/%0Aalert(1)',
+      'JaVaScRiPt:alert(1)',
+      'data:text/html,<script>alert(1)</script>',
+      'vbscript://x',
+      'no es una url',
+      '',
+    ]) {
+      expect(webUrl(bad), bad).toBeNull()
+    }
+  })
+})

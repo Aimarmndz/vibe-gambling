@@ -31,6 +31,11 @@ export class Sfx {
   private rumbleGain: GainNode | null = null
   private muted = false
 
+  /** ¿Existe ya el contexto de audio? Solo se crea con el primer gesto del usuario. */
+  get started(): boolean {
+    return this.ctx !== null
+  }
+
   /** ¿El navegador ha dejado arrancar el audio? (necesita un gesto del usuario). */
   get running(): boolean {
     return this.ctx?.state === 'running'

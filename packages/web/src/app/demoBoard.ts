@@ -19,11 +19,13 @@ export function demoLeaderboard(
   state: GameState,
   login: string,
 ): LeaderboardResponse {
+  // Todo del propio dominio: los bots no tienen perfil de GitHub (el "perfil" es la portada).
   const avatarUrl = new URL('/favicon.svg', window.location.origin).toString()
+  const profileUrl = new URL('/', window.location.origin).toString()
   const rows: Omit<LeaderboardRow, 'rank'>[] = BOTS.map(([name, net, debt, spins], i) => ({
     login: name,
     avatarUrl,
-    profileUrl: 'https://github.com/',
+    profileUrl,
     netWorth: net,
     balance: net + debt,
     debt,
@@ -36,7 +38,7 @@ export function demoLeaderboard(
     rows.push({
       login,
       avatarUrl,
-      profileUrl: 'https://github.com/',
+      profileUrl,
       netWorth: w.netWorth,
       balance: w.balance,
       debt: w.debt,

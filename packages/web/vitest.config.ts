@@ -14,6 +14,9 @@ export default defineConfig({
         'src/font/**/*.ts',
         'src/config.ts',
         'src/app/prefs.ts',
+        'src/app/onboarding.ts',
+        'src/legal/**/*.ts',
+        'src/ui/status.ts',
       ],
       reporter: ['text', 'html'],
       thresholds: {

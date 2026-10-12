@@ -242,7 +242,7 @@ h2 {
   gap: 8px;
 }
 
-.tabs [aria-selected='true'] {
+.tabs [aria-pressed='true'] {
   background: var(--gold);
   color: var(--ink);
 }

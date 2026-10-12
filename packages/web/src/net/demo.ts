@@ -101,15 +101,22 @@ export class DemoLink implements Link {
   private running = false
   private busy = false
 
-  constructor(pub: PublicGameConfig, client: WebClientConfig['demo'], auto: boolean) {
+  /** `origin`: el de la página (de ahí salen el avatar y el "perfil" del jugador de la demo). */
+  constructor(
+    pub: PublicGameConfig,
+    client: WebClientConfig['demo'],
+    auto: boolean,
+    origin: string,
+  ) {
     this.cfg = demoGameConfig(pub)
     this.client = client
     this.auto = auto
     const now = new Date()
     this.user = {
       login: client.login,
-      avatarUrl: 'https://avatars.githubusercontent.com/u/0',
-      profileUrl: 'https://github.com/',
+      // Sin cuenta de GitHub: avatar y "perfil" del propio dominio (nada externo ni escrito a mano).
+      avatarUrl: new URL('/favicon.svg', origin).toString(),
+      profileUrl: new URL('/', origin).toString(),
       hidden: true,
       locale: null,
       createdAt: now.toISOString(),

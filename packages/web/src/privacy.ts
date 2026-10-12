@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Página /privacy (EN/ES): qué se guarda, para qué, dónde, cuánto tiempo y cómo borrar la cuenta.
 // Sin analíticas ni cookies de seguimiento: esta página no carga nada de terceros.
+// Primero de todo: zod sin `new Function` (CSP sin 'unsafe-eval'), ver zodJitless.ts.
+import './zodJitless.ts'
 import './styles/landing.css'
 
 import type { WebConfig } from '@vibe-gambling/shared'

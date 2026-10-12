@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Entrada de /play: comprueba WebGL2, carga /config.json, canjea el código de un solo uso y arranca
 // la ventana. Three.js y el juego se cargan aparte (import dinámico) para que esto pinte rápido.
+// Primero de todo: zod sin `new Function` (CSP sin 'unsafe-eval'), ver zodJitless.ts.
+import './zodJitless.ts'
 import './styles/play.css'
 
 import { clientConfig, loadWebConfig } from './config.ts'
@@ -62,7 +64,12 @@ async function main(): Promise<void> {
   ])
   let link
   if (demo) {
-    const demoLink = new DemoLink(web.game, clientConfig.demo, params.get('demo') !== 'manual')
+    const demoLink = new DemoLink(
+      web.game,
+      clientConfig.demo,
+      params.get('demo') !== 'manual',
+      window.location.origin,
+    )
     Object.assign(window, { __vgDemo: demoLink.controls })
     link = demoLink
   } else {

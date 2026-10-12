@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Landing pública: presentación, instalación en un comando, ranking de la temporada (los más
 // arruinados como estrella), Salón de la Ruina y pie. La ruleta PSX en vivo se carga aparte.
+// Primero de todo: zod sin `new Function` (CSP sin 'unsafe-eval'), ver zodJitless.ts.
+import './zodJitless.ts'
 import './styles/landing.css'
 
 import type {
@@ -14,6 +16,7 @@ import { clientConfig, loadWebConfig } from './config.ts'
 import type { Translator } from './i18n/index.ts'
 import { fetchHallOfRuin, fetchLeaderboard } from './net/api.ts'
 import { applyI18n, el, externalLink, renderFooter, withLanguage } from './pages/common.ts'
+import { webUrl } from './net/urls.ts'
 import { hasWebGL2 } from './render/pipeline.ts'
 
 interface BoardState {
@@ -30,8 +33,10 @@ function streakText(s: number): string {
 }
 
 function avatar(url: string): HTMLImageElement {
+  const src = webUrl(url)
   const img = el('img', {
-    src: url,
+    // Sin URL válida no se pide nada: queda el hueco del avatar roto.
+    ...(src ? { src } : {}),
     alt: '',
     width: '32',
     height: '32',
@@ -39,6 +44,7 @@ function avatar(url: string): HTMLImageElement {
     referrerpolicy: 'no-referrer',
     class: 'avatar',
   })
+  if (!src) img.classList.add('broken')
   img.addEventListener('error', () => img.classList.add('broken'))
   return img
 }
@@ -47,7 +53,8 @@ function renderBoard(state: BoardState, tr: Translator): void {
   const titleKey = `landing.lb.title.${state.board}` as const
   $('board-title').textContent = tr.t(titleKey)
   document.querySelectorAll<HTMLButtonElement>('[data-board]').forEach(b => {
-    b.setAttribute('aria-selected', String(b.dataset.board === state.board))
+    // Botones de alternar (no pestañas ARIA: no hay paneles ni navegación con flechas).
+    b.setAttribute('aria-pressed', String(b.dataset.board === state.board))
   })
   const tbody = $('board-rows')
   const status = $('board-state')

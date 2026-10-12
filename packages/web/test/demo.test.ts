@@ -14,7 +14,7 @@ describe('modo demo', () => {
   afterEach(() => vi.useRealTimers())
 
   function setup(auto = false) {
-    const link = new DemoLink(testWebConfig.game, demoCfg, auto)
+    const link = new DemoLink(testWebConfig.game, demoCfg, auto, testWebConfig.publicUrl)
     const got: ServerMessage[] = []
     const status: string[] = []
     link.onMessage(m => got.push(serverMessageSchema.parse(m)))
