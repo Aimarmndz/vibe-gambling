@@ -22,7 +22,9 @@
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run --coverage",
     "test:e2e": "playwright test",
-    "font:build": "python3 -I scripts/build_font.py"
+    "font:build": "python3 -I scripts/build_font.py",
+    "test:e2e:claude": "node --env-file=e2e-live/live.env e2e-live/claude-turn.ts",
+    "demo:record": "node --env-file=e2e-live/live.env e2e-live/record-demo.ts"
   },
   "dependencies": {
     "@vibe-gambling/shared": "workspace:*",
