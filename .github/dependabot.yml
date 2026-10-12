@@ -24,7 +24,10 @@ updates:
         update-types: ['version-update:semver-major', 'version-update:semver-minor']
 
   - package-ecosystem: github-actions
-    directory: /
+    # Las acciones van fijadas por SHA con la versión en un comentario (`@<sha> # vX.Y.Z`): una
+    # etiqueta se puede mover, un commit no. Dependabot actualiza el SHA y el comentario a la vez.
+    # Con solo `/` no mira las acciones compuestas de .github/actions (pnpm, setup-node).
+    directories: ['/', '/.github/actions/*']
     schedule:
       interval: weekly
       day: monday
