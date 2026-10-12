@@ -10,16 +10,17 @@ El contrato (esquemas zod de cada mensaje y la lógica pura de la ruleta) vive e
 
 ## Monorepo
 
-| Carpeta                                 | Qué es                                                                                                                                                                                                                                                       |
-| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| [`packages/shared`](../packages/shared) | Contrato: esquemas zod del protocolo HTTP y WS (`protocol/`), rutas (`API_ROUTES`), lógica pura de la ruleta (`roulette/`: casillas, apuestas, pagos, parser de `/bet`), economía, rachas y temporadas (`game/`) y frases de humor EN/ES (`i18n/`). Sin E/S. |
-| [`packages/server`](../packages/server) | Fastify 5 + `@fastify/websocket` + Drizzle/Postgres 17. API, WebSocket, Device Flow de GitHub, job de temporadas, estáticos de la web, GitHub falso para desarrollo.                                                                                         |
-| [`packages/web`](../packages/web)       | Vite + Three.js. Tres páginas: `/` (landing + ranking), `/play` (la ventana del juego) y `/privacy`. Pipeline PSX propio (320×240, _vertex snapping_, texturas afines, 15 bits con _dithering_, CRT).                                                        |
-| [`packages/mod`](../packages/mod)       | Plugin de Claude Code (API de módulos de hooks). Hooks de turno, comandos, status line, toasts y apertura de la ventana. Sin dependencias: corre en el entorno del engine, no en Node.                                                                       |
-| [`config/`](../config)                  | `game.json` (números del juego), `site.json` (textos de marca y enlaces), `web.json` (ajustes del cliente web). Validados con zod al arrancar.                                                                                                               |
-| [`deploy/`](../deploy)                  | `Dockerfile` (en la raíz), compose de producción, de desarrollo y con Caddy propio, `.env.example`, backups y firewall.                                                                                                                                      |
-| [`scripts/`](../scripts)                | Comprobación SPDX, copia de `shared` para el mod, tipos del engine y generador de [PROTOCOLO.md](PROTOCOLO.md).                                                                                                                                              |
-| [`.claude-plugin/`](../.claude-plugin)  | `marketplace.json`: convierte el repo en un marketplace de Claude Code que apunta a `packages/mod`.                                                                                                                                                          |
+| Carpeta                                 | Qué es                                                                                                                                                                                                                                                                                                                        |
+| --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`packages/shared`](../packages/shared) | Contrato: esquemas zod del protocolo HTTP y WS (`protocol/`), rutas (`API_ROUTES`), lógica pura de la ruleta (`roulette/`: casillas, apuestas, pagos, parser de `/bet`), economía, rachas y temporadas (`game/`) e i18n (`i18n/`: lógica de las frases, esquemas de `locales/` y la lista de idiomas generada). Sin E/S.      |
+| [`packages/server`](../packages/server) | Fastify 5 + `@fastify/websocket` + Drizzle/Postgres 17. API, WebSocket, Device Flow de GitHub, job de temporadas, estáticos de la web, GitHub falso para desarrollo.                                                                                                                                                          |
+| [`packages/web`](../packages/web)       | Vite + Three.js. Tres páginas: `/` (landing + ranking), `/play` (la ventana del juego) y `/privacy`. Pipeline PSX propio (320×240, _vertex snapping_, texturas afines, 15 bits con _dithering_, CRT).                                                                                                                         |
+| [`packages/mod`](../packages/mod)       | Plugin de Claude Code (API de módulos de hooks). Hooks de turno, comandos, status line, toasts y apertura de la ventana. Sin dependencias: corre en el entorno del engine, no en Node.                                                                                                                                        |
+| [`locales/`](../locales)                | Un idioma por carpeta (`en`, `es`, `fr`, `de`): textos del juego, la landing, `/privacy` y el mod, frases de ludópata, metadatos y bandera en pixel art. La web los descubre con `import.meta.glob`; `scripts/gen-locales.ts` genera la lista para el protocolo y la copia del mod ([cómo añadir uno](../locales/README.md)). |
+| [`config/`](../config)                  | `game.json` (números del juego), `site.json` (textos de marca y enlaces), `web.json` (ajustes del cliente web). Validados con zod al arrancar.                                                                                                                                                                                |
+| [`deploy/`](../deploy)                  | `Dockerfile` (en la raíz), compose de producción, de desarrollo y con Caddy propio, `.env.example`, backups y firewall.                                                                                                                                                                                                       |
+| [`scripts/`](../scripts)                | Comprobación SPDX, copia de `shared` para el mod, tipos del engine y generador de [PROTOCOLO.md](PROTOCOLO.md).                                                                                                                                                                                                               |
+| [`.claude-plugin/`](../.claude-plugin)  | `marketplace.json`: convierte el repo en un marketplace de Claude Code que apunta a `packages/mod`.                                                                                                                                                                                                                           |
 
 ## Componentes
 
@@ -96,6 +97,50 @@ sequenceDiagram
 - **Rondas abandonadas** (más de `round.staleAfterMs`, 30 min) caducan sin tirada al detectarlas.
 - **Jackpot dev**: con `gitPushOk`, la ganancia se multiplica por `jackpot.gitPushMultiplier`.
 - **`claude -p`**: el mod espera a `turn/end` como mucho `turnTimeoutMs` antes de que el proceso termine y no abre ventanas.
+- **Sin nadie mirando**: el diagrama de arriba es el turno con una ventana conectada **y visible**. Si no hay ninguna (o todas están ocultas), la tirada se guarda como pendiente: ver abajo.
+
+## Una tirada pendiente
+
+Modelo híbrido: si al terminar el turno no hay ninguna ventana visible, la ronda no se tira; se guarda (ronda `deferred`, con el `git push` y los tests de su turno) y se gasta después desde la ventana con **GIRAR** o **GIRAR TODAS**. El servidor sigue siendo la única autoridad: el número sale del RNG criptográfico **al gastarla**, con las reglas de siempre, y el ritmo lo marca la animación (`revealAt`). Detalle del protocolo en [PROTOCOLO.md](PROTOCOLO.md#tiradas-pendientes).
+
+```mermaid
+sequenceDiagram
+  autonumber
+  actor U as Usuario
+  participant CC as Claude Code + mod
+  participant S as Servidor
+  participant DB as Postgres
+  participant W as Ventana (navegador)
+
+  Note over W: cerrada, o abierta pero oculta:<br/>presence {visible: false} en visibilitychange
+  U->>CC: manda un prompt
+  CC->>S: POST /api/turn/start · POST /api/turn/end {…, gitPushOk, testFailed}
+  S->>S: ¿alguna ventana conectada y visible? → no
+  S->>DB: BEGIN · FOR UPDATE cartera · cuenta las pendientes de la temporada<br/>· ronda → deferred (turnId, gitPushOk, testFailed, durationMs) · COMMIT
+  S-->>W: pending {event: queued, wallet.pendingSpins: 20} (si hay ventanas ocultas)
+  S-->>CC: {status: queued, dropped: false, wallet}
+  CC->>U: toast "Tirada guardada · 20 pendientes" + status line "🎰 750 🪙 · 20 pendientes"
+  Note over S: en el tope (pendingSpins.max): ronda → expired,<br/>{status: queued, dropped: true} y frase de broma
+
+  U->>W: abre /roulette (o vuelve a la pestaña)
+  W->>S: presence {visible: true}
+  S-->>W: hello {wallet.pendingSpins: 20}
+  W->>U: aviso "Tienes 20 tiradas pendientes" · contador en el HUD
+  U->>W: GIRAR (G / SELECT) o GIRAR TODAS
+  W->>S: spin.pending {quick, requestId}
+  S->>DB: BEGIN · FOR UPDATE cartera · ¿requestId ya visto? · ¿ronda girando? · ¿revealAt anterior pasado?<br/>· la deferred más antigua · randomInt(0, 37) · boleto / última apuesta · interés · jackpot si su git push · COMMIT
+  S-->>W: round.started · round.resolved {revealAt = ahora + minSpinMs o quickSpinMs, wallet.pendingSpins: 19}
+  W->>W: la bola cae y enseña el resultado en revealAt
+  loop GIRAR TODAS (quick: true)
+    W->>S: spin.pending {quick: true, requestId}
+    S-->>W: round.started · round.resolved
+    W->>W: ¿premio gordo, verde, bancarrota, sin pendientes u ○? → para
+  end
+```
+
+- **Contador**: `wallet.pendingSpins`, contado en la misma transacción que bloquea la cartera. Sale en `hello`, `/api/me`, `turn/end`, la status line del mod, `/balance` y el HUD.
+- **Ranking**: la tirada cuenta (en `spins`, en el patrimonio y en el ranking) cuando se gasta, no cuando se guarda.
+- **Caducidad**: al cerrar la temporada, sus pendientes caducan antes de guardar el Salón de la Ruina.
 
 ## Login: Device Flow mediado por el servidor
 
@@ -176,6 +221,8 @@ erDiagram
   seasons ||--o{ loans : ""
   users ||--o{ hall_of_ruin : "aparece"
   seasons ||--o{ hall_of_ruin : "top N"
+  users ||--o{ achievements : "consigue"
+  seasons ||--o{ achievements : ""
 
   users {
     uuid id PK
@@ -183,7 +230,7 @@ erDiagram
     text login
     text avatar_url
     boolean hidden "fuera del ranking"
-    text locale "en | es | null"
+    text locale "idioma de locales/ o null"
     jsonb last_bets "apuesta a repetir"
     timestamptz created_at
   }
@@ -226,12 +273,13 @@ erDiagram
     int current_streak
     int best_streak
     jsonb slip "boleto: fichas ya descontadas"
+    timestamptz broke_at "primera BANCARROTA de la temporada"
   }
   rounds {
     uuid id PK
     uuid user_id FK
     text season_id FK
-    text status "open | resolved | expired"
+    text status "open | resolved | expired | deferred"
     smallint result "0-36"
     text source "slip | repeat | default | none"
     bigint staked
@@ -243,6 +291,12 @@ erDiagram
     int duration_ms
     bigint interest_charged
     timestamptz reveal_at
+    timestamptz deferred_at "tirada pendiente: cuándo se guardó"
+    text spend_request_id "GIRAR que la gastó (idempotencia)"
+    int spin_number "tirada n de la temporada"
+    int streak_after "racha tras la tirada (ON FIRE)"
+    bigint net_worth_after "patrimonio tras la tirada"
+    boolean went_broke "BANCARROTA en esta tirada"
   }
   turns {
     uuid user_id PK, FK
@@ -266,6 +320,13 @@ erDiagram
     text season_id FK
     bigint amount
     float interest_per_spin
+    int after_spin "tiradas que llevaba al pedirlo"
+  }
+  achievements {
+    uuid user_id PK, FK
+    text achievement_id PK "id del catálogo de shared"
+    text season_id FK "en la que se consiguió"
+    timestamptz unlocked_at
   }
   hall_of_ruin {
     text season_id PK, FK
@@ -281,6 +342,8 @@ Reglas que garantiza la base de datos además del código:
 - **Dinero**: monedas en `bigint` (siempre dentro de `Number.MAX_SAFE_INTEGER` por el tope de deuda); `balance ≥ 0` y `debt ≥ 0` con `CHECK`.
 - **Cerrojos**: toda operación de dinero o de rondas empieza con `FOR KEY SHARE` sobre la temporada y `FOR UPDATE` sobre la cartera del usuario (orden fijo temporada → cartera → turno → ronda, sin interbloqueos). Probado con 150 apuestas simultáneas.
 - **Una ronda abierta por usuario**: índice único parcial `WHERE status = 'open'`.
+- **Logros**: clave primaria `(user_id, achievement_id)` + `INSERT … ON CONFLICT DO NOTHING RETURNING`: cada logro se guarda y se anuncia una sola vez aunque dos transacciones lo intenten a la vez.
+- **Tiradas pendientes**: rondas `deferred` (con `deferred_at` y el turno que las guardó, por `CHECK`), en cola por el índice parcial `(user_id, season_id, deferred_at) WHERE status = 'deferred'`; `(user_id, spend_request_id)` único para que un GIRAR repetido no tire dos veces.
 - **Borrado de cuenta**: todo lo que cuelga de `users` es `ON DELETE CASCADE`.
 - **Tokens**: solo hashes SHA-256 (`sessions`, `link_codes`, `device_auths`). El token de GitHub no se guarda nunca.
 
@@ -291,7 +354,7 @@ Una temporada es un mes natural que empieza el día `season.startDay` a las 00:0
 Cada `SEASON_CHECK_INTERVAL_MS`, un job del servidor:
 
 1. toma `pg_try_advisory_xact_lock` (si hubiera dos instancias, solo una trabaja);
-2. cierra las temporadas vencidas: caduca sus rondas abiertas, devuelve al saldo las fichas de los boletos, guarda el top `hallOfRuinSize` de arruinados no ocultos en `hall_of_ruin` y marca `closed_at`;
+2. cierra las temporadas vencidas: caduca sus rondas abiertas y sus tiradas pendientes, devuelve al saldo las fichas de los boletos, guarda el top `hallOfRuinSize` de arruinados no ocultos en `hall_of_ruin` y marca `closed_at`;
 3. crea la fila de la temporada nueva y avisa a las ventanas con `season.changed`;
 4. purga códigos de enlace usados o caducados, logins de GitHub a medias y sesiones caducadas o revocadas.
 
@@ -301,7 +364,7 @@ Las carteras de la temporada nueva se crean de forma perezosa con la primera ope
 
 - `hooks/register.ts` es el único archivo que toca `$` (el engine lo exige); lo adapta a una interfaz `Io` pequeña (`hooks/lib/io.ts`) y todo `hooks/lib` es TypeScript puro que se prueba sin engine.
 - `turn.start` (solo el bucle principal) → `turn/start`; `tool.call` de Bash → mira la orden y su salida **en local** para calcular `gitPushOk` y `testFailed` y las olvida; `turn.complete` sin `agentId` → `turn/end` y el toast.
-- No puede importar `shared` ni zod (se instala solo `packages/mod`): `pnpm sync:mod` copia las frases y las constantes del protocolo a `hooks/generated/`, y `packages/shared/test/mod-contract.test.ts` falla si la copia está desactualizada y valida los cuerpos del mod con los esquemas estrictos.
+- No puede importar `shared` ni zod (se instala solo `packages/mod`): `pnpm sync:mod` copia las frases y las constantes del protocolo a `hooks/generated/` (y genera `manifest.ts` con la versión y los valores por defecto de `plugin.json`, para no leer el manifiesto del disco), y `packages/shared/test/mod-contract.test.ts` falla si la copia está desactualizada y valida los cuerpos del mod con los esquemas estrictos.
 - Configuración en el `userConfig` del manifiesto (`serverUrl`, `autoOpen`, idioma, timeouts…), con sus rangos; el token de sesión en `$.store`, con una clave por servidor.
 - La ventana se abre con un Chromium en modo app (`--app=<url> --window-size=…`) si encuentra uno, o con el navegador por defecto (`xdg-open`, `open`, `start`).
 

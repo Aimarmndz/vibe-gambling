@@ -33,13 +33,14 @@ Se sigue [SemVer 2.0](https://semver.org/lang/es/). La pregunta para elegir el n
 
 La versión está en estos archivos y tiene que ser la misma en todos. `pnpm lint:versions` (dentro de `pnpm lint` y en el CI) falla si alguno se desincroniza; `pnpm release` los cambia todos a la vez.
 
-| Archivo                                                | Para qué se usa                                                                      |
-| ------------------------------------------------------ | ------------------------------------------------------------------------------------ |
-| `package.json` (raíz)                                  | La referencia; el SBOM y los artefactos toman la versión de aquí                     |
-| `packages/*/package.json`                              | La del servidor se empaqueta en el build y es la que devuelve `/api/meta`            |
-| `packages/mod/.claude-plugin/plugin.json`              | La que ve Claude Code y la que el mod manda en cada turno (`pluginVersion`)          |
-| `.claude-plugin/marketplace.json` (`metadata.version`) | La del marketplace; las entradas de plugin no la repiten (manda la de `plugin.json`) |
-| `CHANGELOG.md`                                         | Tiene que tener una sección `## [X.Y.Z]` con contenido para la versión actual        |
+| Archivo                                                | Para qué se usa                                                                                                                      |
+| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `package.json` (raíz)                                  | La referencia; el SBOM y los artefactos toman la versión de aquí                                                                     |
+| `packages/*/package.json`                              | La del servidor se empaqueta en el build y es la que devuelve `/api/meta`                                                            |
+| `packages/mod/.claude-plugin/plugin.json`              | La que ve Claude Code y la que el mod manda en cada turno (`pluginVersion`)                                                          |
+| `.claude-plugin/marketplace.json` (`metadata.version`) | La del marketplace; las entradas de plugin no la repiten (manda la de `plugin.json`)                                                 |
+| `packages/mod/hooks/generated/manifest.ts`             | Copia **generada** de la versión y los valores por defecto de `plugin.json` (`pnpm sync:mod`): el mod no lee su manifiesto del disco |
+| `CHANGELOG.md`                                         | Tiene que tener una sección `## [X.Y.Z]` con contenido para la versión actual                                                        |
 
 ## Paso a paso
 

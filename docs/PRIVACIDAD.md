@@ -33,14 +33,14 @@ Los dos sí/no se calculan **en tu ordenador** mirando las órdenes de Bash, que
 
 ### Qué se guarda y para qué
 
-| Dato                                                                                                                                                                                   | Para qué                                |
-| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
-| De GitHub: id numérico, login y URL del avatar                                                                                                                                         | Identificarte y mostrarte en el ranking |
-| Tus ajustes: oculto o no en el ranking, idioma                                                                                                                                         | Respetar tus preferencias               |
-| El juego: cartera de cada temporada, rondas y turnos (cuándo empezó y terminó cada uno, resultado, apuestas, duración del turno y los dos sí/no), préstamos, rachas, Salón de la Ruina | Que el juego funcione y el ranking      |
-| Sesiones: el **hash** de cada token, su tipo (plugin o ventana) y fechas de uso y caducidad                                                                                            | Mantenerte con la sesión iniciada       |
+| Dato                                                                                                                                                                                                       | Para qué                                |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
+| De GitHub: id numérico, login y URL del avatar                                                                                                                                                             | Identificarte y mostrarte en el ranking |
+| Tus ajustes: oculto o no en el ranking, idioma                                                                                                                                                             | Respetar tus preferencias               |
+| El juego: cartera de cada temporada, rondas y turnos (cuándo empezó y terminó cada uno, resultado, apuestas, duración del turno y los dos sí/no), préstamos, rachas, logros conseguidos, Salón de la Ruina | Que el juego funcione y el ranking      |
+| Sesiones: el **hash** de cada token, su tipo (plugin o ventana) y fechas de uso y caducidad                                                                                                                | Mantenerte con la sesión iniciada       |
 
-**No se guarda:** el token de GitHub (se descarta nada más leer tu perfil; el login no pide ningún permiso, solo el perfil público), la versión del plugin ni el SO (se comprueban y se tiran), tu IP (solo se usa en memoria durante un minuto para el límite de peticiones), ni ninguna URL, cabecera o token en los logs.
+**No se guarda:** el token de GitHub (se descarta nada más leer tu perfil; el login no pide ningún permiso, solo el perfil público), la versión del plugin ni el SO (se comprueban y se tiran), tu IP (solo se usa en memoria durante un minuto para el límite de peticiones), si la ventana está a la vista o en segundo plano (solo en memoria mientras está conectada, para decidir si un prompt se juega en directo o se guarda como tirada pendiente), ni ninguna URL, cabecera o token en los logs.
 
 ### Base legal (RGPD, art. 6)
 
@@ -77,7 +77,7 @@ Una sola cookie, **de sesión** (`HttpOnly`, `Secure`, `SameSite=Strict`), para 
 
 ### Tus derechos y cómo borrar la cuenta
 
-- **Borrar la cuenta**: `/vibe-delete-account <tu-login>` en Claude Code. Se borra **todo** lo tuyo al momento (sesiones, partidas, apuestas, préstamos, Salón de la Ruina) y se cierran tus ventanas.
+- **Borrar la cuenta**: `/vibe-delete-account <tu-login>` en Claude Code. Se borra **todo** lo tuyo al momento (sesiones, partidas, apuestas, préstamos, logros, Salón de la Ruina) y se cierran tus ventanas.
 - **Oponerte al ranking público**: `/vibe-hide`.
 - **Acceder a tus datos**: `/balance` y la ventana enseñan lo que hay; para una copia completa, pídela (abajo).
 - **Rectificar**: tu login y tu avatar se actualizan desde GitHub cada vez que inicias sesión.
@@ -114,12 +114,12 @@ Both yes/no flags are computed **on your computer** by looking at Bash commands,
 
 ### What is stored and why
 
-| Data                                                                                                                                                         | Why                                             |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------- |
-| From GitHub: numeric id, login and avatar URL                                                                                                                | To identify you and show you on the leaderboard |
-| Your settings: hidden from the leaderboard or not, language                                                                                                  | To respect your preferences                     |
-| The game: wallet per season, rounds and turns (when each one started and ended, result, bets, turn duration and the two flags), loans, streaks, Hall of Ruin | To run the game and the leaderboard             |
-| Sessions: the **hash** of each token, its kind (plugin or window), usage and expiry dates                                                                    | To keep you logged in                           |
+| Data                                                                                                                                                                                | Why                                             |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| From GitHub: numeric id, login and avatar URL                                                                                                                                       | To identify you and show you on the leaderboard |
+| Your settings: hidden from the leaderboard or not, language                                                                                                                         | To respect your preferences                     |
+| The game: wallet per season, rounds and turns (when each one started and ended, result, bets, turn duration and the two flags), loans, streaks, unlocked achievements, Hall of Ruin | To run the game and the leaderboard             |
+| Sessions: the **hash** of each token, its kind (plugin or window), usage and expiry dates                                                                                           | To keep you logged in                           |
 
 **Not stored:** the GitHub token (thrown away right after reading your profile; login asks for no permissions, only the public profile), the plugin version or the OS (checked and dropped), your IP (only kept in memory for a minute for rate limiting), and no URLs, headers or tokens in the logs.
 
@@ -158,7 +158,7 @@ One **session** cookie (`HttpOnly`, `Secure`, `SameSite=Strict`) so the window k
 
 ### Your rights and deleting your account
 
-- **Delete your account**: `/vibe-delete-account <your-login>` in Claude Code. **Everything** about you is deleted at once (sessions, games, bets, loans, Hall of Ruin) and your windows are closed.
+- **Delete your account**: `/vibe-delete-account <your-login>` in Claude Code. **Everything** about you is deleted at once (sessions, games, bets, loans, achievements, Hall of Ruin) and your windows are closed.
 - **Object to the public leaderboard**: `/vibe-hide`.
 - **Access your data**: `/balance` and the window show what there is; ask (below) for a full copy.
 - **Rectification**: your login and avatar are refreshed from GitHub every time you log in.

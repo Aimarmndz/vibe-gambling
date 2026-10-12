@@ -48,6 +48,14 @@ Assets (fonts, textures, sounds, models) must be your own work or under a compat
 
 ## Setting up the environment
 
+### In a dev container (zero setup)
+
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/Aimarmndz/vibe-gambling?quickstart=1)
+
+`.devcontainer/devcontainer.json` works in GitHub Codespaces and in VS Code / any editor with [Dev Containers](https://containers.dev/). It brings Node 26, pnpm (the version in `packageManager`), Docker inside the container (for `deploy/docker-compose.dev.yml` and the testcontainers integration tests), the GitHub CLI, ESLint and Prettier, and on creation runs `pnpm install` and installs the Playwright browsers. Ports 8787 (server), 5173 (Vite) and 5436 (Postgres) are forwarded. Then follow "Option A" or "Option B" below as usual. Claude Code is not preinstalled: add it with `npm install -g @anthropic-ai/claude-code` if you work on the mod.
+
+### On your machine
+
 Requirements:
 
 - **Node.js 26** (see `.nvmrc`; `nvm use` or `fnm use` picks it up).
@@ -97,6 +105,7 @@ At the root:
 | `pnpm release`       | Maintainers: bump the version, close the changelog, commit and tag locally ([RELEASING][releasing]) |
 | `pnpm test:scripts`  | Tests of the release scripts (`node --test`)                                                        |
 | `pnpm sync:mod`      | Regenerate the mod's copy of `shared` (`packages/mod/hooks/generated`)                              |
+| `pnpm gen:locales`   | Regenerate the language registry from `locales/` (protocol list, the mod's copy, plugin options)    |
 | `pnpm docs:protocol` | Regenerate the schema sections of `docs/PROTOCOLO.md` (`--check` only checks; part of `pnpm lint`)  |
 
 Per package (`pnpm --filter @vibe-gambling/<package> <script>`):
@@ -151,11 +160,11 @@ Your Conventional Commit titles feed the changelog draft, so make them read well
 
 ### New funny phrases
 
-The gambler phrases live in `packages/shared/src/i18n/`:
+The gambler phrases live in `locales/<language>/phrases.json` (one folder per language: `en`, `es`, `fr`, `de`):
 
-- `phrases.en.ts` (English) and `phrases.es.ts` (Spanish), grouped by category (`win`, `lose`, `zero`, `bigWin`, `bigLoss`, `jackpot`, `testFailed`, `broke`…). The categories are defined in `phrases.ts`.
-- Add each phrase **in both languages** when you can (the tests check that every category has phrases in both languages, that each language has at least 40, and that both use the same `{placeholders}`). If you only speak one, say so in the PR and someone will translate it.
-- Templates use `{placeholders}`; keep the ones the category already uses.
+- Grouped by category (`win`, `lose`, `zero`, `bigWin`, `bigLoss`, `jackpot`, `testFailed`, `broke`…). The categories are defined in `packages/shared/src/i18n/phrases.ts`.
+- Phrases are **adapted, not translated**: each language has its own puns, same tone. Add yours in the languages you speak (the tests check that every category has phrases in every language, that each language has at least 40, and that each category uses the same `{placeholders}` as English). If you only speak one, say so in the PR.
+- Templates use `{placeholders}`; keep the ones the category already uses. Then run `pnpm gen:locales` (the plugin keeps a generated copy).
 
 Tone rules (non-negotiable):
 
@@ -168,7 +177,7 @@ Use the **"New funny phrase"** issue template if you'd rather propose it than op
 
 ### Translations
 
-The UI ships in English (default) and Spanish. Texts live in translation files (never in components): the phrases in `packages/shared/src/i18n/`, and the UI strings in the web package's i18n folder. To add a language, add the locale to `shared` and a full catalog for every file, and make the tests pass. Partial translations are welcome as a draft PR.
+The UI ships in English (the reference language and default), Spanish, French and German. Every text lives in [`locales/`](locales/README.md), one folder per language (game, landing, `/privacy`, plugin messages, phrases, metadata and a pixel-art flag), never in components. **Adding a language is copying `locales/en`, translating it and drawing its flag**, then `pnpm gen:locales`: the web discovers it by itself and the protocol, server and plugin pick it up from the generated registry. The step by step is in [locales/README.md](locales/README.md). Partial translations are welcome as a draft PR.
 
 ### Shaders and the PS1 look
 
@@ -183,9 +192,9 @@ The PSX pipeline (320×240 render target, vertex snapping, affine textures, 15-b
 
 - **Monedas falsas siempre**, privacidad por encima de todo y **nada hardcodeado** (todo en env o `config/*.json`).
 - Cada commit lleva **`Signed-off-by`** (DCO, [developercertificate.org](https://developercertificate.org/)): usa `git commit -s`. Con eso certificas que tienes derecho a aportar el cambio bajo la licencia del proyecto (AGPL-3.0-or-later con el término 7(b) de atribución).
-- Entorno: Node 26, pnpm 11 (`corepack enable`), Docker; `pnpm install` y `docker compose -f deploy/docker-compose.dev.yml up -d --build` (pila completa en http://localhost:8787 con un GitHub falso), o solo `postgres` en Docker y los scripts `dev:fake-github` y `dev` del servidor y `dev` de la web en modo watch. El mod se carga con `claude --plugin-dir packages/mod` y se apunta al servidor local con `/vibe-server http://localhost:8787`.
+- Entorno: Node 26, pnpm 11 (`corepack enable`), Docker (o, sin instalar nada, el devcontainer en GitHub Codespaces: botón «Open in GitHub Codespaces» de arriba); `pnpm install` y `docker compose -f deploy/docker-compose.dev.yml up -d --build` (pila completa en http://localhost:8787 con un GitHub falso), o solo `postgres` en Docker y los scripts `dev:fake-github` y `dev` del servidor y `dev` de la web en modo watch. El mod se carga con `claude --plugin-dir packages/mod` y se apunta al servidor local con `/vibe-server http://localhost:8787`.
 - Antes del PR: `pnpm lint`, `pnpm typecheck`, `pnpm test` y los tests de integración o E2E de lo que toques.
 - Versiones y CHANGELOG: no se tocan en los PR. Las releases las saca el mantenedor con `pnpm release`, como cuenta [docs/RELEASING.md](docs/RELEASING.md); el título de tu commit acaba en el borrador del CHANGELOG, así que cuídalo.
 - Estilo: Prettier y ESLint limpios; identificadores en inglés y **comentarios en español**; cabecera SPDX en cada archivo fuente; commits con **Conventional Commits en español** e imperativo.
-- **Frases nuevas** en `packages/shared/src/i18n/phrases.en.ts` y `phrases.es.ts`, en los dos idiomas si puedes. Humor sobre la ludopatía de mentira y la cultura dev; **nunca** sobre personas ni colectivos, ni nada que anime a apostar de verdad.
-- **Traducciones** y **shaders**: mira las secciones de arriba; en lo visual, capturas del antes y el después en el PR.
+- **Frases nuevas** en `locales/<idioma>/phrases.json`, adaptadas (no traducidas) en los idiomas que hables, y luego `pnpm gen:locales`. Humor sobre la ludopatía de mentira y la cultura dev; **nunca** sobre personas ni colectivos, ni nada que anime a apostar de verdad.
+- **Idiomas nuevos**: copia `locales/en`, tradúcelo, dibuja la bandera y ejecuta `pnpm gen:locales` ([locales/README.md](locales/README.md)). **Shaders**: mira la sección de arriba; en lo visual, capturas del antes y el después en el PR.

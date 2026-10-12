@@ -29,7 +29,7 @@ Para Aimar. **Nada de esto está hecho**: todo lo que toca GitHub, la VPS o publ
   ```
 
 - [ ] **Security** (_Settings → Code security_): activar **Private vulnerability reporting** (lo enlazan `SECURITY.md` y la plantilla de issues), Dependabot alerts y security updates, secret scanning y push protection.
-- [ ] **Rama `main`**: una regla (_Settings → Rules → Rulesets_) que exija el CI en verde y prohíba el force-push. Opcional: instalar la GitHub App **DCO** para comprobar el `Signed-off-by` de los PRs.
+- [ ] **Rama `main`**: el ruleset «Protege main» ya prohíbe borrarla y el force-push. Si se quiere exigir el CI en verde, añadir los checks obligatorios con _bypass_ para el rol admin (si no, bloquea los push directos); con eso `dependabot-automerge.yml` usa el auto-merge nativo de GitHub sin cambiar nada. Opcional: instalar la GitHub App **DCO** para comprobar el `Signed-off-by` de los PRs.
 - [ ] **Entorno `production`** y los secrets de `deploy.yml` (lista en [DESPLIEGUE.md §13](../DESPLIEGUE.md#13-actualizaciones)).
 
 ## 3. Producción
@@ -45,6 +45,7 @@ Para Aimar. **Nada de esto está hecho**: todo lo que toca GitHub, la VPS o publ
 ## 4. Hacerlo público
 
 - [ ] **Hacer público el repo** (_Settings → General → Danger Zone → Change visibility_).
+- [ ] Justo después, en _Settings → Code security_: activar **secret scanning** y **push protection** (gratis en repos públicos) y comprobar que **CodeQL** (`codeql.yml`) pasa de `skipped` a ejecutarse: lanzarlo a mano (_Actions → CodeQL → Run workflow_) y revisar _Security → Code scanning_. No activar el «default setup» de CodeQL: choca con el workflow avanzado.
 - [ ] Probar la instalación de verdad, en un Claude Code limpio: `/plugin install vibe-gambling --marketplace Aimarmndz/vibe-gambling` → `/vibe-login` → un prompt → la ventana se abre y la bola cae. Con el repo privado este paso falla: hazlo justo después de publicarlo.
 - [ ] **Release v0.1.0**: la crea `release.yml` con las notas del CHANGELOG, los artefactos y la verificación. Editarla (_Releases → v0.1.0 → Edit_) para el anuncio: título `v0.1.0 — Every prompt is a spin`, el GIF (`docs/demo.gif`) arriba, "Fake coins only" y el enlace a `https://vibe.aimar.dev` (relanzar el workflow vuelve a escribir las notas).
 - [ ] **Fijar** el repo en tu perfil (_tu perfil → Customize your pins_), junto a scan2nas.

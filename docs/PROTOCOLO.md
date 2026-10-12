@@ -14,6 +14,8 @@ Diagramas de los flujos en [ARQUITECTURA.md](ARQUITECTURA.md).
 - [Límites](#límites)
 - [Rutas HTTP](#rutas-http)
 - [Idempotencia de los turnos](#idempotencia-de-los-turnos)
+- [Tiradas pendientes](#tiradas-pendientes)
+- [Espectáculo, bancarrota y logros](#espectáculo-bancarrota-y-logros)
 - [Enlace de un solo uso](#enlace-de-un-solo-uso)
 - [WebSocket `/ws`](#websocket-ws)
 - [Rutas fuera de `/api`](#rutas-fuera-de-api)
@@ -733,6 +735,7 @@ El mod la llama al terminar el turno (`turn.complete` sin `agentId`). El servido
 
 - `resolved`: la tirada de este turno.
 - `no_round`: ya no había ronda que resolver para este turno (caducó tras `round.staleAfterMs`, o la resolvió otra sesión de Claude Code que la compartía).
+- `queued`: el usuario no tenía **ninguna ventana visible** (ninguna conectada, o todas ocultas según su último `presence`): la ronda no se tira, se guarda como [tirada pendiente](#tiradas-pendientes) con el `gitPushOk` y el `testFailed` de este turno, y el contador sube en `wallet.pendingSpins`. Con `dropped: true`, ya estaba en el tope (`pendingSpins.max`) y este prompt se ha descartado. Las ventanas (ocultas) reciben `pending`, que también cierra la ronda que vieran girar.
 - Si nunca llegó el `turn/start` (red, timeout), el servidor abre y resuelve la ronda en el acto: cada prompt sigue siendo una tirada.
 
 Lo único que cuenta el mod: `turnId`, `durationMs`, dos booleanos calculados en local (`gitPushOk`: hubo un `git push` con éxito; `testFailed`: falló un comando de tests), la versión del plugin y el SO genérico.
@@ -765,7 +768,16 @@ Errores propios: `409 conflict` (cambio de temporada justo en ese instante).
     "resolvedAt": "2026-10-12T19:30:02.100Z",
     "result": 17,
     "color": "black",
-    "bets": [{ "selection": { "kind": "red" }, "amount": 200, "won": false, "payout": 0 }],
+    "bets": [
+      {
+        "selection": {
+          "kind": "red"
+        },
+        "amount": 200,
+        "won": false,
+        "payout": 0
+      }
+    ],
     "source": "slip",
     "staked": 200,
     "returned": 0,
@@ -774,8 +786,23 @@ Errores propios: `409 conflict` (cambio de temporada justo en ese instante).
     "gitPushOk": false,
     "testFailed": false,
     "interestCharged": 0,
-    "colorStreak": { "color": "black", "count": 1 },
-    "revealAt": "2026-10-12T19:30:04.000Z"
+    "colorStreak": {
+      "color": "black",
+      "count": 1
+    },
+    "revealAt": "2026-10-12T19:30:04.000Z",
+    "spectacle": {
+      "tier": "none",
+      "netMultiple": 0,
+      "bigWin": false,
+      "green": false,
+      "greenWin": false,
+      "jackpot": false,
+      "streak": -1,
+      "fire": "none",
+      "fallacy": false,
+      "bankrupt": false
+    }
   },
   "wallet": {
     "seasonId": "2026-10",
@@ -785,7 +812,31 @@ Errores propios: `409 conflict` (cambio de temporada justo en ese instante).
     "spins": 1,
     "loans": 0,
     "currentStreak": -1,
-    "bestStreak": 0
+    "bestStreak": 0,
+    "pendingSpins": 0
+  }
+}
+```
+
+Con la ventana cerrada u oculta:
+
+<!-- example: turnEndResponseSchema -->
+
+```json
+{
+  "v": 1,
+  "status": "queued",
+  "dropped": false,
+  "wallet": {
+    "seasonId": "2026-10",
+    "balance": 800,
+    "debt": 0,
+    "netWorth": 800,
+    "spins": 1,
+    "loans": 0,
+    "currentStreak": -1,
+    "bestStreak": 0,
+    "pendingSpins": 20
   }
 }
 ```
@@ -851,6 +902,15 @@ Una de estas variantes:
   | `status` | `"no_round"`      | sí          |
   | `wallet` | [Wallet](#wallet) | sí          |
 
+- `status: "queued"`
+
+  | Campo     | Tipo              | Obligatorio |
+  | --------- | ----------------- | ----------- |
+  | `v`       | `1`               | sí          |
+  | `status`  | `"queued"`        | sí          |
+  | `dropped` | `boolean`         | sí          |
+  | `wallet`  | [Wallet](#wallet) | sí          |
+
 <details><summary>JSON Schema</summary>
 
 ```json
@@ -875,6 +935,17 @@ Una de estas variantes:
         "wallet": { "$ref": "#/$defs/Wallet" }
       },
       "required": ["v", "status", "wallet"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "v": { "type": "number", "const": 1 },
+        "status": { "type": "string", "const": "queued" },
+        "dropped": { "type": "boolean" },
+        "wallet": { "$ref": "#/$defs/Wallet" }
+      },
+      "required": ["v", "status", "dropped", "wallet"],
       "additionalProperties": false
     }
   ]
@@ -908,7 +979,17 @@ Errores propios (`422`): `invalid_bet` (casilla que no existe, cantidad bajo la 
 ```json
 {
   "v": 1,
-  "slip": { "bets": [{ "selection": { "kind": "red" }, "amount": 200 }], "total": 200 },
+  "slip": {
+    "bets": [
+      {
+        "selection": {
+          "kind": "red"
+        },
+        "amount": 200
+      }
+    ],
+    "total": 200
+  },
   "wallet": {
     "seasonId": "2026-10",
     "balance": 800,
@@ -917,7 +998,8 @@ Errores propios (`422`): `invalid_bet` (casilla que no existe, cantidad bajo la 
     "spins": 0,
     "loans": 0,
     "currentStreak": 0,
-    "bestStreak": 0
+    "bestStreak": 0,
+    "pendingSpins": 0
   },
   "forRound": "next"
 }
@@ -983,7 +1065,7 @@ Errores propios (`422`): `invalid_bet` (casilla que no existe, cantidad bajo la 
 
 ### me
 
-Estado del usuario: perfil, cartera de la temporada en curso (si aún no ha jugado, una cartera "virtual" con el saldo inicial), boleto, ronda abierta y puesto en el ranking de arruinados (`null` si está oculto o aún no ha tirado). Lo usa `/balance`.
+Estado del usuario: perfil, cartera de la temporada en curso (si aún no ha jugado, una cartera "virtual" con el saldo inicial), boleto, ronda abierta, puesto en el ranking de arruinados (`null` si está oculto o aún no ha tirado) y el catálogo de logros con lo conseguido. Lo usa `/balance`.
 
 <!-- BEGIN GENERATED route:me -->
 
@@ -991,14 +1073,15 @@ Estado del usuario: perfil, cartera de la temporada en curso (si aún no ha juga
 
 **Respuesta 200** (`meResponseSchema`)
 
-| Campo       | Tipo                              | Obligatorio |
-| ----------- | --------------------------------- | ----------- |
-| `v`         | `1`                               | sí          |
-| `user`      | [SelfUser](#selfuser)             | sí          |
-| `wallet`    | [Wallet](#wallet)                 | sí          |
-| `slip`      | [Slip](#slip)                     | sí          |
-| `round`     | [OpenRound](#openround) \| `null` | sí          |
-| `brokeRank` | `integer` > 0 \| `null`           | sí          |
+| Campo          | Tipo                              | Obligatorio |
+| -------------- | --------------------------------- | ----------- |
+| `v`            | `1`                               | sí          |
+| `user`         | [SelfUser](#selfuser)             | sí          |
+| `wallet`       | [Wallet](#wallet)                 | sí          |
+| `slip`         | [Slip](#slip)                     | sí          |
+| `round`        | [OpenRound](#openround) \| `null` | sí          |
+| `brokeRank`    | `integer` > 0 \| `null`           | sí          |
+| `achievements` | [Achievement](#achievement)[]     | no          |
 
 <details><summary>JSON Schema</summary>
 
@@ -1016,7 +1099,8 @@ Estado del usuario: perfil, cartera de la temporada en curso (si aún no ha juga
         { "type": "integer", "exclusiveMinimum": 0, "maximum": 9007199254740991 },
         { "type": "null" }
       ]
-    }
+    },
+    "achievements": { "type": "array", "items": { "$ref": "#/$defs/Achievement" } }
   },
   "required": ["v", "user", "wallet", "slip", "round", "brokeRank"],
   "additionalProperties": false
@@ -1043,11 +1127,11 @@ Cambia los ajustes: `hidden` (ocultarse del ranking y del Salón de la Ruina; `/
 
 **Cuerpo de la petición (JSON)** (`settingsRequestSchema`)
 
-| Campo    | Tipo                       | Obligatorio |
-| -------- | -------------------------- | ----------- |
-| `v`      | `1`                        | sí          |
-| `hidden` | `boolean`                  | no          |
-| `locale` | `"en"` \| `"es"` \| `null` | no          |
+| Campo    | Tipo                                           | Obligatorio |
+| -------- | ---------------------------------------------- | ----------- |
+| `v`      | `1`                                            | sí          |
+| `hidden` | `boolean`                                      | no          |
+| `locale` | `"en"` \| `"es"` \| `"fr"` \| `"de"` \| `null` | no          |
 
 <details><summary>JSON Schema</summary>
 
@@ -1057,7 +1141,9 @@ Cambia los ajustes: `hidden` (ocultarse del ranking y del Salón de la Ruina; `/
   "properties": {
     "v": { "type": "number", "const": 1 },
     "hidden": { "type": "boolean" },
-    "locale": { "anyOf": [{ "type": "string", "enum": ["en", "es"] }, { "type": "null" }] }
+    "locale": {
+      "anyOf": [{ "type": "string", "enum": ["en", "es", "fr", "de"] }, { "type": "null" }]
+    }
   },
   "required": ["v"],
   "additionalProperties": false
@@ -1274,16 +1360,39 @@ El Salón de la Ruina: el top `hallOfRuinSize` de arruinados de cada temporada *
 
 El mod genera un `turnId` propio (`crypto.randomUUID()`; nunca el id interno de Claude Code) y lo manda en `turn/start` y `turn/end`. El servidor guarda cada turno en la tabla `turns` con la clave `(user_id, turn_id)`:
 
-| Situación                                                  | Respuesta                                                                       |
-| ---------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| `turn/start` repetido (reintento)                          | La misma ronda y el mismo `reused`; no se abre otra.                            |
-| `turn/start` con otra ronda ya abierta (otra sesión)       | Se reutiliza esa ronda (`reused: true`).                                        |
-| `turn/end` repetido de un turno que resolvió su ronda      | La misma ronda resuelta (`resolved`), sin tirar otra vez.                       |
-| `turn/end` de un turno cuya ronda resolvió otra sesión     | `no_round` con la cartera actual.                                               |
-| `turn/end` sin `turn/start` previo                         | Se abre y se resuelve la ronda en el acto (`round.started` + `round.resolved`). |
-| `turn/end` de una ronda abierta hace más de `staleAfterMs` | La ronda caduca sin tirada (`round.expired`) y la respuesta es `no_round`.      |
+| Situación                                                    | Respuesta                                                                       |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------- |
+| `turn/start` repetido (reintento)                            | La misma ronda y el mismo `reused`; no se abre otra.                            |
+| `turn/start` con otra ronda ya abierta (otra sesión)         | Se reutiliza esa ronda (`reused: true`).                                        |
+| `turn/end` repetido de un turno que resolvió su ronda        | La misma ronda resuelta (`resolved`), sin tirar otra vez.                       |
+| `turn/end` de un turno cuya ronda resolvió otra sesión       | `no_round` con la cartera actual.                                               |
+| `turn/end` sin `turn/start` previo                           | Se abre y se resuelve la ronda en el acto (`round.started` + `round.resolved`). |
+| `turn/end` de una ronda abierta hace más de `staleAfterMs`   | La ronda caduca sin tirada (`round.expired`) y la respuesta es `no_round`.      |
+| `turn/end` repetido de un turno que se guardó como pendiente | `queued` otra vez (con la cartera actual), sin guardar otra pendiente.          |
+| `turn/end` repetido de un turno descartado por el tope       | `queued` con `dropped: true`, sin guardar nada.                                 |
 
 Todo esto ocurre dentro de una transacción que empieza bloqueando la fila de la cartera del usuario (`SELECT … FOR UPDATE`), así que dos peticiones simultáneas del mismo usuario se serializan. Un índice único parcial en `rounds` (`WHERE status = 'open'`) garantiza además una sola ronda abierta por usuario.
+
+## Tiradas pendientes
+
+Modelo híbrido: si al terminar el turno el usuario tiene alguna ventana conectada **y visible**, la tirada se juega en directo (`resolved`). Si no, se guarda como **tirada pendiente** (`queued`) y se gasta después desde la ventana.
+
+- **Visibilidad.** La ventana manda `presence { visible }` (de `document.visibilityState`) al conectar y en cada cambio. El servidor la guarda por conexión, en memoria; una conexión que aún no la ha mandado cuenta como visible (así se comportan las ventanas anteriores a este mensaje).
+- **Guardar.** La ronda del turno pasa a `deferred` con el `turnId`, `gitPushOk`, `testFailed` y `durationMs` de su turno: el jackpot del `git push` y la frase de los tests fallidos se conservan para cuando se gaste. Si el usuario ya tiene `pendingSpins.max` pendientes en la temporada, el prompt se descarta (`dropped: true`) y la ronda caduca sin tirada.
+- **Gastar.** `spin.pending { quick, requestId }` gasta la pendiente más antigua: en la misma transacción que bloquea la cartera, el servidor tira con el RNG criptográfico **en ese momento** y con las reglas de siempre (boleto, o la última apuesta, o la apuesta por defecto; intereses; rachas; jackpot si su turno hizo `git push`). Responde a todas las ventanas con `round.started` y `round.resolved` (`revealAt` = ahora + `spin.minSpinMs`, o + `pendingSpins.quickSpinMs` si `quick`), cuya cartera ya lleva el contador rebajado. La tirada cuenta en `spins` (y en el ranking) al gastarse.
+- **Ritmo.** No se puede gastar otra mientras la anterior no se haya enseñado (su `revealAt` aún no ha llegado): `error` con `rate_limited`. Mientras gira una ronda en directo (Claude pensando): `error` con `conflict`. Sin pendientes: `error` con `not_found`.
+- **Idempotencia.** Un `spin.pending` repetido con el mismo `requestId` no tira otra vez: el servidor reenvía a esa ventana el `round.resolved` de la tirada que ya hizo.
+- **GIRAR TODAS** es un bucle de la ventana con `quick: true` que se para solo en un premio gordo (jackpot, pleno o un neto de al menos `bigWin.minNetMultiple` veces lo apostado), cuando sale el verde, en bancarrota o si el jugador pulsa ○ (lógica pura en `shared`: `spinAllStopReason`).
+- **Caducidad.** Al cerrar una temporada sus pendientes caducan (ronda `expired`) **antes** de guardar el Salón de la Ruina. El contador de la temporada nueva empieza en 0.
+
+## Espectáculo, bancarrota y logros
+
+Todo lo que decide qué animación toca lo calcula el servidor con sus umbrales (`config/game.json`) y viaja en los mensajes, para que la web y el mod no lo recalculen cada uno a su manera.
+
+- **Nivel de espectáculo.** Cada `ResolvedRound` (en `round.resolved`, `hello.lastRound` y la respuesta `resolved` de `turn/end`) lleva [`spectacle`](#spectacle): `tier` (`none`, `win`, `big` ≥ `bigWin.minNetMultiple` × lo apostado, `mega` ≥ `bigWin.megaNetMultiple`, `straight` = pleno acertado con ganancia, que sustituye a MEGA WIN), `netMultiple` (el "×15"), `bigWin` (la regla de parada de GIRAR TODAS), `green` / `greenWin` (salió el 0, y además se ganó), `jackpot` (PUSH TO PROD con ganancia), `streak` y `fire` (`ignite` en la ronda que llega a `streak.onFireAt` victorias seguidas, `burning` después), `fallacy` (la racha de color llega a `streak.colorWarningAt`) y `bankrupt`. Lógica pura en `shared`: `spectacleOf`. Es opcional en el esquema solo por compatibilidad con `v: 1`; este servidor lo manda siempre.
+- **Bancarrota.** `spectacle.bankrupt` es `true` en la tirada en la que el patrimonio (saldo − deuda) cae a 0 o menos **por primera vez en la temporada** (BANCARROTA — CONTINUE?). Un préstamo no cambia el patrimonio, así que solo puede pasar al resolver una tirada. En la temporada siguiente puede volver a salir.
+- **Logros.** Catálogo fijo en `shared` (`ACHIEVEMENTS`, en el orden de la pantalla). Son **para siempre** (no por temporada): `seasonId` dice en cuál se consiguió. El servidor los evalúa en la misma transacción que la tirada, el préstamo o la tirada guardada, los guarda una sola vez (también con peticiones a la vez) y, después del mensaje del evento (`round.resolved`, `loan.granted` o `pending`), manda un `achievement.unlocked` por logro, en el orden del catálogo. Un reintento del mismo turno o del mismo GIRAR no los repite. El catálogo completo, con lo conseguido y el progreso de los contables, llega en `hello.achievements` y en `/api/me`. Los secretos (`hidden`) llegan igual; la web enseña "???" hasta conseguirlos.
+- **Estadísticas y banco.** `stats.request` y `bank.request` (con `seasonId` opcional) responden `stats` y `bank` **solo a la ventana que los pide**. Las listas tienen tope (`stats.*` de `config/game.json`) y la gráfica del patrimonio se muestrea en el servidor. Una temporada en la que no jugó responde `error` con `not_found`.
 
 ## Enlace de un solo uso
 
@@ -1459,12 +1568,12 @@ Igual que `POST /api/me/settings`. Respuesta: `settings` (a todas las ventanas).
 
 Dirección: cliente → servidor.
 
-| Campo    | Tipo                       | Obligatorio |
-| -------- | -------------------------- | ----------- |
-| `v`      | `1`                        | sí          |
-| `type`   | `"settings.update"`        | sí          |
-| `hidden` | `boolean`                  | no          |
-| `locale` | `"en"` \| `"es"` \| `null` | no          |
+| Campo    | Tipo                                           | Obligatorio |
+| -------- | ---------------------------------------------- | ----------- |
+| `v`      | `1`                                            | sí          |
+| `type`   | `"settings.update"`                            | sí          |
+| `hidden` | `boolean`                                      | no          |
+| `locale` | `"en"` \| `"es"` \| `"fr"` \| `"de"` \| `null` | no          |
 
 <details><summary>JSON Schema</summary>
 
@@ -1475,7 +1584,9 @@ Dirección: cliente → servidor.
     "v": { "type": "number", "const": 1 },
     "type": { "type": "string", "const": "settings.update" },
     "hidden": { "type": "boolean" },
-    "locale": { "anyOf": [{ "type": "string", "enum": ["en", "es"] }, { "type": "null" }] }
+    "locale": {
+      "anyOf": [{ "type": "string", "enum": ["en", "es", "fr", "de"] }, { "type": "null" }]
+    }
   },
   "required": ["v", "type"],
   "additionalProperties": false
@@ -1485,6 +1596,169 @@ Dirección: cliente → servidor.
 </details>
 
 <!-- END GENERATED ws-client:settings.update -->
+
+#### presence
+
+Si la ventana se ve (`document.visibilityState === 'visible'`). La ventana lo manda al abrir la conexión y en cada `visibilitychange`. Con todas las ventanas ocultas, los prompts se guardan como [tiradas pendientes](#tiradas-pendientes). No tiene respuesta.
+
+<!-- example: clientMessageSchema -->
+
+```json
+{ "v": 1, "type": "presence", "visible": false }
+```
+
+<!-- BEGIN GENERATED ws-client:presence -->
+
+Dirección: cliente → servidor.
+
+| Campo     | Tipo         | Obligatorio |
+| --------- | ------------ | ----------- |
+| `v`       | `1`          | sí          |
+| `type`    | `"presence"` | sí          |
+| `visible` | `boolean`    | sí          |
+
+<details><summary>JSON Schema</summary>
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "v": { "type": "number", "const": 1 },
+    "type": { "type": "string", "const": "presence" },
+    "visible": { "type": "boolean" }
+  },
+  "required": ["v", "type", "visible"],
+  "additionalProperties": false
+}
+```
+
+</details>
+
+<!-- END GENERATED ws-client:presence -->
+
+#### spin.pending
+
+GIRAR: gasta la tirada pendiente más antigua. `quick: true` en cada vuelta de GIRAR TODAS (giro rápido). `requestId` lo genera la ventana (aleatorio) para que un reintento no tire dos veces. Respuesta: `round.started` y `round.resolved` a todas las ventanas; si no se puede, `error` (`not_found`, `conflict` o `rate_limited`; ver [tiradas pendientes](#tiradas-pendientes)).
+
+<!-- example: clientMessageSchema -->
+
+```json
+{
+  "v": 1,
+  "type": "spin.pending",
+  "quick": false,
+  "requestId": "0b9d3f4e-6c1a-4f2e-9a57-3f1c2d8e7b10"
+}
+```
+
+<!-- BEGIN GENERATED ws-client:spin.pending -->
+
+Dirección: cliente → servidor.
+
+| Campo       | Tipo                                 | Obligatorio |
+| ----------- | ------------------------------------ | ----------- |
+| `v`         | `1`                                  | sí          |
+| `type`      | `"spin.pending"`                     | sí          |
+| `quick`     | `boolean`                            | sí          |
+| `requestId` | `string` (`/^[A-Za-z0-9_-]{8,64}$/`) | sí          |
+
+<details><summary>JSON Schema</summary>
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "v": { "type": "number", "const": 1 },
+    "type": { "type": "string", "const": "spin.pending" },
+    "quick": { "type": "boolean" },
+    "requestId": { "type": "string", "pattern": "^[A-Za-z0-9_-]{8,64}$" }
+  },
+  "required": ["v", "type", "quick", "requestId"],
+  "additionalProperties": false
+}
+```
+
+</details>
+
+<!-- END GENERATED ws-client:spin.pending -->
+
+#### stats.request
+
+Pide las estadísticas de una temporada (por defecto, la en curso) para la pantalla ESTADÍSTICAS. Respuesta: `stats`, solo a esta ventana.
+
+<!-- example: clientMessageSchema -->
+
+```json
+{ "v": 1, "type": "stats.request", "seasonId": "2026-09" }
+```
+
+<!-- BEGIN GENERATED ws-client:stats.request -->
+
+Dirección: cliente → servidor.
+
+| Campo      | Tipo                                    | Obligatorio |
+| ---------- | --------------------------------------- | ----------- |
+| `v`        | `1`                                     | sí          |
+| `type`     | `"stats.request"`                       | sí          |
+| `seasonId` | `string` (`/^\d{4}-(0[1-9]\|1[0-2])$/`) | no          |
+
+<details><summary>JSON Schema</summary>
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "v": { "type": "number", "const": 1 },
+    "type": { "type": "string", "const": "stats.request" },
+    "seasonId": { "type": "string", "pattern": "^\\d{4}-(0[1-9]|1[0-2])$" }
+  },
+  "required": ["v", "type"],
+  "additionalProperties": false
+}
+```
+
+</details>
+
+<!-- END GENERATED ws-client:stats.request -->
+
+#### bank.request
+
+Pide el extracto del banco de una temporada (por defecto, la en curso). Respuesta: `bank`, solo a esta ventana.
+
+<!-- example: clientMessageSchema -->
+
+```json
+{ "v": 1, "type": "bank.request" }
+```
+
+<!-- BEGIN GENERATED ws-client:bank.request -->
+
+Dirección: cliente → servidor.
+
+| Campo      | Tipo                                    | Obligatorio |
+| ---------- | --------------------------------------- | ----------- |
+| `v`        | `1`                                     | sí          |
+| `type`     | `"bank.request"`                        | sí          |
+| `seasonId` | `string` (`/^\d{4}-(0[1-9]\|1[0-2])$/`) | no          |
+
+<details><summary>JSON Schema</summary>
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "v": { "type": "number", "const": 1 },
+    "type": { "type": "string", "const": "bank.request" },
+    "seasonId": { "type": "string", "pattern": "^\\d{4}-(0[1-9]|1[0-2])$" }
+  },
+  "required": ["v", "type"],
+  "additionalProperties": false
+}
+```
+
+</details>
+
+<!-- END GENERATED ws-client:bank.request -->
 
 #### sync
 
@@ -1566,7 +1840,7 @@ Dirección: cliente → servidor.
 
 #### hello
 
-Primer mensaje de cada conexión y respuesta a `sync`: el estado completo, con la última ronda resuelta (para enseñarla al reconectar) y la hora del servidor.
+Primer mensaje de cada conexión y respuesta a `sync`: el estado completo, con la última ronda resuelta (para enseñarla al reconectar), la hora del servidor y los logros.
 
 <!-- example: serverMessageSchema -->
 
@@ -1590,9 +1864,13 @@ Primer mensaje de cada conexión y respuesta a `sync`: el estado completo, con l
     "spins": 0,
     "loans": 0,
     "currentStreak": 0,
-    "bestStreak": 0
+    "bestStreak": 0,
+    "pendingSpins": 0
   },
-  "slip": { "bets": [], "total": 0 },
+  "slip": {
+    "bets": [],
+    "total": 0
+  },
   "round": null,
   "lastRound": null,
   "serverTime": "2026-10-12T19:29:10.000Z"
@@ -1603,16 +1881,17 @@ Primer mensaje de cada conexión y respuesta a `sync`: el estado completo, con l
 
 Dirección: servidor → cliente.
 
-| Campo        | Tipo                                                                                                                                                                                                                                                                                                       | Obligatorio |
-| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
-| `v`          | `1`                                                                                                                                                                                                                                                                                                        | sí          |
-| `type`       | `"hello"`                                                                                                                                                                                                                                                                                                  | sí          |
-| `user`       | [SelfUser](#selfuser)                                                                                                                                                                                                                                                                                      | sí          |
-| `wallet`     | [Wallet](#wallet)                                                                                                                                                                                                                                                                                          | sí          |
-| `slip`       | [Slip](#slip)                                                                                                                                                                                                                                                                                              | sí          |
-| `round`      | [OpenRound](#openround) \| `null`                                                                                                                                                                                                                                                                          | sí          |
-| `lastRound`  | [ResolvedRound](#resolvedround) \| `null`                                                                                                                                                                                                                                                                  | sí          |
-| `serverTime` | `string` (date-time, `/^(?:(?:\d\d[2468][048]\|\d\d[13579][26]\|\d\d0[48]\|[02468][048]00\|[13579][26]00)-02-29\|\d{4}-(?:(?:0[13578]\|1[02])-(?:0[1-9]\|[12]\d\|3[01])\|(?:0[469]\|11)-(?:0[1-9]\|[12]\d\|30)\|(?:02)-(?:0[1-9]\|1\d\|2[0-8])))T(?:(?:[01]\d\|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$/`) | sí          |
+| Campo          | Tipo                                                                                                                                                                                                                                                                                                       | Obligatorio |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| `v`            | `1`                                                                                                                                                                                                                                                                                                        | sí          |
+| `type`         | `"hello"`                                                                                                                                                                                                                                                                                                  | sí          |
+| `user`         | [SelfUser](#selfuser)                                                                                                                                                                                                                                                                                      | sí          |
+| `wallet`       | [Wallet](#wallet)                                                                                                                                                                                                                                                                                          | sí          |
+| `slip`         | [Slip](#slip)                                                                                                                                                                                                                                                                                              | sí          |
+| `round`        | [OpenRound](#openround) \| `null`                                                                                                                                                                                                                                                                          | sí          |
+| `lastRound`    | [ResolvedRound](#resolvedround) \| `null`                                                                                                                                                                                                                                                                  | sí          |
+| `serverTime`   | `string` (date-time, `/^(?:(?:\d\d[2468][048]\|\d\d[13579][26]\|\d\d0[48]\|[02468][048]00\|[13579][26]00)-02-29\|\d{4}-(?:(?:0[13578]\|1[02])-(?:0[1-9]\|[12]\d\|3[01])\|(?:0[469]\|11)-(?:0[1-9]\|[12]\d\|30)\|(?:02)-(?:0[1-9]\|1\d\|2[0-8])))T(?:(?:[01]\d\|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$/`) | sí          |
+| `achievements` | [Achievement](#achievement)[]                                                                                                                                                                                                                                                                              | no          |
 
 <details><summary>JSON Schema</summary>
 
@@ -1631,7 +1910,8 @@ Dirección: servidor → cliente.
       "type": "string",
       "format": "date-time",
       "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-    }
+    },
+    "achievements": { "type": "array", "items": { "$ref": "#/$defs/Achievement" } }
   },
   "required": ["v", "type", "user", "wallet", "slip", "round", "lastRound", "serverTime"],
   "additionalProperties": false
@@ -1932,6 +2212,253 @@ Dirección: servidor → cliente.
 </details>
 
 <!-- END GENERATED ws-server:wallet -->
+
+#### pending
+
+Un prompt terminó sin ninguna ventana visible: se ha guardado como tirada pendiente (`queued`) o se ha descartado por el tope (`dropped`). El contador nuevo va en `wallet.pendingSpins`. Al gastar una pendiente no llega este mensaje: el contador rebajado viene en la cartera de `round.resolved`.
+
+<!-- example: serverMessageSchema -->
+
+```json
+{
+  "v": 1,
+  "type": "pending",
+  "event": "queued",
+  "wallet": {
+    "seasonId": "2026-10",
+    "balance": 800,
+    "debt": 0,
+    "netWorth": 800,
+    "spins": 1,
+    "loans": 0,
+    "currentStreak": -1,
+    "bestStreak": 0,
+    "pendingSpins": 21
+  }
+}
+```
+
+<!-- BEGIN GENERATED ws-server:pending -->
+
+Dirección: servidor → cliente.
+
+| Campo    | Tipo                      | Obligatorio |
+| -------- | ------------------------- | ----------- |
+| `v`      | `1`                       | sí          |
+| `type`   | `"pending"`               | sí          |
+| `event`  | `"queued"` \| `"dropped"` | sí          |
+| `wallet` | [Wallet](#wallet)         | sí          |
+
+<details><summary>JSON Schema</summary>
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "v": { "type": "number", "const": 1 },
+    "type": { "type": "string", "const": "pending" },
+    "event": { "type": "string", "enum": ["queued", "dropped"] },
+    "wallet": { "$ref": "#/$defs/Wallet" }
+  },
+  "required": ["v", "type", "event", "wallet"],
+  "additionalProperties": false
+}
+```
+
+</details>
+
+<!-- END GENERATED ws-server:pending -->
+
+#### achievement.unlocked
+
+Logro conseguido. Siempre llega **detrás** del mensaje del evento que lo desbloqueó (`round.resolved`, `loan.granted` o `pending`), uno por logro y en el orden del catálogo.
+
+<!-- example: serverMessageSchema -->
+
+```json
+{
+  "v": 1,
+  "type": "achievement.unlocked",
+  "achievement": {
+    "id": "pro_debtor",
+    "hidden": false,
+    "unlockedAt": "2026-10-15T12:00:04.000Z",
+    "seasonId": "2026-10",
+    "params": { "goal": 5 },
+    "progress": null
+  }
+}
+```
+
+<!-- BEGIN GENERATED ws-server:achievement.unlocked -->
+
+Dirección: servidor → cliente.
+
+| Campo         | Tipo                        | Obligatorio |
+| ------------- | --------------------------- | ----------- |
+| `v`           | `1`                         | sí          |
+| `type`        | `"achievement.unlocked"`    | sí          |
+| `achievement` | [Achievement](#achievement) | sí          |
+
+<details><summary>JSON Schema</summary>
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "v": { "type": "number", "const": 1 },
+    "type": { "type": "string", "const": "achievement.unlocked" },
+    "achievement": { "$ref": "#/$defs/Achievement" }
+  },
+  "required": ["v", "type", "achievement"],
+  "additionalProperties": false
+}
+```
+
+</details>
+
+<!-- END GENERATED ws-server:achievement.unlocked -->
+
+#### stats
+
+Respuesta a `stats.request`: la serie del patrimonio (muestreada a `stats.seriesPoints` puntos como mucho, con el saldo inicial en la tirada 0 y siempre la última), máximo y mínimo reales, marcas de préstamo, las últimas `stats.recentRounds` tiradas, el número que más ha salido y el mayor premio.
+
+<!-- example: serverMessageSchema -->
+
+```json
+{
+  "v": 1,
+  "type": "stats",
+  "stats": {
+    "seasonId": "2026-10",
+    "seasons": ["2026-10", "2026-09"],
+    "spins": 3,
+    "bestStreak": 1,
+    "series": [
+      { "spin": 0, "netWorth": 1000 },
+      { "spin": 1, "netWorth": 1350 },
+      { "spin": 2, "netWorth": 1340 },
+      { "spin": 3, "netWorth": 1330 }
+    ],
+    "peakNetWorth": 1350,
+    "lowestNetWorth": 1000,
+    "loanMarks": [],
+    "recent": [
+      {
+        "roundId": "8f0e3c1a-6b2d-4d47-9a51-0c6f1e2b3a44",
+        "resolvedAt": "2026-10-15T12:02:00.000Z",
+        "result": 2,
+        "color": "black",
+        "staked": 10,
+        "net": -10
+      }
+    ],
+    "mostFrequent": { "result": 2, "color": "black", "count": 2 },
+    "biggestWin": {
+      "roundId": "0b7d8a52-3f1e-4c9b-8d26-5e4a3c2b1f00",
+      "resolvedAt": "2026-10-15T12:00:00.000Z",
+      "result": 7,
+      "color": "red",
+      "staked": 10,
+      "net": 350
+    }
+  }
+}
+```
+
+<!-- BEGIN GENERATED ws-server:stats -->
+
+Dirección: servidor → cliente.
+
+| Campo   | Tipo                        | Obligatorio |
+| ------- | --------------------------- | ----------- |
+| `v`     | `1`                         | sí          |
+| `type`  | `"stats"`                   | sí          |
+| `stats` | [SeasonStats](#seasonstats) | sí          |
+
+<details><summary>JSON Schema</summary>
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "v": { "type": "number", "const": 1 },
+    "type": { "type": "string", "const": "stats" },
+    "stats": { "$ref": "#/$defs/SeasonStats" }
+  },
+  "required": ["v", "type", "stats"],
+  "additionalProperties": false
+}
+```
+
+</details>
+
+<!-- END GENERATED ws-server:stats -->
+
+#### bank
+
+Respuesta a `bank.request`: deuda, saldo, patrimonio, préstamos, lo que subirá la deuda en la próxima tirada, si se le concedería un préstamo ahora y el historial (cada préstamo por separado; los intereses agrupados por día de la zona horaria de la temporada y por tramo entre préstamos), con la deuda tras cada movimiento. Como mucho `stats.bankHistory` movimientos; `truncated` dice si hay más antiguos.
+
+<!-- example: serverMessageSchema -->
+
+```json
+{
+  "v": 1,
+  "type": "bank",
+  "bank": {
+    "seasonId": "2026-10",
+    "seasons": ["2026-10"],
+    "balance": 0,
+    "debt": 666,
+    "netWorth": -666,
+    "loans": 1,
+    "nextInterest": 14,
+    "canBorrow": true,
+    "history": [
+      {
+        "kind": "interest",
+        "day": "2026-10-15",
+        "from": "2026-10-15T12:01:00.000Z",
+        "to": "2026-10-15T12:03:00.000Z",
+        "spins": 3,
+        "amount": 166,
+        "debtAfter": 666
+      },
+      { "kind": "loan", "at": "2026-10-15T12:00:30.000Z", "amount": 500, "debtAfter": 500 }
+    ],
+    "truncated": false
+  }
+}
+```
+
+<!-- BEGIN GENERATED ws-server:bank -->
+
+Dirección: servidor → cliente.
+
+| Campo  | Tipo                            | Obligatorio |
+| ------ | ------------------------------- | ----------- |
+| `v`    | `1`                             | sí          |
+| `type` | `"bank"`                        | sí          |
+| `bank` | [BankStatement](#bankstatement) | sí          |
+
+<details><summary>JSON Schema</summary>
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "v": { "type": "number", "const": 1 },
+    "type": { "type": "string", "const": "bank" },
+    "bank": { "$ref": "#/$defs/BankStatement" }
+  },
+  "required": ["v", "type", "bank"],
+  "additionalProperties": false
+}
+```
+
+</details>
+
+<!-- END GENERATED ws-server:bank -->
 
 #### settings
 
@@ -2238,7 +2765,7 @@ Dirección: servidor → cliente.
         "installCommand": { "type": "string", "minLength": 1, "maxLength": 200 },
         "helpLinks": {
           "type": "object",
-          "propertyNames": { "type": "string", "enum": ["en", "es"] },
+          "propertyNames": { "type": "string", "enum": ["en", "es", "fr", "de"] },
           "additionalProperties": {
             "type": "array",
             "items": {
@@ -2250,8 +2777,7 @@ Dirección: servidor → cliente.
               "required": ["label", "url"],
               "additionalProperties": false
             }
-          },
-          "required": ["en", "es"]
+          }
         },
         "moreProjects": {
           "type": "array",
@@ -2280,9 +2806,8 @@ Dirección: servidor → cliente.
             },
             "hosting": {
               "type": "object",
-              "propertyNames": { "type": "string", "enum": ["en", "es"] },
-              "additionalProperties": { "type": "string", "minLength": 1, "maxLength": 200 },
-              "required": ["en", "es"]
+              "propertyNames": { "type": "string", "enum": ["en", "es", "fr", "de"] },
+              "additionalProperties": { "type": "string", "minLength": 1, "maxLength": 200 }
             },
             "networkProxy": {
               "anyOf": [{ "type": "string", "minLength": 1, "maxLength": 80 }, { "type": "null" }]
@@ -2373,7 +2898,7 @@ Las tablas de arriba enlazan aquí cuando un campo es una de estas piezas.
 | `avatarUrl`  | `string` (`/^https?:\/\//`)                                                                                                                                                                                                                                                                                | sí          |
 | `profileUrl` | `string` (`/^https?:\/\//`)                                                                                                                                                                                                                                                                                | sí          |
 | `hidden`     | `boolean`                                                                                                                                                                                                                                                                                                  | sí          |
-| `locale`     | `"en"` \| `"es"` \| `null`                                                                                                                                                                                                                                                                                 | sí          |
+| `locale`     | `"en"` \| `"es"` \| `"fr"` \| `"de"` \| `null`                                                                                                                                                                                                                                                             | sí          |
 | `createdAt`  | `string` (date-time, `/^(?:(?:\d\d[2468][048]\|\d\d[13579][26]\|\d\d0[48]\|[02468][048]00\|[13579][26]00)-02-29\|\d{4}-(?:(?:0[13578]\|1[02])-(?:0[1-9]\|[12]\d\|3[01])\|(?:0[469]\|11)-(?:0[1-9]\|[12]\d\|30)\|(?:02)-(?:0[1-9]\|1\d\|2[0-8])))T(?:(?:[01]\d\|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$/`) | sí          |
 
 <details><summary>JSON Schema</summary>
@@ -2386,7 +2911,9 @@ Las tablas de arriba enlazan aquí cuando un campo es una de estas piezas.
     "avatarUrl": { "type": "string", "pattern": "^https?:\\/\\/" },
     "profileUrl": { "type": "string", "pattern": "^https?:\\/\\/" },
     "hidden": { "type": "boolean" },
-    "locale": { "anyOf": [{ "type": "string", "enum": ["en", "es"] }, { "type": "null" }] },
+    "locale": {
+      "anyOf": [{ "type": "string", "enum": ["en", "es", "fr", "de"] }, { "type": "null" }]
+    },
     "createdAt": {
       "type": "string",
       "format": "date-time",
@@ -2418,6 +2945,7 @@ Las tablas de arriba enlazan aquí cuando un campo es una de estas piezas.
 | `loans`         | `integer` ≥ 0                           | sí          |
 | `currentStreak` | `integer`                               | sí          |
 | `bestStreak`    | `integer` ≥ 0                           | sí          |
+| `pendingSpins`  | `integer` ≥ 0                           | sí          |
 
 <details><summary>JSON Schema</summary>
 
@@ -2436,7 +2964,8 @@ Las tablas de arriba enlazan aquí cuando un campo es una de estas piezas.
       "minimum": -9007199254740991,
       "maximum": 9007199254740991
     },
-    "bestStreak": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+    "bestStreak": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+    "pendingSpins": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
   },
   "required": [
     "seasonId",
@@ -2446,7 +2975,8 @@ Las tablas de arriba enlazan aquí cuando un campo es una de estas piezas.
     "spins",
     "loans",
     "currentStreak",
-    "bestStreak"
+    "bestStreak",
+    "pendingSpins"
   ],
   "additionalProperties": false
 }
@@ -2746,6 +3276,62 @@ Racha de color al final de las últimas `streak.historySize` tiradas **del propi
 
 <!-- END GENERATED common:OpenRound -->
 
+<!-- BEGIN GENERATED common:Spectacle -->
+
+### Spectacle
+
+**Spectacle** (`spectacleSchema`)
+
+| Campo         | Tipo                                                       | Obligatorio |
+| ------------- | ---------------------------------------------------------- | ----------- |
+| `tier`        | `"none"` \| `"win"` \| `"big"` \| `"mega"` \| `"straight"` | sí          |
+| `netMultiple` | `integer` ≥ 0                                              | sí          |
+| `bigWin`      | `boolean`                                                  | sí          |
+| `green`       | `boolean`                                                  | sí          |
+| `greenWin`    | `boolean`                                                  | sí          |
+| `jackpot`     | `boolean`                                                  | sí          |
+| `streak`      | `integer`                                                  | sí          |
+| `fire`        | `"none"` \| `"ignite"` \| `"burning"`                      | sí          |
+| `fallacy`     | `boolean`                                                  | sí          |
+| `bankrupt`    | `boolean`                                                  | sí          |
+
+<details><summary>JSON Schema</summary>
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "tier": { "type": "string", "enum": ["none", "win", "big", "mega", "straight"] },
+    "netMultiple": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+    "bigWin": { "type": "boolean" },
+    "green": { "type": "boolean" },
+    "greenWin": { "type": "boolean" },
+    "jackpot": { "type": "boolean" },
+    "streak": { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 },
+    "fire": { "type": "string", "enum": ["none", "ignite", "burning"] },
+    "fallacy": { "type": "boolean" },
+    "bankrupt": { "type": "boolean" }
+  },
+  "required": [
+    "tier",
+    "netMultiple",
+    "bigWin",
+    "green",
+    "greenWin",
+    "jackpot",
+    "streak",
+    "fire",
+    "fallacy",
+    "bankrupt"
+  ],
+  "additionalProperties": false
+}
+```
+
+</details>
+
+<!-- END GENERATED common:Spectacle -->
+
 <!-- BEGIN GENERATED common:ResolvedRound -->
 
 ### ResolvedRound
@@ -2770,6 +3356,7 @@ Racha de color al final de las últimas `streak.historySize` tiradas **del propi
 | `interestCharged` | `integer` ≥ 0                                                                                                                                                                                                                                                                                              | sí          |
 | `colorStreak`     | [ColorStreak](#colorstreak) \| `null`                                                                                                                                                                                                                                                                      | sí          |
 | `revealAt`        | `string` (date-time, `/^(?:(?:\d\d[2468][048]\|\d\d[13579][26]\|\d\d0[48]\|[02468][048]00\|[13579][26]00)-02-29\|\d{4}-(?:(?:0[13578]\|1[02])-(?:0[1-9]\|[12]\d\|3[01])\|(?:0[469]\|11)-(?:0[1-9]\|[12]\d\|30)\|(?:02)-(?:0[1-9]\|1\d\|2[0-8])))T(?:(?:[01]\d\|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$/`) | sí          |
+| `spectacle`       | [Spectacle](#spectacle)                                                                                                                                                                                                                                                                                    | no          |
 
 <details><summary>JSON Schema</summary>
 
@@ -2808,7 +3395,8 @@ Racha de color al final de las últimas `streak.historySize` tiradas **del propi
       "type": "string",
       "format": "date-time",
       "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-    }
+    },
+    "spectacle": { "$ref": "#/$defs/Spectacle" }
   },
   "required": [
     "roundId",
@@ -2837,6 +3425,381 @@ Racha de color al final de las últimas `streak.historySize` tiradas **del propi
 <!-- END GENERATED common:ResolvedRound -->
 
 `source` dice de dónde salieron las fichas: `slip` (el boleto), `repeat` (se repitió la última apuesta), `default` (nunca habías apostado: 10 al rojo según `config/game.json`) o `none` (no había saldo: la ruleta gira sin apuesta). `net = returned − staked`. Con `jackpot`, la **ganancia** se multiplicó por `jackpot.gitPushMultiplier`.
+
+<!-- BEGIN GENERATED common:Achievement -->
+
+### Achievement
+
+**Achievement** (`achievementSchema`)
+
+| Campo        | Tipo                                                                                                                                                                                                                                                                                                                         | Obligatorio |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| `id`         | `"first_spin"` \| `"first_ruin"` \| `"pro_debtor"` \| `"all_on_zero"` \| `"friday_push"` \| `"queue_full"` \| `"on_fire"` \| `"fallacy_confirmed"` \| `"compound_interest"` \| `"comeback"` \| `"zero_collector"` \| `"big_win"` \| `"mega_win"` \| `"tests_also_bet"` \| `"addict"` \| `"night_owl"` \| `"too_big_to_fail"` | sí          |
+| `hidden`     | `boolean`                                                                                                                                                                                                                                                                                                                    | sí          |
+| `unlockedAt` | `string` (date-time, `/^(?:(?:\d\d[2468][048]\|\d\d[13579][26]\|\d\d0[48]\|[02468][048]00\|[13579][26]00)-02-29\|\d{4}-(?:(?:0[13578]\|1[02])-(?:0[1-9]\|[12]\d\|3[01])\|(?:0[469]\|11)-(?:0[1-9]\|[12]\d\|30)\|(?:02)-(?:0[1-9]\|1\d\|2[0-8])))T(?:(?:[01]\d\|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$/`) \| `null`         | sí          |
+| `seasonId`   | `string` (`/^\d{4}-(0[1-9]\|1[0-2])$/`) \| `null`                                                                                                                                                                                                                                                                            | sí          |
+| `params`     | `object` (`string` (`/^[a-z][A-Za-z]{0,31}$/`) → `number`)                                                                                                                                                                                                                                                                   | sí          |
+| `progress`   | `object` (ver JSON Schema) \| `null`                                                                                                                                                                                                                                                                                         | sí          |
+
+<details><summary>JSON Schema</summary>
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "enum": [
+        "first_spin",
+        "first_ruin",
+        "pro_debtor",
+        "all_on_zero",
+        "friday_push",
+        "queue_full",
+        "on_fire",
+        "fallacy_confirmed",
+        "compound_interest",
+        "comeback",
+        "zero_collector",
+        "big_win",
+        "mega_win",
+        "tests_also_bet",
+        "addict",
+        "night_owl",
+        "too_big_to_fail"
+      ]
+    },
+    "hidden": { "type": "boolean" },
+    "unlockedAt": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+        },
+        { "type": "null" }
+      ]
+    },
+    "seasonId": {
+      "anyOf": [{ "type": "string", "pattern": "^\\d{4}-(0[1-9]|1[0-2])$" }, { "type": "null" }]
+    },
+    "params": {
+      "type": "object",
+      "propertyNames": { "type": "string", "pattern": "^[a-z][A-Za-z]{0,31}$" },
+      "additionalProperties": { "type": "number" }
+    },
+    "progress": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "current": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+            "goal": { "type": "integer", "exclusiveMinimum": 0, "maximum": 9007199254740991 }
+          },
+          "required": ["current", "goal"],
+          "additionalProperties": false
+        },
+        { "type": "null" }
+      ]
+    }
+  },
+  "required": ["id", "hidden", "unlockedAt", "seasonId", "params", "progress"],
+  "additionalProperties": false
+}
+```
+
+</details>
+
+<!-- END GENERATED common:Achievement -->
+
+<!-- BEGIN GENERATED common:RoundSummary -->
+
+### RoundSummary
+
+**RoundSummary** (`roundSummarySchema`)
+
+| Campo        | Tipo                                                                                                                                                                                                                                                                                                       | Obligatorio |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| `roundId`    | `string` (uuid, `/^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}\|00000000-0000-0000-0000-000000000000\|ffffffff-ffff-ffff-ffff-ffffffffffff)$/`)                                                                                                              | sí          |
+| `resolvedAt` | `string` (date-time, `/^(?:(?:\d\d[2468][048]\|\d\d[13579][26]\|\d\d0[48]\|[02468][048]00\|[13579][26]00)-02-29\|\d{4}-(?:(?:0[13578]\|1[02])-(?:0[1-9]\|[12]\d\|3[01])\|(?:0[469]\|11)-(?:0[1-9]\|[12]\d\|30)\|(?:02)-(?:0[1-9]\|1\d\|2[0-8])))T(?:(?:[01]\d\|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$/`) | sí          |
+| `result`     | `integer` 0–36                                                                                                                                                                                                                                                                                             | sí          |
+| `color`      | `"red"` \| `"black"` \| `"green"`                                                                                                                                                                                                                                                                          | sí          |
+| `staked`     | `integer` ≥ 0                                                                                                                                                                                                                                                                                              | sí          |
+| `net`        | `integer`                                                                                                                                                                                                                                                                                                  | sí          |
+
+<details><summary>JSON Schema</summary>
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "roundId": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+    },
+    "resolvedAt": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+    },
+    "result": { "type": "integer", "minimum": 0, "maximum": 36 },
+    "color": { "type": "string", "enum": ["red", "black", "green"] },
+    "staked": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+    "net": { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 }
+  },
+  "required": ["roundId", "resolvedAt", "result", "color", "staked", "net"],
+  "additionalProperties": false
+}
+```
+
+</details>
+
+<!-- END GENERATED common:RoundSummary -->
+
+<!-- BEGIN GENERATED common:SeasonStats -->
+
+### SeasonStats
+
+**SeasonStats** (`seasonStatsSchema`)
+
+| Campo            | Tipo                                      | Obligatorio |
+| ---------------- | ----------------------------------------- | ----------- |
+| `seasonId`       | `string` (`/^\d{4}-(0[1-9]\|1[0-2])$/`)   | sí          |
+| `seasons`        | `string` (`/^\d{4}-(0[1-9]\|1[0-2])$/`)[] | sí          |
+| `spins`          | `integer` ≥ 0                             | sí          |
+| `bestStreak`     | `integer` ≥ 0                             | sí          |
+| `series`         | `object` (ver JSON Schema)[]              | sí          |
+| `peakNetWorth`   | `integer`                                 | sí          |
+| `lowestNetWorth` | `integer`                                 | sí          |
+| `loanMarks`      | `integer` ≥ 0[]                           | sí          |
+| `recent`         | [RoundSummary](#roundsummary)[]           | sí          |
+| `mostFrequent`   | `object` (ver JSON Schema) \| `null`      | sí          |
+| `biggestWin`     | [RoundSummary](#roundsummary) \| `null`   | sí          |
+
+<details><summary>JSON Schema</summary>
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "seasonId": { "type": "string", "pattern": "^\\d{4}-(0[1-9]|1[0-2])$" },
+    "seasons": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^\\d{4}-(0[1-9]|1[0-2])$" }
+    },
+    "spins": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+    "bestStreak": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+    "series": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "spin": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+          "netWorth": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": ["spin", "netWorth"],
+        "additionalProperties": false
+      }
+    },
+    "peakNetWorth": {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+    },
+    "lowestNetWorth": {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+    },
+    "loanMarks": {
+      "type": "array",
+      "items": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+    },
+    "recent": { "type": "array", "items": { "$ref": "#/$defs/RoundSummary" } },
+    "mostFrequent": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "result": { "type": "integer", "minimum": 0, "maximum": 36 },
+            "color": { "type": "string", "enum": ["red", "black", "green"] },
+            "count": { "type": "integer", "exclusiveMinimum": 0, "maximum": 9007199254740991 }
+          },
+          "required": ["result", "color", "count"],
+          "additionalProperties": false
+        },
+        { "type": "null" }
+      ]
+    },
+    "biggestWin": { "anyOf": [{ "$ref": "#/$defs/RoundSummary" }, { "type": "null" }] }
+  },
+  "required": [
+    "seasonId",
+    "seasons",
+    "spins",
+    "bestStreak",
+    "series",
+    "peakNetWorth",
+    "lowestNetWorth",
+    "loanMarks",
+    "recent",
+    "mostFrequent",
+    "biggestWin"
+  ],
+  "additionalProperties": false
+}
+```
+
+</details>
+
+<!-- END GENERATED common:SeasonStats -->
+
+<!-- BEGIN GENERATED common:BankEntry -->
+
+### BankEntry
+
+**BankEntry** (`bankEntrySchema`)
+
+Una de estas variantes:
+
+- `kind: "loan"`
+
+  | Campo       | Tipo                                                                                                                                                                                                                                                                                                       | Obligatorio |
+  | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+  | `kind`      | `"loan"`                                                                                                                                                                                                                                                                                                   | sí          |
+  | `at`        | `string` (date-time, `/^(?:(?:\d\d[2468][048]\|\d\d[13579][26]\|\d\d0[48]\|[02468][048]00\|[13579][26]00)-02-29\|\d{4}-(?:(?:0[13578]\|1[02])-(?:0[1-9]\|[12]\d\|3[01])\|(?:0[469]\|11)-(?:0[1-9]\|[12]\d\|30)\|(?:02)-(?:0[1-9]\|1\d\|2[0-8])))T(?:(?:[01]\d\|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$/`) | sí          |
+  | `amount`    | `integer` > 0                                                                                                                                                                                                                                                                                              | sí          |
+  | `debtAfter` | `integer` ≥ 0                                                                                                                                                                                                                                                                                              | sí          |
+
+- `kind: "interest"`
+
+  | Campo       | Tipo                                                                                                                                                                                                                                                                                                       | Obligatorio |
+  | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+  | `kind`      | `"interest"`                                                                                                                                                                                                                                                                                               | sí          |
+  | `day`       | `string` (date, `/^(?:(?:\d\d[2468][048]\|\d\d[13579][26]\|\d\d0[48]\|[02468][048]00\|[13579][26]00)-02-29\|\d{4}-(?:(?:0[13578]\|1[02])-(?:0[1-9]\|[12]\d\|3[01])\|(?:0[469]\|11)-(?:0[1-9]\|[12]\d\|30)\|(?:02)-(?:0[1-9]\|1\d\|2[0-8])))$/`)                                                            | sí          |
+  | `from`      | `string` (date-time, `/^(?:(?:\d\d[2468][048]\|\d\d[13579][26]\|\d\d0[48]\|[02468][048]00\|[13579][26]00)-02-29\|\d{4}-(?:(?:0[13578]\|1[02])-(?:0[1-9]\|[12]\d\|3[01])\|(?:0[469]\|11)-(?:0[1-9]\|[12]\d\|30)\|(?:02)-(?:0[1-9]\|1\d\|2[0-8])))T(?:(?:[01]\d\|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$/`) | sí          |
+  | `to`        | `string` (date-time, `/^(?:(?:\d\d[2468][048]\|\d\d[13579][26]\|\d\d0[48]\|[02468][048]00\|[13579][26]00)-02-29\|\d{4}-(?:(?:0[13578]\|1[02])-(?:0[1-9]\|[12]\d\|3[01])\|(?:0[469]\|11)-(?:0[1-9]\|[12]\d\|30)\|(?:02)-(?:0[1-9]\|1\d\|2[0-8])))T(?:(?:[01]\d\|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$/`) | sí          |
+  | `spins`     | `integer` > 0                                                                                                                                                                                                                                                                                              | sí          |
+  | `amount`    | `integer` > 0                                                                                                                                                                                                                                                                                              | sí          |
+  | `debtAfter` | `integer` ≥ 0                                                                                                                                                                                                                                                                                              | sí          |
+
+<details><summary>JSON Schema</summary>
+
+```json
+{
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "kind": { "type": "string", "const": "loan" },
+        "at": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+        },
+        "amount": { "type": "integer", "exclusiveMinimum": 0, "maximum": 9007199254740991 },
+        "debtAfter": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+      },
+      "required": ["kind", "at", "amount", "debtAfter"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "kind": { "type": "string", "const": "interest" },
+        "day": {
+          "type": "string",
+          "format": "date",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+        },
+        "from": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+        },
+        "to": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+        },
+        "spins": { "type": "integer", "exclusiveMinimum": 0, "maximum": 9007199254740991 },
+        "amount": { "type": "integer", "exclusiveMinimum": 0, "maximum": 9007199254740991 },
+        "debtAfter": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+      },
+      "required": ["kind", "day", "from", "to", "spins", "amount", "debtAfter"],
+      "additionalProperties": false
+    }
+  ]
+}
+```
+
+</details>
+
+<!-- END GENERATED common:BankEntry -->
+
+<!-- BEGIN GENERATED common:BankStatement -->
+
+### BankStatement
+
+**BankStatement** (`bankStatementSchema`)
+
+| Campo          | Tipo                                      | Obligatorio |
+| -------------- | ----------------------------------------- | ----------- |
+| `seasonId`     | `string` (`/^\d{4}-(0[1-9]\|1[0-2])$/`)   | sí          |
+| `seasons`      | `string` (`/^\d{4}-(0[1-9]\|1[0-2])$/`)[] | sí          |
+| `balance`      | `integer`                                 | sí          |
+| `debt`         | `integer` ≥ 0                             | sí          |
+| `netWorth`     | `integer`                                 | sí          |
+| `loans`        | `integer` ≥ 0                             | sí          |
+| `nextInterest` | `integer` ≥ 0                             | sí          |
+| `canBorrow`    | `boolean`                                 | sí          |
+| `history`      | [BankEntry](#bankentry)[]                 | sí          |
+| `truncated`    | `boolean`                                 | sí          |
+
+<details><summary>JSON Schema</summary>
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "seasonId": { "type": "string", "pattern": "^\\d{4}-(0[1-9]|1[0-2])$" },
+    "seasons": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^\\d{4}-(0[1-9]|1[0-2])$" }
+    },
+    "balance": { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 },
+    "debt": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+    "netWorth": { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 },
+    "loans": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+    "nextInterest": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+    "canBorrow": { "type": "boolean" },
+    "history": { "type": "array", "items": { "$ref": "#/$defs/BankEntry" } },
+    "truncated": { "type": "boolean" }
+  },
+  "required": [
+    "seasonId",
+    "seasons",
+    "balance",
+    "debt",
+    "netWorth",
+    "loans",
+    "nextInterest",
+    "canBorrow",
+    "history",
+    "truncated"
+  ],
+  "additionalProperties": false
+}
+```
+
+</details>
+
+<!-- END GENERATED common:BankStatement -->
 
 <!-- BEGIN GENERATED common:LeaderboardRow -->
 
@@ -2953,6 +3916,9 @@ Racha de color al final de las últimas `streak.historySize` tiradas **del propi
 | `colorWarningAt`  | `integer`                  | sí          |
 | `seasonTimeZone`  | `string`                   | sí          |
 | `seasonStartDay`  | `integer` 1–28             | sí          |
+| `pendingSpins`    | `object` (ver JSON Schema) | sí          |
+| `bigWin`          | `object` (ver JSON Schema) | sí          |
+| `onFireAt`        | `integer` ≥ 2              | sí          |
 
 <details><summary>JSON Schema</summary>
 
@@ -2994,7 +3960,26 @@ Racha de color al final de las últimas `streak.historySize` tiradas **del propi
       "maximum": 9007199254740991
     },
     "seasonTimeZone": { "type": "string" },
-    "seasonStartDay": { "type": "integer", "minimum": 1, "maximum": 28 }
+    "seasonStartDay": { "type": "integer", "minimum": 1, "maximum": 28 },
+    "pendingSpins": {
+      "type": "object",
+      "properties": {
+        "max": { "type": "integer", "exclusiveMinimum": 0, "maximum": 9007199254740991 },
+        "quickSpinMs": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+      },
+      "required": ["max", "quickSpinMs"],
+      "additionalProperties": false
+    },
+    "bigWin": {
+      "type": "object",
+      "properties": {
+        "minNetMultiple": { "type": "number", "minimum": 1 },
+        "megaNetMultiple": { "type": "number", "minimum": 1 }
+      },
+      "required": ["minNetMultiple", "megaNetMultiple"],
+      "additionalProperties": false
+    },
+    "onFireAt": { "type": "integer", "minimum": 2, "maximum": 9007199254740991 }
   },
   "required": [
     "startingBalance",
@@ -3006,7 +3991,10 @@ Racha de color al final de las últimas `streak.historySize` tiradas **del propi
     "minSpinMs",
     "colorWarningAt",
     "seasonTimeZone",
-    "seasonStartDay"
+    "seasonStartDay",
+    "pendingSpins",
+    "bigWin",
+    "onFireAt"
   ],
   "additionalProperties": false
 }

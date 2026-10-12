@@ -53,6 +53,8 @@ It shows a GitHub device code (`🎰 Go to https://github.com/login/device and e
 
 There is no spin button. **Your prompts are the spins.** Each turn opens a round; when Claude finishes, the server spins the wheel and settles your bets. You can bet in the window (mouse, keyboard or gamepad) or from Claude Code.
 
+**Window closed? Pending spins.** If no game window is open and visible when Claude finishes (closed, or in a background tab), the spin is not wasted: it is saved as a **pending spin**, with that turn's `git push` jackpot and failed-test phrase. Claude Code tells you in a toast and in the status line (`🎰 750 🪙 · 20 pending`). Open the window and you get a heads-up and a counter in the HUD: **SPIN** (`G` or SELECT) plays one with the normal animation, **SPIN ALL** plays them back to back with a quick animation and stops by itself on a big win, on green or when you go broke (or when you press ○). The server still rolls each one when you spend it, and they count for the leaderboard then. Up to 100 per season (the rest are dropped with a joke); they expire when the season ends.
+
 | Command                        | Alias      | What it does                                                                |
 | ------------------------------ | ---------- | --------------------------------------------------------------------------- |
 | `/roulette`                    | `/ruleta`  | Open the window                                                             |
@@ -131,11 +133,13 @@ Docs: [architecture](docs/ARQUITECTURA.md) · [protocol](docs/PROTOCOLO.md) (gen
 
 Contributions welcome, especially:
 
-- **New gambler phrases** (English and Spanish) in [`packages/shared/src/i18n`](packages/shared/src/i18n), or with the _New funny phrase_ issue template. Jokes about fake gambling addiction and dev culture; never about real people or anyone's real addiction.
+- **New gambler phrases** (in any of the four languages) in [`locales/<language>/phrases.json`](locales/README.md), or with the _New funny phrase_ issue template. Jokes about fake gambling addiction and dev culture; never about real people or anyone's real addiction.
 - **Translations** of the window and the plugin.
 - **Shaders** and anything that makes it look more like 1997.
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md) first. Every commit needs a `Signed-off-by` line ([DCO](https://developercertificate.org/), `git commit -s`). Be nice: [Code of Conduct](CODE_OF_CONDUCT.md). Security issues go through [SECURITY.md](SECURITY.md), never public issues.
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/Aimarmndz/vibe-gambling?quickstart=1)
+
+The dev container (Codespaces or VS Code Dev Containers) comes with Node, pnpm, Docker and the Playwright browsers ready. Read [CONTRIBUTING.md](CONTRIBUTING.md) first. Every commit needs a `Signed-off-by` line ([DCO](https://developercertificate.org/), `git commit -s`). Be nice: [Code of Conduct](CODE_OF_CONDUCT.md). Security issues go through [SECURITY.md](SECURITY.md), never public issues.
 
 ## Releases
 
@@ -196,6 +200,8 @@ Te enseña un código de GitHub (`🎰 Ve a https://github.com/login/device y es
 
 No hay botón de girar: **tus prompts son las tiradas**. Cada turno abre una ronda; cuando Claude termina, el servidor tira la ruleta y paga (o no) tus apuestas. Puedes apostar en la ventana (ratón, teclado o mando) o desde Claude Code.
 
+**¿Ventana cerrada? Tiradas pendientes.** Si cuando Claude termina no hay ninguna ventana del juego abierta y a la vista (cerrada, o en una pestaña de fondo), la tirada no se pierde: se guarda como **tirada pendiente**, con el jackpot del `git push` y la frase de los tests de ese turno. Claude Code te lo dice en un toast y en la status line (`🎰 750 🪙 · 20 pendientes`). Al abrir la ventana te avisa y el HUD lleva la cuenta: **GIRAR** (`G` o SELECT) juega una con la animación normal y **GIRAR TODAS** las juega seguidas con una animación rápida y se para sola en un premio gordo, en el verde o en bancarrota (o cuando pulsas ○). El servidor tira cada una cuando la gastas, y es entonces cuando cuentan para el ranking. Hasta 100 por temporada (las que sobran se descartan con una broma); caducan al acabar la temporada.
+
 | Comando                        | Alias      | Qué hace                                                                          |
 | ------------------------------ | ---------- | --------------------------------------------------------------------------------- |
 | `/roulette`                    | `/ruleta`  | Abre la ventana                                                                   |
@@ -252,7 +258,7 @@ Un monorepo de TypeScript: `shared` (el contrato en zod y la lógica pura de la 
 
 ### Contribuir
 
-Se agradecen sobre todo **frases nuevas de ludópata** (en inglés y en español) en [`packages/shared/src/i18n`](packages/shared/src/i18n) o con la plantilla de issue _New funny phrase_; **traducciones**; y **shaders**. Humor sobre la ludopatía de mentira y la cultura dev; nunca sobre personas reales ni adicciones de nadie. Lee [CONTRIBUTING.md](CONTRIBUTING.md): cada commit lleva `Signed-off-by` ([DCO](https://developercertificate.org/), `git commit -s`).
+Se agradecen sobre todo **frases nuevas de ludópata** (en cualquiera de los cuatro idiomas) en [`locales/<idioma>/phrases.json`](locales/README.md) o con la plantilla de issue _New funny phrase_; **idiomas nuevos** (copia `locales/en`, tradúcelo y dibuja su bandera); y **shaders**. Humor sobre la ludopatía de mentira y la cultura dev; nunca sobre personas reales ni adicciones de nadie. Lee [CONTRIBUTING.md](CONTRIBUTING.md): cada commit lleva `Signed-off-by` ([DCO](https://developercertificate.org/), `git commit -s`). Para empezar sin instalar nada, [ábrelo en GitHub Codespaces](https://codespaces.new/Aimarmndz/vibe-gambling?quickstart=1): el devcontainer trae Node, pnpm, Docker y los navegadores de Playwright.
 
 ### Versiones
 
