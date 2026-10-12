@@ -47,6 +47,8 @@ jobs:
         run: pnpm exec prettier --check .
       - name: Cabeceras SPDX
         run: pnpm lint:spdx
+      - name: PROTOCOLO.md al día con los esquemas
+        run: pnpm docs:protocol --check
       - name: Typecheck
         # El mod se comprueba en su propio job (necesita Claude Code instalado).
         run: |
