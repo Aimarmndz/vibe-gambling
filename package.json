@@ -19,9 +19,11 @@
     "node": ">=24"
   },
   "scripts": {
-    "lint": "eslint . && prettier --check .",
+    "lint": "eslint . && prettier --check . && pnpm lint:spdx",
+    "lint:spdx": "node scripts/check-spdx.ts",
     "format": "prettier --write .",
-    "typecheck": "pnpm -r --parallel typecheck",
+    "typecheck": "pnpm -r --parallel typecheck && pnpm typecheck:scripts",
+    "typecheck:scripts": "tsc -p scripts",
     "test": "pnpm -r test",
     "build": "pnpm -r build"
   },
