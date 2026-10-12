@@ -4,6 +4,8 @@
 # Dependencias y builds
 node_modules/
 dist/
+# Artefactos de release (pnpm package)
+dist-release/
 *.tsbuildinfo
 *.tgz
 .vite/
