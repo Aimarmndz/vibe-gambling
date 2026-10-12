@@ -149,7 +149,25 @@ describe('sin build de la web', () => {
     const t = await startTestApp({ db })
     try {
       expect((await t.app.inject({ method: 'GET', url: '/healthz' })).statusCode).toBe(200)
-      expect((await t.app.inject({ method: 'GET', url: '/' })).statusCode).toBe(404)
+      expect((await t.app.inject({ method: 'GET', url: '/' })).statusCode).toBe(503)
+    } finally {
+      await t.close()
+    }
+  })
+
+  it('las páginas dan un HTML legible (503) en vez del JSON de la API', async () => {
+    const t = await startTestApp({ db })
+    try {
+      for (const url of ['/play?code=abc', '/', '/privacy']) {
+        const res = await t.app.inject({ method: 'GET', url, headers: { accept: 'text/html' } })
+        expect(res.statusCode, url).toBe(503)
+        expect(res.headers['content-type']).toMatch(/^text\/html/)
+        expect(res.body).toContain('<!doctype html>')
+        expect(res.body).not.toContain('abc')
+      }
+      // La API sigue respondiendo en JSON.
+      const api = await t.app.inject({ method: 'GET', url: '/api/nada' })
+      expect(api.headers['content-type']).toMatch(/^application\/json/)
     } finally {
       await t.close()
     }

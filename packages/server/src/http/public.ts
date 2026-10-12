@@ -27,6 +27,19 @@ const PAGES: Readonly<Record<string, string>> = Object.freeze({
   '/privacy': 'privacy.html',
 })
 
+/** Página que se sirve cuando el servidor arranca sin la build de la web (solo API). */
+const MISSING_WEB_PAGE = `<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>vibe-gambling</title></head>
+<body>
+<h1>The table is not set up yet</h1>
+<p>This server is running without the web build, so only the API is available.
+Build <code>packages/web</code> (or the Docker image without <code>SKIP_WEB</code>) and restart.</p>
+<p lang="es">Este servidor está arrancado sin la build de la web: solo responde la API.</p>
+</body>
+</html>
+`
+
 export async function publicRoutes(parent: FastifyInstance, options: PublicOptions): Promise<void> {
   const { config, db, serverVersion } = options
   const { env } = config
@@ -72,6 +85,17 @@ export async function publicRoutes(parent: FastifyInstance, options: PublicOptio
   const root = resolve(env.WEB_DIST_DIR)
   if (!existsSync(resolve(root, 'index.html')) || !statSync(root).isDirectory()) {
     app.log.warn({ webDistDir: env.WEB_DIST_DIR }, 'no hay build de la web: solo se sirve la API')
+    // Las páginas responden con un HTML mínimo: quien abre la ventana desde el mod ve qué pasa
+    // en vez del JSON de error de la API.
+    for (const route of Object.keys(PAGES)) {
+      app.get(route, async (_request, reply) =>
+        reply
+          .code(503)
+          .header('cache-control', 'no-store')
+          .type('text/html; charset=utf-8')
+          .send(MISSING_WEB_PAGE),
+      )
+    }
     return
   }
   const assetsDir = `${resolve(root, 'assets')}${sep}`
