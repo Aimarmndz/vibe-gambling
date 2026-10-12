@@ -8,3 +8,5 @@ test-results
 packages/server/drizzle/meta
 packages/mod/.claude-plugin/types
 LICENSE
+CODE_OF_CONDUCT.md
+blob-report
