@@ -6,8 +6,8 @@
 html,
 body {
   margin: 0;
-  width: 1200px;
-  height: 630px;
+  width: 100vw;
+  height: 100vh;
   background: radial-gradient(ellipse at 80% 0%, #1d2a5e, #08070d 70%);
   color: #f3ead6;
   font-family: 'Polygone 12', monospace;
