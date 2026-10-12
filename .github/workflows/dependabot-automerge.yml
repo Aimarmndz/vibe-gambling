@@ -1,0 +1,79 @@
+# Fusiona solos (squash) los PR de Dependabot de versiones PATCH y MINOR cuando el CI de ese mismo
+# commit termina en verde. Las MAJOR no se tocan: se revisan a mano.
+#
+# `main` no exige checks (el mantenedor empuja directamente), así que `gh pr merge --auto` no
+# tendría nada que esperar y fusionaría al momento. Por eso este workflow espera él mismo a que
+# termine el CI del commit del PR y solo entonces fusiona, atado a ese commit
+# (`--match-head-commit`): si Dependabot rebasa o alguien empuja algo, no se fusiona lo que no se
+# ha probado. Si un día se exigen checks en `main`, `--auto` pasa a usar el auto-merge de GitHub
+# sin cambiar nada aquí.
+#
+# Ningún dato del PR pasa por `${{ }}` dentro de `run:`: llega por variables de entorno.
+name: Dependabot auto-merge
+
+on:
+  pull_request:
+
+# Un push nuevo al PR cancela la espera anterior (el nuevo commit tiene su propio CI).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  automerge:
+    name: Auto-merge (patch y minor)
+    # Solo PR de Dependabot abiertos desde este mismo repo (nunca desde un fork).
+    if: >-
+      github.event.pull_request.user.login == 'dependabot[bot]' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    # Lo que dura el job más largo del CI (E2E, 30 min) más margen para que arranque.
+    timeout-minutes: 45
+    permissions:
+      # Seguir la ejecución del CI del commit.
+      actions: read
+      # Fusionar el PR.
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Metadatos de Dependabot
+        id: metadata
+        # Comprueba también que el PR y su commit son de verdad de Dependabot.
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
+
+      - name: Esperar al CI del commit
+        if: >-
+          steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
+          steps.metadata.outputs.update-type == 'version-update:semver-minor'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          # El CI se lanza a la vez que este workflow: se espera hasta 5 min a que aparezca.
+          run_id=''
+          for _ in $(seq 1 30); do
+            run_id="$(gh run list --repo "${GITHUB_REPOSITORY}" --workflow ci.yml \
+              --commit "${HEAD_SHA}" --event pull_request --limit 1 \
+              --json databaseId --jq '.[0].databaseId // empty')"
+            [ -n "${run_id}" ] && break
+            sleep 10
+          done
+          if [ -z "${run_id}" ]; then
+            echo "::error::No hay ejecución del CI para ${HEAD_SHA}"
+            exit 1
+          fi
+          echo "Esperando al CI (run ${run_id})…"
+          # Sale con error si el CI no termina en verde: entonces no se fusiona.
+          gh run watch "${run_id}" --repo "${GITHUB_REPOSITORY}" --exit-status --interval 30 > /dev/null
+
+      - name: Fusionar (squash)
+        if: >-
+          steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
+          steps.metadata.outputs.update-type == 'version-update:semver-minor'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: gh pr merge "${PR_URL}" --auto --squash --match-head-commit "${HEAD_SHA}"

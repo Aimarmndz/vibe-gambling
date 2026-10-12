@@ -196,6 +196,8 @@ jobs:
           DIGEST: ${{ needs.image.outputs.digest }}
         run: |
           # Las notas son las de `pnpm package` más el digest de la imagen recién publicada.
+          # Las comillas invertidas son Markdown literal, no una sustitución de la shell.
+          # shellcheck disable=SC2016
           printf '\nImage digest: `%s@%s`\n' "${IMAGE}" "${DIGEST}" >> RELEASE_NOTES.md
           assets=(*.zip *.tar.gz *.spdx.json SHA256SUMS)
           # SemVer: un guion tras X.Y.Z marca una pre-release (v1.2.0-rc.1).

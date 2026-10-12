@@ -70,3 +70,17 @@ updates:
       # Un salto mayor de Postgres exige migrar los datos (pg_upgrade o dump/restore): se hace a mano.
       - dependency-name: postgres
         update-types: ['version-update:semver-major']
+
+  - package-ecosystem: devcontainers
+    # Features del devcontainer (.devcontainer/devcontainer.json: Docker-in-Docker, gh).
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      timezone: Europe/Madrid
+    commit-message:
+      prefix: 'build(devcontainer)'
+    labels: ['dependencies']
+    groups:
+      devcontainers-minor-patch:
+        update-types: ['minor', 'patch']

@@ -52,6 +52,8 @@ jobs:
         run: pnpm lint:versions
       - name: Tests de los scripts de release
         run: pnpm test:scripts
+      - name: Registro de idiomas al día con locales/
+        run: pnpm gen:locales --check
       - name: PROTOCOLO.md al día con los esquemas
         run: pnpm docs:protocol --check
       - name: Typecheck

@@ -1,0 +1,82 @@
+# Análisis estático con CodeQL: JavaScript/TypeScript (servidor, web, mod, scripts) y los propios
+# workflows de GitHub Actions (inyección de expresiones, permisos, acciones sin fijar…).
+#
+# Solo corre si el repo es PÚBLICO: en un repo privado, code scanning exige GitHub Advanced
+# Security (de pago aparte de GitHub Pro) y el envío de resultados fallaría. Mientras el repo sea
+# privado los jobs salen como «skipped» sin gastar minutos; al hacerlo público se activa solo (ver
+# «Repo y CI» en docs/DECISIONES.md y docs/launch/CHECKLIST.md).
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # Semanal, para recoger consultas nuevas de CodeQL aunque el código no cambie.
+    - cron: '17 4 * * 1'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  visibility:
+    name: ¿Repo público? (solo en la ejecución programada)
+    # El evento `schedule` no trae `github.event.repository`: solo ahí se pregunta a la API.
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      public: ${{ steps.check.outputs.public }}
+    steps:
+      - name: Consultar la visibilidad
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          visibility="$(gh api "repos/${GITHUB_REPOSITORY}" --jq .visibility)"
+          echo "public=$([ "${visibility}" = public ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+  analyze:
+    name: CodeQL (${{ matrix.language }})
+    needs: visibility
+    # Push, PR y lanzamiento manual traen el repo en el evento; la ejecución programada usa la
+    # respuesta de la API. `!cancelled()` hace que se evalúe aunque `visibility` se salte.
+    if: >-
+      ${{ !cancelled() && (
+        (github.event_name != 'schedule' && !github.event.repository.private) ||
+        (github.event_name == 'schedule' && needs.visibility.outputs.public == 'true')
+      ) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      # Subir los resultados a Security → Code scanning.
+      security-events: write
+      # Leer el estado de los workflows (lo pide la acción en repos privados; inocuo en públicos).
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        # Ninguno de los dos necesita compilar: CodeQL extrae el código fuente directamente.
+        language: [javascript-typescript, actions]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Inicializar CodeQL
+        uses: github/codeql-action/init@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: none
+          # Las consultas por defecto más las de seguridad ampliadas.
+          queries: security-extended
+      - name: Analizar
+        uses: github/codeql-action/analyze@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+        with:
+          category: /language:${{ matrix.language }}
