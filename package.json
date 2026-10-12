@@ -1,0 +1,38 @@
+{
+  "name": "vibe-gambling",
+  "private": true,
+  "version": "0.1.0",
+  "description": "🎰 Every prompt is a spin. A PS1-style roulette that pops up while Claude Code thinks. Fake coins, real addiction (not really).",
+  "license": "AGPL-3.0-or-later",
+  "author": "Aimar (https://github.com/Aimarmndz)",
+  "homepage": "https://vibe.aimar.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aimarmndz/vibe-gambling.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Aimarmndz/vibe-gambling/issues"
+  },
+  "type": "module",
+  "packageManager": "pnpm@11.20.0",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "lint": "eslint . && prettier --check .",
+    "format": "prettier --write .",
+    "typecheck": "pnpm -r --parallel typecheck",
+    "test": "pnpm -r test",
+    "build": "pnpm -r build"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^26.6.5",
+    "eslint": "^10.12.0",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.13.0",
+    "prettier": "^3.9.10",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.71.2"
+  }
+}
