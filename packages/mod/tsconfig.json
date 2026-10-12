@@ -1,0 +1,13 @@
+{
+  "//": "Extiende el tsconfig que escribe el engine de Claude Code junto a sus tipos (no versionados): `pnpm --filter @vibe-gambling/mod typecheck` los genera antes con scripts/mod-engine-types.ts.",
+  "extends": "./.claude-plugin/types/tsconfig.json",
+  "compilerOptions": {
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "erasableSyntaxOnly": true,
+    "allowImportingTsExtensions": true
+  },
+  "include": ["hooks", "tests"]
+}

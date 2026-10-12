@@ -1,0 +1,24 @@
+{
+  "name": "@vibe-gambling/mod",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Plugin de Claude Code de vibe-gambling: cada prompt es una tirada de ruleta.",
+  "license": "AGPL-3.0-or-later",
+  "author": "Aimar (https://github.com/Aimarmndz)",
+  "homepage": "https://vibe.aimar.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aimarmndz/vibe-gambling.git",
+    "directory": "packages/mod"
+  },
+  "bugs": {
+    "url": "https://github.com/Aimarmndz/vibe-gambling/issues"
+  },
+  "type": "module",
+  "scripts": {
+    "types": "node ../../scripts/mod-engine-types.ts",
+    "typecheck": "node ../../scripts/mod-engine-types.ts && tsc -p .",
+    "validate": "claude plugin validate .",
+    "test": "claude plugin test ."
+  }
+}

@@ -1,0 +1,67 @@
+{
+  "name": "vibe-gambling",
+  "version": "0.1.0",
+  "description": "🎰 Every prompt is a spin. A PS1-style roulette that pops up while Claude Code thinks. Fake coins only.",
+  "author": { "name": "Aimar", "url": "https://github.com/Aimarmndz" },
+  "homepage": "https://vibe.aimar.dev",
+  "repository": "https://github.com/Aimarmndz/vibe-gambling",
+  "license": "AGPL-3.0-or-later",
+  "keywords": ["roulette", "game", "parody", "psx", "fake-coins"],
+  "userConfig": {
+    "serverUrl": {
+      "type": "string",
+      "title": "Server URL",
+      "description": "vibe-gambling server. Change it with /vibe-server to play on a self-hosted instance.",
+      "default": "https://vibe.aimar.dev"
+    },
+    "autoOpen": {
+      "type": "boolean",
+      "title": "Open the window on every prompt",
+      "description": "Open the roulette window when you send a prompt and it is not open yet.",
+      "default": true
+    },
+    "language": {
+      "type": "string",
+      "title": "Language",
+      "description": "Language of the mod's messages: auto (system language), en or es.",
+      "options": ["auto", "en", "es"],
+      "default": "auto"
+    },
+    "turnTimeoutMs": {
+      "type": "number",
+      "title": "Turn request timeout (ms)",
+      "description": "Timeout of the requests made during a turn (100-1500). A turn never waits longer.",
+      "default": 1500
+    },
+    "commandTimeoutMs": {
+      "type": "number",
+      "title": "Command request timeout (ms)",
+      "description": "Timeout of the requests made by the slash commands (500-30000).",
+      "default": 5000
+    },
+    "windowReopenCooldownMs": {
+      "type": "number",
+      "title": "Window reopen cooldown (ms)",
+      "description": "After opening the window, how long to wait for it to connect before opening another one.",
+      "default": 60000
+    },
+    "windowSize": {
+      "type": "string",
+      "title": "Window size",
+      "description": "Size of the app-mode window, WIDTH,HEIGHT.",
+      "default": "960,720"
+    },
+    "launchTimeoutMs": {
+      "type": "number",
+      "title": "Browser launch timeout (ms)",
+      "description": "How long the browser launcher may take to return (500-30000).",
+      "default": 5000
+    },
+    "revealMaxDelayMs": {
+      "type": "number",
+      "title": "Max result reveal delay (ms)",
+      "description": "Longest wait before the result toast, so it never spoils the spin (0-120000).",
+      "default": 30000
+    }
+  }
+}
