@@ -5,7 +5,7 @@ import { webConfigSchema } from '@vibe-gambling/shared'
 import type { WebConfig } from '@vibe-gambling/shared'
 import { describe, expect, it } from 'vitest'
 
-import { createTranslator } from '../src/i18n/index.ts'
+import { translator } from './translators.ts'
 import {
   fillParts,
   formatDuration,
@@ -15,8 +15,8 @@ import {
 } from '../src/pages/privacy.ts'
 import { testWebConfig } from './fixtures.ts'
 
-const en = createTranslator('en')
-const es = createTranslator('es')
+const en = translator('en')
+const es = translator('es')
 
 function render(web: WebConfig | null, tr = en): HTMLElement {
   const root = document.createElement('div')

@@ -12,6 +12,8 @@ import { defineConfig, loadEnv } from 'vite'
 import { z } from 'zod'
 
 const here = fileURLToPath(new URL('.', import.meta.url))
+/** Textos y frases de `locales/<idioma>/` (lo que se carga bajo demanda). */
+const LOCALE_TEXT = /[\\/]locales[\\/]([^\\/]+)[\\/](?:web|landing|privacy|phrases)\.json$/
 const repoRoot = resolve(here, '../..')
 
 const devEnvSchema = z.object({
@@ -143,7 +145,15 @@ export default defineConfig(({ command, mode }) => {
         },
         output: {
           codeSplitting: {
-            groups: [{ name: 'three', test: /node_modules[\\/].*three[\\/]/ }],
+            groups: [
+              { name: 'three', test: /node_modules[\\/].*three[\\/]/ },
+              // Un chunk por idioma con sus textos y sus frases (se carga al elegirlo). Los
+              // metadatos y las banderas van en el bundle principal: los usan los selectores.
+              {
+                name: (id: string) => `locale-${LOCALE_TEXT.exec(id)?.[1] ?? 'x'}`,
+                test: LOCALE_TEXT,
+              },
+            ],
           },
         },
       },

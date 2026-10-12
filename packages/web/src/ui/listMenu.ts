@@ -14,6 +14,17 @@ export interface MenuItem {
   /** Cambiar el valor con ←→ (dir = −1 | 1). */
   change?: (dir: number) => void
   disabled?: () => boolean
+  /**
+   * Pinta el valor a mano en vez de `value` (p. ej. las banderas del idioma). Se llama después de
+   * registrar la zona clicable de la fila, así que las suyas quedan por encima.
+   */
+  drawValue?: (
+    g: CanvasRenderingContext2D,
+    right: number,
+    y: number,
+    selected: boolean,
+    t: number,
+  ) => void
 }
 
 export class ListMenu {
@@ -114,6 +125,7 @@ export class ListMenu {
         },
       })
       if (hover === hitId && this.index !== i && enabled) this.index = i
+      item.drawValue?.(g, x + w, ry, selected, t)
     })
   }
 }

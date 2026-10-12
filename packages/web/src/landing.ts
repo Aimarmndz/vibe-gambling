@@ -138,22 +138,25 @@ function renderHall(hall: HallOfRuinResponse | null, failed: boolean, tr: Transl
   }
 }
 
-async function startAttract(): Promise<void> {
+async function startAttract(
+  tr: Translator,
+): Promise<{ setTranslator(tr: Translator): void } | null> {
   const canvas = $<HTMLCanvasElement>('attract')
   const still = $<HTMLImageElement>('attract-still')
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
   if (reduced || !hasWebGL2()) {
     canvas.hidden = true
     still.hidden = false
-    return
+    return null
   }
   try {
     const { startAttractMode } = await import('./app/attract.ts')
-    startAttractMode(canvas)
+    return startAttractMode(canvas, tr)
   } catch (error) {
     console.warn('[landing] sin ruleta en vivo', error)
     canvas.hidden = true
     still.hidden = false
+    return null
   }
 }
 
@@ -209,17 +212,17 @@ async function main(): Promise<void> {
     )
   })
 
-  withLanguage(next => {
+  let attract: { setTranslator(tr: Translator): void } | null = null
+  await withLanguage(next => {
     tr = next
+    attract?.setTranslator(next)
     applyI18n(document, next)
     document.title = next.t('landing.title')
     $('install-command').textContent = web.site.installCommand
     $('how-3').textContent = next.t('landing.how.3', { apr: next.n(web.game.loan.displayApr) })
     renderBoard(board, next)
     renderHall(hall, hallFailed, next)
-    renderFooter($('footer'), web, next, () =>
-      document.dispatchEvent(new Event('vg:toggle-language')),
-    )
+    renderFooter($('footer'), web, next)
   })
 
   loadBoard()
@@ -234,7 +237,12 @@ async function main(): Promise<void> {
       if (tr) renderHall(null, true, tr)
     },
   )
-  void startAttract()
+  if (tr) {
+    startAttract(tr).then(
+      handle => (attract = handle),
+      (error: unknown) => console.warn('[landing] sin ruleta en vivo', error),
+    )
+  }
 }
 
 main().catch((error: unknown) => {

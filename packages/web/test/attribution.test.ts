@@ -7,17 +7,18 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 import { webConfigSchema } from '@vibe-gambling/shared'
+import { LOCALES } from '@vibe-gambling/shared/i18n'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { AppContext } from '../src/app/context.ts'
 import { clientConfig } from '../src/config.ts'
-import { createTranslator } from '../src/i18n/index.ts'
 import type { Translator } from '../src/i18n/index.ts'
 import { attribution, displayUrl } from '../src/legal/attribution.ts'
 import { renderFooter } from '../src/pages/common.ts'
 import type * as Bitmap from '../src/font/bitmap.ts'
 import type { World } from '../src/render/world.ts'
 import { testWebConfig } from './fixtures.ts'
+import { translator } from './translators.ts'
 
 // Se apuntan los textos que pintan las pantallas del canvas (el canvas 2D no existe en los tests).
 const painted: string[] = []
@@ -79,27 +80,27 @@ beforeEach(() => {
 
 describe('atribución 7(b)', () => {
   it('el texto en inglés es exactamente el de LICENSE (y sale de config/site.json)', () => {
-    const credit = attribution(web.site.author, createTranslator('en'))
+    const credit = attribution(web.site.author, translator('en'))
     expect(credit.text).toBe(licenseAttribution())
     expect(credit.before + credit.label + credit.after).toBe(credit.text)
     expect(credit.href).toBe(web.site.author.url)
   })
 
   it('en español solo se traduce "Created by"', () => {
-    const en = attribution(web.site.author, createTranslator('en')).text
-    const es = attribution(web.site.author, createTranslator('es')).text
+    const en = attribution(web.site.author, translator('en')).text
+    const es = attribution(web.site.author, translator('es')).text
     expect(es.replace(/^Creado por/, 'Created by')).toBe(en)
   })
 
   it('usa el autor de la configuración, no uno escrito en el código', () => {
-    const credit = attribution(testWebConfig.site.author, createTranslator('en'))
+    const credit = attribution(testWebConfig.site.author, translator('en'))
     expect(credit.text).toBe('Created by Tester (example.invalid/tester)')
     expect(displayUrl('https://github.com/x/')).toBe('github.com/x')
   })
 
-  it.each(['en', 'es'] as const)('sale en la pantalla de arranque (%s)', async locale => {
+  it.each(LOCALES)('sale en la pantalla de arranque (%s)', async locale => {
     const { BootScreen } = await import('../src/ui/screens/boot.ts')
-    const tr = createTranslator(locale)
+    const tr = translator(locale)
     const boot = new BootScreen(fakeContext(tr), {} as World, () => undefined)
     // Hasta la pantalla de título (sin llegar a saltarla sola).
     for (let i = 0; i < 60; i++) boot.update(0.1)
@@ -107,17 +108,17 @@ describe('atribución 7(b)', () => {
     expect(painted).toContain(attribution(web.site.author, tr).text)
   })
 
-  it.each(['en', 'es'] as const)('sale en los créditos de la ventana (%s)', async locale => {
+  it.each(LOCALES)('sale en los créditos de la ventana (%s)', async locale => {
     const { CreditsScreen } = await import('../src/ui/screens/menu.ts')
-    const tr = createTranslator(locale)
+    const tr = translator(locale)
     new CreditsScreen(fakeContext(tr)).draw(fakeCanvas2d(), 0)
     expect(painted).toContain(attribution(web.site.author, tr).text)
   })
 
-  it.each(['en', 'es'] as const)('sale en el pie de la landing con su enlace (%s)', locale => {
-    const tr = createTranslator(locale)
+  it.each(LOCALES)('sale en el pie de la landing con su enlace (%s)', locale => {
+    const tr = translator(locale)
     const footer = document.createElement('footer')
-    renderFooter(footer, web, tr, () => undefined)
+    renderFooter(footer, web, tr)
     const credit = attribution(web.site.author, tr)
     expect(footer.textContent).toContain(credit.text)
     const link = footer.querySelector<HTMLAnchorElement>('.attribution a')

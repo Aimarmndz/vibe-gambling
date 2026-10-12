@@ -3,6 +3,7 @@
 // el proxy de red, el contacto, la retención de las copias) sale de `site.instance` de
 // /config.json, y lo que solo sabe el servidor (de dónde se cargan los avatares, cuánto duran las
 // sesiones y los enlaces, cuánto vive la IP en memoria) de `privacy`. Así una instancia autoalojada nunca dice que es la oficial.
+import { forLocale } from '@vibe-gambling/shared'
 import type { WebConfig } from '@vibe-gambling/shared'
 
 import type { MessageKey, Translator } from '../i18n/index.ts'
@@ -106,7 +107,7 @@ export function sectionParagraphs(
       const out = [
         text('privacy.where.instance', {
           operator: operator(),
-          hosting: instance.hosting[tr.locale],
+          hosting: forLocale(instance.hosting, tr.locale),
         }),
       ]
       if (instance.networkProxy) {

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Página /privacy (EN/ES): qué se guarda, para qué, dónde, cuánto tiempo y cómo borrar la cuenta.
+// Página /privacy (en todos los idiomas de locales/): qué se guarda, para qué, dónde, cuánto tiempo y cómo borrar la cuenta.
 // El contenido (y lo que depende de la instancia) está en pages/privacy.ts.
 // Sin analíticas ni cookies de seguimiento: esta página no carga nada de terceros.
 // Primero de todo: zod sin `new Function` (CSP sin 'unsafe-eval'), ver zodJitless.ts.
@@ -20,13 +20,13 @@ async function main(): Promise<void> {
     // La política se puede leer igual: faltan los datos de la instancia (se avisa) y el pie.
     console.warn('[privacy] sin configuración de la instancia', error)
   }
-  withLanguage(tr => {
+  await withLanguage(tr => {
     applyI18n(document, tr)
     document.title = `${tr.t('privacy.title')} — vibe-gambling`
     renderPrivacy(document.getElementById('sections')!, web, tr)
     const footer = document.getElementById('footer')!
     if (web) {
-      renderFooter(footer, web, tr, () => document.dispatchEvent(new Event('vg:toggle-language')))
+      renderFooter(footer, web, tr)
     } else {
       footer.replaceChildren(el('p', { class: 'muted' }, tr.t('footer.disclaimer')))
     }

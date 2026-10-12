@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-import { PHRASES } from '@vibe-gambling/shared/i18n'
 import { describe, expect, it } from 'vitest'
 
 import { PhraseMemory, describeOutcome, mainCategory } from '../src/game/outcome.ts'
-import { createTranslator } from '../src/i18n/index.ts'
+import { translator } from './translators.ts'
 import { resolved, testWebConfig, wallet } from './fixtures.ts'
 
 const game = testWebConfig.game
@@ -55,7 +54,7 @@ describe('pantalla de resultado', () => {
   })
 
   it('compone frase y extras: jackpot, tests fallidos, apuesta repetida, racha de color y ruina', () => {
-    const tr = createTranslator('es')
+    const tr = translator('es')
     const view = describeOutcome({
       round: lost({
         jackpot: true,
@@ -72,7 +71,7 @@ describe('pantalla de resultado', () => {
     })
     expect(view.verdict).toBe('lose')
     expect(view.extras).toHaveLength(3)
-    expect(PHRASES.es.jackpot.map(p => p.replace(/\{\w+\}/g, ''))).toContain(
+    expect(translator('es').phrases.jackpot.map(p => p.replace(/\{\w+\}/g, ''))).toContain(
       view.extras[0]!.replace(/\d+|rojo|negro|verde/g, ''),
     )
     expect(view.interest).toBe(30)
@@ -91,7 +90,7 @@ describe('pantalla de resultado', () => {
   })
 
   it('nunca repite seguida la misma frase', () => {
-    const tr = createTranslator('en')
+    const tr = translator('en')
     const memory = new PhraseMemory()
     let previous = ''
     for (let i = 0; i < 50; i++) {
@@ -113,7 +112,7 @@ describe('pantalla de resultado', () => {
       round: lost({ source: 'none', bets: [], net: 0, staked: 0, returned: 0 }),
       wallet: wallet({ balance: 1 }),
       game,
-      tr: createTranslator('en'),
+      tr: translator('en'),
       memory: new PhraseMemory(),
     })
     expect(view.verdict).toBe('noBet')

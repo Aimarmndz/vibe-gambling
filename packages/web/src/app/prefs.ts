@@ -8,7 +8,8 @@ export const prefsSchema = z.object({
   sound: z.boolean(),
   crt: z.boolean(),
   quality: z.enum(['high', 'low']),
-  locale: localeSchema.nullable(),
+  // Un idioma que ya no está registrado no tira el resto de preferencias: se vuelve a detectar.
+  locale: localeSchema.nullable().catch(null),
 })
 export type Prefs = z.output<typeof prefsSchema>
 

@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Qué se cuenta en la pantalla de resultado: veredicto, frase de ludópata y avisos extra.
-// Las frases salen de @vibe-gambling/shared/i18n y nunca se repite la anterior de cada categoría.
+// Las frases son las del idioma (locales/<idioma>/phrases.json) y nunca se repite la anterior de
+// cada categoría.
 import { colorOf, gamblersFallacyPick } from '@vibe-gambling/shared'
 import type { PocketColor, PublicGameConfig, ResolvedRound, Wallet } from '@vibe-gambling/shared'
-import { PHRASES, fillTemplate, pickPhrase } from '@vibe-gambling/shared/i18n'
+import { fillTemplate, pickPhrase } from '@vibe-gambling/shared/i18n'
 import type { PhraseCategory } from '@vibe-gambling/shared/i18n'
 
 import type { Translator } from '../i18n/index.ts'
@@ -34,7 +35,7 @@ export class PhraseMemory {
     vars: Record<string, string | number>,
     random: () => number,
   ): string {
-    const phrase = pickPhrase(PHRASES[tr.locale], category, this.last.get(category) ?? null, random)
+    const phrase = pickPhrase(tr.phrases, category, this.last.get(category) ?? null, random)
     this.last.set(category, phrase)
     return fillTemplate(phrase, vars)
   }

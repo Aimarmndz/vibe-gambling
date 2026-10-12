@@ -10,7 +10,7 @@ import { colorOf, coveredNumbers } from '@vibe-gambling/shared'
 import type { BetSelection } from '@vibe-gambling/shared'
 import type { CanvasTexture } from 'three'
 
-import { drawText } from '../font/bitmap.ts'
+import { drawText, measure } from '../font/bitmap.ts'
 import type { Translator } from '../i18n/index.ts'
 import { LAYOUT_BOUNDS, OUTSIDE_ORDER, numberAt } from '../game/layout.ts'
 import { PALETTE, pocketHex } from '../ui/palette.ts'
@@ -19,6 +19,18 @@ import { makeCanvas, seeded, toTexture } from './textures.ts'
 /** Texels por unidad de casilla (ancho y fondo). */
 export const SX = 15
 export const SY = 15
+
+/** Ancho útil de una etiqueta del tapete de `cells` casillas (sin pisar las rayas de tiza). */
+export function labelRoom(cells: number): number {
+  return cells * SX - 3
+}
+
+/** Ancho de un texto con las letras pegadas (sin el píxel de separación entre glifos). */
+export function tightWidth(text: string): number {
+  let width = 0
+  for (const ch of text) width += measure(ch)
+  return width
+}
 /** Margen de paño alrededor del tapete (texels). */
 const MX = 11
 const MY = 9
@@ -119,11 +131,27 @@ export class FeltLayout {
       ctx.fillRect(px, py, 1, h * SY + 1)
       ctx.fillRect(px + w * SX, py, 1, h * SY + 1)
     }
-    const label = (text: string, x: number, y: number, color: string = PALETTE.cream) => {
+    const label = (
+      text: string,
+      x: number,
+      y: number,
+      color: string = PALETTE.cream,
+      cells = 1,
+    ) => {
       const [px, py] = toTex(x, y)
       const shadow = color === PALETTE.ink ? undefined : PALETTE.ink
       // Centro entero: las mayúsculas (7 filas) quedan centradas sin medio texel de desfase.
-      drawText(ctx, text, px, Math.floor(py) - 3, { color, align: 'center', shadow })
+      const top = Math.floor(py) - 3
+      if (measure(text) <= labelRoom(cells)) {
+        drawText(ctx, text, px, top, { color, align: 'center', shadow })
+        return
+      }
+      // No cabe (p. ej. IMPAIR en francés): letras pegadas, sin el píxel de separación.
+      let cx = Math.round(px - tightWidth(text) / 2)
+      for (const ch of text) {
+        drawText(ctx, ch, cx, top, { color, shadow })
+        cx += measure(ch)
+      }
     }
     // Las apuestas interiores (hasta 6 números) se rellenan de oro; las exteriores solo se enmarcan.
     const wide = lit.size > 6
@@ -168,7 +196,7 @@ export class FeltLayout {
       const on = view.hover?.kind === 'dozen' && view.hover.index === i + 1
       box(4 * i, 3, 4, 1, on ? PALETTE.gold : null)
       const key = (['felt.dozen1', 'felt.dozen2', 'felt.dozen3'] as const)[i]!
-      label(tr.t(key), 4 * i + 2, 3.5, textIf(on))
+      label(tr.t(key), 4 * i + 2, 3.5, textIf(on), 4)
     }
     // Sencillas: rojo y negro van con rombos, como en las mesas de verdad.
     OUTSIDE_ORDER.forEach((kind, i) => {
@@ -187,7 +215,7 @@ export class FeltLayout {
       const key = (
         { low: 'felt.low', even: 'felt.even', odd: 'felt.odd', high: 'felt.high' } as const
       )[kind]
-      label(tr.t(key), 2 * i + 1, 4.5, textIf(on))
+      label(tr.t(key), 2 * i + 1, 4.5, textIf(on), 2)
     })
   }
 }

@@ -6,9 +6,19 @@ import { PerspectiveCamera, Vector3 } from 'three'
 import { describe, expect, it } from 'vitest'
 
 import { LAYOUT_BOUNDS } from '../src/game/layout.ts'
-import { SX, SY, TEX_H, TEX_W, feltGrid, toTex } from '../src/render/feltLayout.ts'
+import {
+  SX,
+  SY,
+  TEX_H,
+  TEX_W,
+  feltGrid,
+  labelRoom,
+  tightWidth,
+  toTex,
+} from '../src/render/feltLayout.ts'
 import { PSX_HEIGHT, PSX_WIDTH } from '../src/render/pipeline.ts'
 import { SHOTS, feltGeometry, layoutToWorld } from '../src/render/world.ts'
+import { CATALOGS } from './translators.ts'
 
 function tableCamera(): PerspectiveCamera {
   const shot = SHOTS.table
@@ -65,6 +75,27 @@ describe('tapete', () => {
       ) as [Vector3, Vector3, Vector3]
       const normal = b.clone().sub(a).cross(c.clone().sub(a))
       expect(normal.y).toBeGreaterThan(0)
+    }
+  })
+})
+
+describe('rótulos del tapete en todos los idiomas', () => {
+  it('caben en su casilla (como mucho con las letras pegadas)', () => {
+    const cells: Record<string, number> = {
+      'felt.column': 1,
+      'felt.dozen1': 4,
+      'felt.dozen2': 4,
+      'felt.dozen3': 4,
+      'felt.even': 2,
+      'felt.odd': 2,
+      'felt.low': 2,
+      'felt.high': 2,
+    }
+    for (const [locale, catalog] of Object.entries(CATALOGS)) {
+      for (const [key, n] of Object.entries(cells)) {
+        const text = catalog[key as keyof typeof catalog]
+        expect(tightWidth(text), `${locale}:${key}`).toBeLessThanOrEqual(labelRoom(n))
+      }
     }
   })
 })

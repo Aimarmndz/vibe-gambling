@@ -6,7 +6,7 @@ import { webConfigSchema } from '@vibe-gambling/shared'
 import type { WebConfig } from '@vibe-gambling/shared'
 import { describe, expect, it } from 'vitest'
 
-import { createTranslator } from '../src/i18n/index.ts'
+import { translator } from './translators.ts'
 import { externalLink, renderFooter } from '../src/pages/common.ts'
 import { renderPrivacy } from '../src/pages/privacy.ts'
 import { testWebConfig } from './fixtures.ts'
@@ -39,7 +39,7 @@ describe('XSS en las páginas', () => {
     // …y aun así, si llegaran (otra versión del servidor, un bug), el pie no las enlaza.
     const web = hostile as WebConfig
     const footer = document.createElement('footer')
-    renderFooter(footer, web, createTranslator('en'), () => undefined)
+    renderFooter(footer, web, translator('en'))
     expect(footer.querySelector('img')).toBeNull()
     expect(footer.textContent).toContain(payload)
     for (const a of footer.querySelectorAll('a')) {
@@ -64,7 +64,7 @@ describe('XSS en las páginas', () => {
     }
     expect(webConfigSchema.safeParse(hostile).success).toBe(false)
     const root = document.createElement('div')
-    renderPrivacy(root, hostile as WebConfig, createTranslator('en'))
+    renderPrivacy(root, hostile as WebConfig, translator('en'))
     expect(root.querySelector('img')).toBeNull()
     expect(root.textContent).toContain(payload)
     expect(root.querySelectorAll('a')).toHaveLength(0)

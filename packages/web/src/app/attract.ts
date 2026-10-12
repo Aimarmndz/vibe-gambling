@@ -4,7 +4,7 @@
 import { POCKET_COUNT } from '@vibe-gambling/shared'
 
 import { WheelMotion } from '../game/wheelMotion.ts'
-import { createTranslator, detectLocale } from '../i18n/index.ts'
+import type { Translator } from '../i18n/index.ts'
 import { PSX_HEIGHT, PSX_WIDTH, PsxPipeline } from '../render/pipeline.ts'
 import { World, WHEEL_CENTER } from '../render/world.ts'
 
@@ -13,12 +13,15 @@ const ORBIT_S = 3
 const LAND_S = 4.2
 const REST_S = 2.5
 
-export function startAttractMode(canvas: HTMLCanvasElement): void {
+/** Arranca la demo; `translator` es el idioma de la página (las etiquetas del tapete). */
+export function startAttractMode(
+  canvas: HTMLCanvasElement,
+  translator: Translator,
+): { setTranslator(tr: Translator): void } {
   const pipeline = new PsxPipeline(canvas)
   pipeline.options = { crt: true, dither: true }
   const world = new World(PSX_WIDTH, PSX_HEIGHT)
-  const tr = createTranslator(detectLocale(navigator.languages))
-  world.felt.update({ hover: null, winner: null }, tr)
+  world.felt.update({ hover: null, winner: null }, translator)
   let phaseEnd = ORBIT_S
   let phase: 'orbit' | 'land' | 'rest' = 'orbit'
   const motion = new WheelMotion({
@@ -79,4 +82,8 @@ export function startAttractMode(canvas: HTMLCanvasElement): void {
     requestAnimationFrame(frame)
   }
   requestAnimationFrame(frame)
+  return {
+    // Al cambiar de idioma en la landing, el tapete se vuelve a rotular.
+    setTranslator: tr => world.felt.update({ hover: null, winner: null }, tr),
+  }
 }
