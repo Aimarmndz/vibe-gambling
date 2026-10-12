@@ -6,7 +6,7 @@
 // usuarios `e2e-*`. Cada ejecución usa un usuario de GitHub falso nuevo: empieza con saldo limpio.
 // Requisitos: `pnpm build` (servidor y web) y Postgres accesible.
 import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { defineConfig, devices } from '@playwright/test'
@@ -130,7 +130,8 @@ export default defineConfig({
     },
     {
       // Primero, la base de datos del E2E (si no existe); el servidor aplica las migraciones.
-      command: `node ${resolve(here, 'e2e/ensure-db.ts')} && node --env-file=../../deploy/dev.env dist/main.js`,
+      // Ruta relativa al cwd: una absoluta sin comillas se rompería con espacios en la ruta del repo.
+      command: `node ${relative(serverDir, resolve(here, 'e2e/ensure-db.ts'))} && node --env-file=../../deploy/dev.env dist/main.js`,
       cwd: serverDir,
       url: `${baseURL}/healthz`,
       env,

@@ -203,7 +203,7 @@ async function main(): Promise<void> {
       () => {
         if (!tr) return
         copy.textContent = tr.t('landing.copied')
-        setTimeout(() => tr && (copy.textContent = tr.t('landing.copy')), 1600)
+        setTimeout(() => tr && (copy.textContent = tr.t('landing.copy')), clientConfig.ui.toastMs)
       },
       (error: unknown) => console.warn('[landing] no se pudo copiar', error),
     )
