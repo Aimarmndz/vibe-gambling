@@ -24,7 +24,15 @@ beforeAll(async () => {
   db = await createTestDb()
   dist = mkdtempSync(join(tmpdir(), 'vibe-web-'))
   mkdirSync(join(dist, 'assets'))
-  writeFileSync(join(dist, 'index.html'), '<!doctype html><title>landing</title>')
+  writeFileSync(
+    join(dist, 'index.html'),
+    [
+      '<!doctype html><title>landing</title>',
+      '<meta property="og:url" content="/" />',
+      '<meta property="og:image" content="/og.png" />',
+      '<meta name="twitter:image" content="/og.png" />',
+    ].join('\n'),
+  )
   writeFileSync(join(dist, 'play.html'), '<!doctype html><title>play</title>')
   writeFileSync(join(dist, 'privacy.html'), '<!doctype html><title>privacy</title>')
   writeFileSync(join(dist, 'assets', 'main-abc123.js'), 'console.log(1)')
@@ -113,6 +121,35 @@ describe('rutas públicas', () => {
     expect((await t.app.inject({ method: 'GET', url: '/../package.json' })).statusCode).not.toBe(
       200,
     )
+  })
+
+  it('la landing sale con og:url, og:image y twitter:image absolutos (PUBLIC_URL)', async () => {
+    for (const url of ['/', '/index.html']) {
+      const res = await t.app.inject({ method: 'GET', url })
+      expect(res.statusCode, url).toBe(200)
+      expect(res.headers['content-type']).toMatch(/^text\/html/)
+      expect(res.body).toContain('<meta property="og:url" content="https://vibe.test/" />')
+      expect(res.body).toContain('<meta property="og:image" content="https://vibe.test/og.png" />')
+      expect(res.body).toContain('<meta name="twitter:image" content="https://vibe.test/og.png" />')
+      expect(res.body).not.toContain('content="/og.png"')
+      // Mismas cabeceras que el resto del HTML: CSP estricta y sin caché larga.
+      expect(String(res.headers['content-security-policy'])).toContain("script-src 'self'")
+      expect(res.headers['cache-control']).toBe('no-cache')
+    }
+  })
+
+  it('el HTML se revalida con ETag (304 si no cambió)', async () => {
+    const first = await t.app.inject({ method: 'GET', url: '/' })
+    const etag = String(first.headers.etag)
+    expect(etag).toMatch(/^"[\w-]+"$/)
+    const again = await t.app.inject({
+      method: 'GET',
+      url: '/',
+      headers: { 'if-none-match': etag },
+    })
+    expect(again.statusCode).toBe(304)
+    expect(again.body).toBe('')
+    expect(again.headers['cache-control']).toBe('no-cache')
   })
 
   it('404 en JSON con el formato de error', async () => {

@@ -1,18 +1,22 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Rutas fuera de `/api`: configuración pública de la web, salud y estáticos.
+// Rutas fuera de `/api`: configuración pública de la web, salud y estáticos. Las páginas HTML salen
+// con sus metadatos de previsualización (og:image…) absolutos con PUBLIC_URL (ver html.ts).
+import { createHash } from 'node:crypto'
 import { existsSync, statSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
 import { resolve, sep } from 'node:path'
 
 import fastifyStatic from '@fastify/static'
 import { errorResponseSchema, toPublicGameConfig, webConfigSchema } from '@vibe-gambling/shared'
 import { sql } from 'drizzle-orm'
-import type { FastifyInstance } from 'fastify'
+import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import type { ZodTypeProvider } from 'fastify-type-provider-zod'
 import { z } from 'zod'
 
 import type { Config } from '../config.ts'
 import type { Database } from '../db/client.ts'
 import { errorBody } from './errors.ts'
+import { absolutizeMeta } from './html.ts'
 
 export interface PublicOptions {
   config: Config
@@ -120,9 +124,16 @@ export async function publicRoutes(parent: FastifyInstance, options: PublicOptio
     },
   })
   for (const [route, file] of Object.entries(PAGES)) {
-    app.get(route, async (_request, reply) => {
-      reply.header('cache-control', 'no-cache')
-      return reply.sendFile(file)
-    })
+    const handler = async (request: FastifyRequest, reply: FastifyReply) => {
+      // Se lee en cada petición (es pequeño): una build nueva se ve sin reiniciar el servidor.
+      const html = absolutizeMeta(await readFile(resolve(root, file), 'utf8'), env.PUBLIC_URL)
+      const etag = `"${createHash('sha256').update(html).digest('base64url').slice(0, 27)}"`
+      reply.header('cache-control', 'no-cache').header('etag', etag)
+      if (request.headers['if-none-match'] === etag) return reply.code(304).send()
+      return reply.type('text/html; charset=utf-8').send(html)
+    }
+    app.get(route, handler)
+    // El archivo pedido por su nombre sale igual (con los metadatos absolutos).
+    app.get(`/${file}`, handler)
   }
 }
