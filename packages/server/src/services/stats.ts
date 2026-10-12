@@ -125,11 +125,14 @@ export class StatsService {
       staked: rounds.staked,
       net: rounds.net,
     }
+    // `nulls last`: en Postgres `desc` pone los nulos primero, y las rondas de antes de la v2 (sin
+    // `spin_number`) son las más antiguas; si no, en la temporada de la migración taparían las
+    // tiradas nuevas.
     const recent = await db
       .select(summary)
       .from(rounds)
       .where(mine)
-      .orderBy(desc(rounds.spinNumber), desc(rounds.resolvedAt), desc(rounds.id))
+      .orderBy(sql`${rounds.spinNumber} desc nulls last`, desc(rounds.resolvedAt), desc(rounds.id))
       .limit(game.stats.recentRounds)
     const [best] = await db
       .select(summary)
