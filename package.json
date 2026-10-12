@@ -24,6 +24,7 @@
     "format": "prettier --write .",
     "typecheck": "pnpm -r --parallel typecheck && pnpm typecheck:scripts",
     "typecheck:scripts": "tsc -p scripts",
+    "sync:mod": "node scripts/sync-mod-shared.ts",
     "test": "pnpm -r test",
     "build": "pnpm -r build"
   },
