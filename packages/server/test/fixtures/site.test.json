@@ -1,10 +1,39 @@
 {
-  "author": { "name": "Test Author", "url": "https://example.test/author" },
+  "author": {
+    "name": "Test Author",
+    "url": "https://example.test/author"
+  },
   "repoUrl": "https://example.test/repo",
   "installCommand": "/plugin install test",
   "helpLinks": {
-    "en": [{ "label": "Help EN", "url": "https://example.test/help-en" }],
-    "es": [{ "label": "Ayuda ES", "url": "https://example.test/help-es" }]
+    "en": [
+      {
+        "label": "Help EN",
+        "url": "https://example.test/help-en"
+      }
+    ],
+    "es": [
+      {
+        "label": "Ayuda ES",
+        "url": "https://example.test/help-es"
+      }
+    ]
   },
-  "moreProjects": []
+  "moreProjects": [],
+  "instance": {
+    "operator": {
+      "name": "Test Operator",
+      "url": "https://example.test/operator"
+    },
+    "hosting": {
+      "en": "a test box",
+      "es": "una máquina de pruebas"
+    },
+    "networkProxy": null,
+    "contact": {
+      "label": "example.test/contact",
+      "url": "https://example.test/contact"
+    },
+    "backupRetentionDays": null
+  }
 }

@@ -56,6 +56,12 @@ export async function publicRoutes(parent: FastifyInstance, options: PublicOptio
     isOfficial: env.IS_OFFICIAL,
     serverVersion,
     game: toPublicGameConfig(config.game),
+    privacy: {
+      imageOrigins: env.CSP_IMG_ORIGINS,
+      modSessionTtlSeconds: env.MOD_SESSION_TTL_SECONDS,
+      webSessionTtlSeconds: env.WEB_SESSION_TTL_SECONDS,
+      linkCodeTtlSeconds: env.LINK_CODE_TTL_SECONDS,
+    },
     site: config.site,
   })
   app.get(

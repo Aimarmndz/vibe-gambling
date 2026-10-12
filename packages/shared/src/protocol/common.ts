@@ -30,6 +30,15 @@ export const localeSchema = z.enum(LOCALES)
 export type Locale = z.output<typeof localeSchema>
 
 /**
+ * URL que se puede enseñar o enlazar: solo `http` y `https`. `z.url()` a secas acepta también
+ * `javascript:`, `data:`, `file:` o `vbscript:`, y estas URLs acaban en un `href` o un `src`.
+ * Sin restringir el dominio: en desarrollo y en los tests son `http://localhost:<puerto>`.
+ * El patrón (esquema en minúsculas, como lo escriben GitHub y los navegadores) hace que la
+ * restricción salga también en el JSON Schema de `docs/PROTOCOLO.md`.
+ */
+export const httpUrlSchema = z.url({ protocol: /^https?$/ }).regex(/^https?:\/\//)
+
+/**
  * Longitudes máximas de los textos del protocolo. El mod las usa también para cortar lo que
  * enseña del servidor (se copian a `packages/mod/hooks/generated`).
  */
@@ -67,8 +76,8 @@ export const pocketColorSchema = z.enum(['red', 'black', 'green'])
 export const publicUserSchema = z
   .object({
     login: z.string().min(1).max(TEXT_LIMITS.login),
-    avatarUrl: z.url(),
-    profileUrl: z.url(),
+    avatarUrl: httpUrlSchema,
+    profileUrl: httpUrlSchema,
   })
   .strict()
 export type PublicUser = z.output<typeof publicUserSchema>

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-import { mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -73,6 +73,28 @@ describe('configuración', () => {
     )
     expect(() => loadConfig(testEnv({ GAME_CONFIG_PATH: broken }))).toThrow(/no es JSON/)
     expect(() => loadConfig(testEnv({ SITE_CONFIG_PATH: invalid }))).toThrow(/no es válido/)
+  })
+
+  it('site.json: exige los datos de la instancia y solo enlaces http(s)', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'vibe-site-'))
+    const base = JSON.parse(readFileSync(testEnv().SITE_CONFIG_PATH!, 'utf8')) as {
+      instance: Record<string, unknown>
+    }
+    const write = (name: string, value: unknown) => {
+      const path = join(dir, name)
+      writeFileSync(path, JSON.stringify(value))
+      return path
+    }
+    const { instance, ...withoutInstance } = base
+    const noInstance = write('no-instance.json', withoutInstance)
+    expect(() => loadConfig(testEnv({ SITE_CONFIG_PATH: noInstance }))).toThrow(/instance/)
+    const evil = write('evil.json', {
+      ...base,
+      instance: { ...instance, operator: { name: 'x', url: 'javascript:alert(1)' } },
+    })
+    expect(() => loadConfig(testEnv({ SITE_CONFIG_PATH: evil }))).toThrow(/instance\.operator\.url/)
+    const evilRepo = write('evil-repo.json', { ...base, repoUrl: 'data:text/html,hola' })
+    expect(() => loadConfig(testEnv({ SITE_CONFIG_PATH: evilRepo }))).toThrow(/repoUrl/)
   })
 
   it('db:migrate solo necesita las variables de la base de datos', () => {

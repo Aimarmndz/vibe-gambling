@@ -70,6 +70,17 @@ describe('rutas públicas', () => {
     expect(cfg.game.chips).toEqual([10, 50, 100])
     expect(cfg.site.author.name).toBe('Test Author')
     expect(cfg.instanceName).toBe('Test Casino')
+    // Los datos de la instancia para /privacy salen de site.json, no de la oficial.
+    expect(cfg.site.instance.operator.name).toBe('Test Operator')
+    expect(cfg.site.instance.networkProxy).toBeNull()
+    expect(cfg.site.instance.backupRetentionDays).toBeNull()
+    // Y lo que solo sabe el servidor, de su entorno.
+    expect(cfg.privacy).toEqual({
+      imageOrigins: ['https://avatars.test'],
+      modSessionTtlSeconds: 31_536_000,
+      webSessionTtlSeconds: 3600,
+      linkCodeTtlSeconds: 60,
+    })
   })
 
   it('/healthz comprueba la base de datos', async () => {

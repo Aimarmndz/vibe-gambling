@@ -1,15 +1,30 @@
 {
-  "author": { "name": "Aimar", "url": "https://github.com/Aimarmndz" },
+  "author": {
+    "name": "Aimar",
+    "url": "https://github.com/Aimarmndz"
+  },
   "repoUrl": "https://github.com/Aimarmndz/vibe-gambling",
   "installCommand": "/plugin install vibe-gambling --marketplace Aimarmndz/vibe-gambling",
   "helpLinks": {
     "en": [
-      { "label": "BeGambleAware", "url": "https://www.begambleaware.org/" },
-      { "label": "GamCare", "url": "https://www.gamcare.org.uk/" }
+      {
+        "label": "BeGambleAware",
+        "url": "https://www.begambleaware.org/"
+      },
+      {
+        "label": "GamCare",
+        "url": "https://www.gamcare.org.uk/"
+      }
     ],
     "es": [
-      { "label": "jugarbien.es", "url": "https://www.jugarbien.es/" },
-      { "label": "FEJAR", "url": "https://www.fejar.org/" }
+      {
+        "label": "jugarbien.es",
+        "url": "https://www.jugarbien.es/"
+      },
+      {
+        "label": "FEJAR",
+        "url": "https://www.fejar.org/"
+      }
     ]
   },
   "moreProjects": [
@@ -18,5 +33,21 @@
       "url": "https://github.com/Aimarmndz/scan2nas",
       "description": "Preset-based document scanning for Epson scanners on Linux, straight to your NAS (CLI + Qt app)."
     }
-  ]
+  ],
+  "instance": {
+    "operator": {
+      "name": "Aimar",
+      "url": "https://github.com/Aimarmndz"
+    },
+    "hosting": {
+      "en": "an IONOS VPS in the European Union",
+      "es": "una VPS de IONOS en la Unión Europea"
+    },
+    "networkProxy": "Cloudflare",
+    "contact": {
+      "label": "github.com/Aimarmndz/vibe-gambling/issues",
+      "url": "https://github.com/Aimarmndz/vibe-gambling/issues"
+    },
+    "backupRetentionDays": 14
+  }
 }

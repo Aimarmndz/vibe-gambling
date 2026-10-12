@@ -143,14 +143,14 @@ Identifica la instancia. El mod lo usa con `/vibe-server` para comprobar que el 
 
 **Respuesta 200** (`metaResponseSchema`)
 
-| Campo           | Tipo                 | Obligatorio |
-| --------------- | -------------------- | ----------- |
-| `v`             | `1`                  | sí          |
-| `protocol`      | `1`                  | sí          |
-| `name`          | `string` (1–80 car.) | sí          |
-| `isOfficial`    | `boolean`            | sí          |
-| `serverVersion` | `string` (0–40 car.) | sí          |
-| `publicUrl`     | `string` (uri)       | sí          |
+| Campo           | Tipo                        | Obligatorio |
+| --------------- | --------------------------- | ----------- |
+| `v`             | `1`                         | sí          |
+| `protocol`      | `1`                         | sí          |
+| `name`          | `string` (1–80 car.)        | sí          |
+| `isOfficial`    | `boolean`                   | sí          |
+| `serverVersion` | `string` (0–40 car.)        | sí          |
+| `publicUrl`     | `string` (`/^https?:\/\//`) | sí          |
 
 <details><summary>JSON Schema</summary>
 
@@ -163,7 +163,7 @@ Identifica la instancia. El mod lo usa con `/vibe-server` para comprobar que el 
     "name": { "type": "string", "minLength": 1, "maxLength": 80 },
     "isOfficial": { "type": "boolean" },
     "serverVersion": { "type": "string", "maxLength": 40 },
-    "publicUrl": { "type": "string", "format": "uri" }
+    "publicUrl": { "type": "string", "pattern": "^https?:\\/\\/" }
   },
   "required": ["v", "protocol", "name", "isOfficial", "serverVersion", "publicUrl"],
   "additionalProperties": false
@@ -229,7 +229,7 @@ Errores propios: `502 github_unavailable` (GitHub no responde, o la OAuth App no
 | `v`               | `1`                                | sí          |
 | `pollId`          | `string` (`/^[A-Za-z0-9_-]{43}$/`) | sí          |
 | `userCode`        | `string` (4–20 car.)               | sí          |
-| `verificationUri` | `string` (uri)                     | sí          |
+| `verificationUri` | `string` (`/^https?:\/\//`)        | sí          |
 | `expiresIn`       | `integer` > 0                      | sí          |
 | `interval`        | `integer` > 0                      | sí          |
 
@@ -242,7 +242,7 @@ Errores propios: `502 github_unavailable` (GitHub no responde, o la OAuth App no
     "v": { "type": "number", "const": 1 },
     "pollId": { "type": "string", "pattern": "^[A-Za-z0-9_-]{43}$" },
     "userCode": { "type": "string", "minLength": 4, "maxLength": 20 },
-    "verificationUri": { "type": "string", "format": "uri" },
+    "verificationUri": { "type": "string", "pattern": "^https?:\\/\\/" },
     "expiresIn": { "type": "integer", "exclusiveMinimum": 0, "maximum": 9007199254740991 },
     "interval": { "type": "integer", "exclusiveMinimum": 0, "maximum": 9007199254740991 }
   },
@@ -475,11 +475,11 @@ Crea un [enlace de un solo uso](#enlace-de-un-solo-uso) para abrir la ventana ya
 
 **Respuesta 200** (`linkResponseSchema`)
 
-| Campo       | Tipo           | Obligatorio |
-| ----------- | -------------- | ----------- |
-| `v`         | `1`            | sí          |
-| `url`       | `string` (uri) | sí          |
-| `expiresIn` | `integer` > 0  | sí          |
+| Campo       | Tipo                        | Obligatorio |
+| ----------- | --------------------------- | ----------- |
+| `v`         | `1`                         | sí          |
+| `url`       | `string` (`/^https?:\/\//`) | sí          |
+| `expiresIn` | `integer` > 0               | sí          |
 
 <details><summary>JSON Schema</summary>
 
@@ -488,7 +488,7 @@ Crea un [enlace de un solo uso](#enlace-de-un-solo-uso) para abrir la ventana ya
   "type": "object",
   "properties": {
     "v": { "type": "number", "const": 1 },
-    "url": { "type": "string", "format": "uri" },
+    "url": { "type": "string", "pattern": "^https?:\\/\\/" },
     "expiresIn": { "type": "integer", "exclusiveMinimum": 0, "maximum": 9007199254740991 }
   },
   "required": ["v", "url", "expiresIn"],
@@ -2160,7 +2160,7 @@ Dirección: servidor → cliente.
 - `GET /` (landing + ranking), `GET /play` (la ventana del juego), `GET /privacy`: HTML de la build de la web (`WEB_DIST_DIR`), con `Cache-Control: no-cache` y `ETag`; el servidor reescribe sus metadatos de previsualización (`og:image`…) como URLs absolutas con `PUBLIC_URL`. También responden por el nombre del archivo (`/index.html`, `/play.html`, `/privacy.html`). Si el servidor arranca sin la build, responden `503` con una página que lo explica y solo funciona la API.
 - `GET /assets/*`: archivos con hash de Vite, `max-age=ASSETS_MAX_AGE_SECONDS, immutable`. El resto de estáticos, `max-age=STATIC_MAX_AGE_SECONDS`.
 - `GET /healthz`: `200 {"ok":true}` si la base de datos responde a un `select 1`; si no, `503` con un `ErrorResponse` (`internal`). Sin rate limit ni caché. Es lo que miran el `HEALTHCHECK` de la imagen, `deploy.yml` y la monitorización.
-- `GET /config.json`: la configuración pública que la web lee al arrancar (nunca va escrita en el bundle). Sale de las variables de entorno y de `config/game.json` (solo la parte pública) y `config/site.json`. Caché `max-age=STATIC_MAX_AGE_SECONDS`.
+- `GET /config.json`: la configuración pública que la web lee al arrancar (nunca va escrita en el bundle). Sale de las variables de entorno y de `config/game.json` (solo la parte pública) y `config/site.json`. Lo que cuenta la página `/privacy` de la instancia va en `site.instance` (de `site.json`) y en `privacy` (del entorno: `CSP_IMG_ORIGINS` y la duración de las sesiones y del enlace). Todas sus URLs son `http`/`https`. Caché `max-age=STATIC_MAX_AGE_SECONDS`.
 
 <!-- BEGIN GENERATED web-config -->
 
@@ -2169,11 +2169,12 @@ Dirección: servidor → cliente.
 | Campo           | Tipo                                  | Obligatorio |
 | --------------- | ------------------------------------- | ----------- |
 | `v`             | `1`                                   | sí          |
-| `publicUrl`     | `string` (uri)                        | sí          |
+| `publicUrl`     | `string` (`/^https?:\/\//`)           | sí          |
 | `instanceName`  | `string` (1–80 car.)                  | sí          |
 | `isOfficial`    | `boolean`                             | sí          |
 | `serverVersion` | `string` (0–40 car.)                  | sí          |
 | `game`          | [PublicGameConfig](#publicgameconfig) | sí          |
+| `privacy`       | `object` (ver JSON Schema)            | sí          |
 | `site`          | `object` (ver JSON Schema)            | sí          |
 
 <details><summary>JSON Schema</summary>
@@ -2183,11 +2184,42 @@ Dirección: servidor → cliente.
   "type": "object",
   "properties": {
     "v": { "type": "number", "const": 1 },
-    "publicUrl": { "type": "string", "format": "uri" },
+    "publicUrl": { "type": "string", "pattern": "^https?:\\/\\/" },
     "instanceName": { "type": "string", "minLength": 1, "maxLength": 80 },
     "isOfficial": { "type": "boolean" },
     "serverVersion": { "type": "string", "maxLength": 40 },
     "game": { "$ref": "#/$defs/PublicGameConfig" },
+    "privacy": {
+      "type": "object",
+      "properties": {
+        "imageOrigins": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^https?:\\/\\/" }
+        },
+        "modSessionTtlSeconds": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "webSessionTtlSeconds": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "linkCodeTtlSeconds": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "imageOrigins",
+        "modSessionTtlSeconds",
+        "webSessionTtlSeconds",
+        "linkCodeTtlSeconds"
+      ],
+      "additionalProperties": false
+    },
     "site": {
       "type": "object",
       "properties": {
@@ -2195,12 +2227,12 @@ Dirección: servidor → cliente.
           "type": "object",
           "properties": {
             "name": { "type": "string", "minLength": 1 },
-            "url": { "type": "string", "format": "uri" }
+            "url": { "type": "string", "pattern": "^https?:\\/\\/" }
           },
           "required": ["name", "url"],
           "additionalProperties": false
         },
-        "repoUrl": { "type": "string", "format": "uri" },
+        "repoUrl": { "type": "string", "pattern": "^https?:\\/\\/" },
         "installCommand": { "type": "string", "minLength": 1, "maxLength": 200 },
         "helpLinks": {
           "type": "object",
@@ -2211,7 +2243,7 @@ Dirección: servidor → cliente.
               "type": "object",
               "properties": {
                 "label": { "type": "string", "minLength": 1, "maxLength": 80 },
-                "url": { "type": "string", "format": "uri" }
+                "url": { "type": "string", "pattern": "^https?:\\/\\/" }
               },
               "required": ["label", "url"],
               "additionalProperties": false
@@ -2225,19 +2257,65 @@ Dirección: servidor → cliente.
             "type": "object",
             "properties": {
               "label": { "type": "string", "minLength": 1, "maxLength": 80 },
-              "url": { "type": "string", "format": "uri" },
+              "url": { "type": "string", "pattern": "^https?:\\/\\/" },
               "description": { "type": "string", "maxLength": 200 }
             },
             "required": ["label", "url", "description"],
             "additionalProperties": false
           }
+        },
+        "instance": {
+          "type": "object",
+          "properties": {
+            "operator": {
+              "type": "object",
+              "properties": {
+                "name": { "type": "string", "minLength": 1, "maxLength": 80 },
+                "url": { "type": "string", "pattern": "^https?:\\/\\/" }
+              },
+              "required": ["name", "url"],
+              "additionalProperties": false
+            },
+            "hosting": {
+              "type": "object",
+              "propertyNames": { "type": "string", "enum": ["en", "es"] },
+              "additionalProperties": { "type": "string", "minLength": 1, "maxLength": 200 },
+              "required": ["en", "es"]
+            },
+            "networkProxy": {
+              "anyOf": [{ "type": "string", "minLength": 1, "maxLength": 80 }, { "type": "null" }]
+            },
+            "contact": {
+              "type": "object",
+              "properties": {
+                "label": { "type": "string", "minLength": 1, "maxLength": 80 },
+                "url": { "type": "string", "pattern": "^https?:\\/\\/" }
+              },
+              "required": ["label", "url"],
+              "additionalProperties": false
+            },
+            "backupRetentionDays": {
+              "anyOf": [{ "type": "integer", "minimum": 1, "maximum": 3650 }, { "type": "null" }]
+            }
+          },
+          "required": ["operator", "hosting", "networkProxy", "contact", "backupRetentionDays"],
+          "additionalProperties": false
         }
       },
-      "required": ["author", "repoUrl", "installCommand", "helpLinks", "moreProjects"],
+      "required": ["author", "repoUrl", "installCommand", "helpLinks", "moreProjects", "instance"],
       "additionalProperties": false
     }
   },
-  "required": ["v", "publicUrl", "instanceName", "isOfficial", "serverVersion", "game", "site"],
+  "required": [
+    "v",
+    "publicUrl",
+    "instanceName",
+    "isOfficial",
+    "serverVersion",
+    "game",
+    "privacy",
+    "site"
+  ],
   "additionalProperties": false
 }
 ```
@@ -2256,11 +2334,11 @@ Las tablas de arriba enlazan aquí cuando un campo es una de estas piezas.
 
 **PublicUser** (`publicUserSchema`)
 
-| Campo        | Tipo                 | Obligatorio |
-| ------------ | -------------------- | ----------- |
-| `login`      | `string` (1–39 car.) | sí          |
-| `avatarUrl`  | `string` (uri)       | sí          |
-| `profileUrl` | `string` (uri)       | sí          |
+| Campo        | Tipo                        | Obligatorio |
+| ------------ | --------------------------- | ----------- |
+| `login`      | `string` (1–39 car.)        | sí          |
+| `avatarUrl`  | `string` (`/^https?:\/\//`) | sí          |
+| `profileUrl` | `string` (`/^https?:\/\//`) | sí          |
 
 <details><summary>JSON Schema</summary>
 
@@ -2269,8 +2347,8 @@ Las tablas de arriba enlazan aquí cuando un campo es una de estas piezas.
   "type": "object",
   "properties": {
     "login": { "type": "string", "minLength": 1, "maxLength": 39 },
-    "avatarUrl": { "type": "string", "format": "uri" },
-    "profileUrl": { "type": "string", "format": "uri" }
+    "avatarUrl": { "type": "string", "pattern": "^https?:\\/\\/" },
+    "profileUrl": { "type": "string", "pattern": "^https?:\\/\\/" }
   },
   "required": ["login", "avatarUrl", "profileUrl"],
   "additionalProperties": false
@@ -2290,8 +2368,8 @@ Las tablas de arriba enlazan aquí cuando un campo es una de estas piezas.
 | Campo        | Tipo                                                                                                                                                                                                                                                                                                       | Obligatorio |
 | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
 | `login`      | `string` (1–39 car.)                                                                                                                                                                                                                                                                                       | sí          |
-| `avatarUrl`  | `string` (uri)                                                                                                                                                                                                                                                                                             | sí          |
-| `profileUrl` | `string` (uri)                                                                                                                                                                                                                                                                                             | sí          |
+| `avatarUrl`  | `string` (`/^https?:\/\//`)                                                                                                                                                                                                                                                                                | sí          |
+| `profileUrl` | `string` (`/^https?:\/\//`)                                                                                                                                                                                                                                                                                | sí          |
 | `hidden`     | `boolean`                                                                                                                                                                                                                                                                                                  | sí          |
 | `locale`     | `"en"` \| `"es"` \| `null`                                                                                                                                                                                                                                                                                 | sí          |
 | `createdAt`  | `string` (date-time, `/^(?:(?:\d\d[2468][048]\|\d\d[13579][26]\|\d\d0[48]\|[02468][048]00\|[13579][26]00)-02-29\|\d{4}-(?:(?:0[13578]\|1[02])-(?:0[1-9]\|[12]\d\|3[01])\|(?:0[469]\|11)-(?:0[1-9]\|[12]\d\|30)\|(?:02)-(?:0[1-9]\|1\d\|2[0-8])))T(?:(?:[01]\d\|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$/`) | sí          |
@@ -2303,8 +2381,8 @@ Las tablas de arriba enlazan aquí cuando un campo es una de estas piezas.
   "type": "object",
   "properties": {
     "login": { "type": "string", "minLength": 1, "maxLength": 39 },
-    "avatarUrl": { "type": "string", "format": "uri" },
-    "profileUrl": { "type": "string", "format": "uri" },
+    "avatarUrl": { "type": "string", "pattern": "^https?:\\/\\/" },
+    "profileUrl": { "type": "string", "pattern": "^https?:\\/\\/" },
     "hidden": { "type": "boolean" },
     "locale": { "anyOf": [{ "type": "string", "enum": ["en", "es"] }, { "type": "null" }] },
     "createdAt": {
@@ -2764,18 +2842,18 @@ Racha de color al final de las últimas `streak.historySize` tiradas **del propi
 
 **LeaderboardRow** (`leaderboardRowSchema`)
 
-| Campo           | Tipo                 | Obligatorio |
-| --------------- | -------------------- | ----------- |
-| `login`         | `string` (1–39 car.) | sí          |
-| `avatarUrl`     | `string` (uri)       | sí          |
-| `profileUrl`    | `string` (uri)       | sí          |
-| `rank`          | `integer` > 0        | sí          |
-| `netWorth`      | `integer`            | sí          |
-| `balance`       | `integer`            | sí          |
-| `debt`          | `integer`            | sí          |
-| `spins`         | `integer` ≥ 0        | sí          |
-| `currentStreak` | `integer`            | sí          |
-| `bestStreak`    | `integer` ≥ 0        | sí          |
+| Campo           | Tipo                        | Obligatorio |
+| --------------- | --------------------------- | ----------- |
+| `login`         | `string` (1–39 car.)        | sí          |
+| `avatarUrl`     | `string` (`/^https?:\/\//`) | sí          |
+| `profileUrl`    | `string` (`/^https?:\/\//`) | sí          |
+| `rank`          | `integer` > 0               | sí          |
+| `netWorth`      | `integer`                   | sí          |
+| `balance`       | `integer`                   | sí          |
+| `debt`          | `integer`                   | sí          |
+| `spins`         | `integer` ≥ 0               | sí          |
+| `currentStreak` | `integer`                   | sí          |
+| `bestStreak`    | `integer` ≥ 0               | sí          |
 
 <details><summary>JSON Schema</summary>
 
@@ -2784,8 +2862,8 @@ Racha de color al final de las últimas `streak.historySize` tiradas **del propi
   "type": "object",
   "properties": {
     "login": { "type": "string", "minLength": 1, "maxLength": 39 },
-    "avatarUrl": { "type": "string", "format": "uri" },
-    "profileUrl": { "type": "string", "format": "uri" },
+    "avatarUrl": { "type": "string", "pattern": "^https?:\\/\\/" },
+    "profileUrl": { "type": "string", "pattern": "^https?:\\/\\/" },
     "rank": { "type": "integer", "exclusiveMinimum": 0, "maximum": 9007199254740991 },
     "netWorth": { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 },
     "balance": { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 },
@@ -2824,14 +2902,14 @@ Racha de color al final de las últimas `streak.historySize` tiradas **del propi
 
 **HallOfRuinRow** (`hallOfRuinRowSchema`)
 
-| Campo        | Tipo                 | Obligatorio |
-| ------------ | -------------------- | ----------- |
-| `login`      | `string` (1–39 car.) | sí          |
-| `avatarUrl`  | `string` (uri)       | sí          |
-| `profileUrl` | `string` (uri)       | sí          |
-| `rank`       | `integer` > 0        | sí          |
-| `netWorth`   | `integer`            | sí          |
-| `spins`      | `integer` ≥ 0        | sí          |
+| Campo        | Tipo                        | Obligatorio |
+| ------------ | --------------------------- | ----------- |
+| `login`      | `string` (1–39 car.)        | sí          |
+| `avatarUrl`  | `string` (`/^https?:\/\//`) | sí          |
+| `profileUrl` | `string` (`/^https?:\/\//`) | sí          |
+| `rank`       | `integer` > 0               | sí          |
+| `netWorth`   | `integer`                   | sí          |
+| `spins`      | `integer` ≥ 0               | sí          |
 
 <details><summary>JSON Schema</summary>
 
@@ -2840,8 +2918,8 @@ Racha de color al final de las últimas `streak.historySize` tiradas **del propi
   "type": "object",
   "properties": {
     "login": { "type": "string", "minLength": 1, "maxLength": 39 },
-    "avatarUrl": { "type": "string", "format": "uri" },
-    "profileUrl": { "type": "string", "format": "uri" },
+    "avatarUrl": { "type": "string", "pattern": "^https?:\\/\\/" },
+    "profileUrl": { "type": "string", "pattern": "^https?:\\/\\/" },
     "rank": { "type": "integer", "exclusiveMinimum": 0, "maximum": 9007199254740991 },
     "netWorth": { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 },
     "spins": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }

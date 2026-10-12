@@ -8,6 +8,7 @@ import { seasonIdSchema } from '../game/season.ts'
 import { betSelectionSchema } from '../roulette/bets.ts'
 import {
   coinsSchema,
+  httpUrlSchema,
   localeSchema,
   opaqueTokenSchema,
   openRoundSchema,
@@ -32,7 +33,7 @@ export const metaResponseSchema = z
     name: z.string().min(1).max(TEXT_LIMITS.serverName),
     isOfficial: z.boolean(),
     serverVersion: z.string().max(40),
-    publicUrl: z.url(),
+    publicUrl: httpUrlSchema,
   })
   .strict()
 export type MetaResponse = z.output<typeof metaResponseSchema>
@@ -47,7 +48,7 @@ export const deviceStartResponseSchema = z
     /** Identificador opaco para el polling (el `device_code` de GitHub nunca sale del servidor). */
     pollId: opaqueTokenSchema,
     userCode: z.string().min(4).max(TEXT_LIMITS.userCode),
-    verificationUri: z.url(),
+    verificationUri: httpUrlSchema,
     expiresIn: z.number().int().positive(),
     interval: z.number().int().positive(),
   })
@@ -97,7 +98,7 @@ export const linkResponseSchema = z
   .object({
     v: versionSchema,
     /** URL completa de la ventana con el código de un solo uso. */
-    url: z.url(),
+    url: httpUrlSchema,
     expiresIn: z.number().int().positive(),
   })
   .strict()
@@ -296,23 +297,65 @@ export type HallOfRuinResponse = z.output<typeof hallOfRuinResponseSchema>
 
 // ---------------------------------------------------------------- /config.json (web)
 
-export const linkItemSchema = z.object({ label: z.string().min(1).max(80), url: z.url() }).strict()
+export const linkItemSchema = z
+  .object({ label: z.string().min(1).max(80), url: httpUrlSchema })
+  .strict()
+
+/**
+ * Datos de la instancia para la página `/privacy` (bloque `instance` de `config/site.json`): cada
+ * instancia autoalojada pone los suyos, así que la página nunca dice quién opera la oficial.
+ */
+export const instanceInfoSchema = z
+  .object({
+    /** Quién opera la instancia (el responsable de los datos). */
+    operator: z.object({ name: z.string().min(1).max(80), url: httpUrlSchema }).strict(),
+    /** Dónde está alojada, en cada idioma (p. ej. "una VPS de IONOS en la Unión Europea"). */
+    hosting: z.record(localeSchema, z.string().min(1).max(200)),
+    /** Proxy o CDN delante de la instancia, que ve la IP de quien entra; null si no hay. */
+    networkProxy: z.string().min(1).max(80).nullable(),
+    /** Dónde escribir sobre privacidad o pedir una copia de tus datos. */
+    contact: linkItemSchema,
+    /**
+     * Días que se guardan las copias de seguridad (el `BACKUP_KEEP_DAYS` de `deploy/backup.sh`);
+     * null si la instancia no hace copias.
+     */
+    backupRetentionDays: z.number().int().min(1).max(3650).nullable(),
+  })
+  .strict()
+export type InstanceInfo = z.output<typeof instanceInfoSchema>
+
+/**
+ * Lo que la página `/privacy` cuenta y solo sabe el servidor (sale de su entorno): de dónde carga
+ * imágenes el navegador (los avatares) y cuánto duran las sesiones y los enlaces.
+ */
+export const privacyFactsSchema = z
+  .object({
+    /** Orígenes de imágenes externas permitidos por la CSP (los avatares de GitHub). */
+    imageOrigins: z.array(httpUrlSchema),
+    modSessionTtlSeconds: z.number().int().positive(),
+    webSessionTtlSeconds: z.number().int().positive(),
+    linkCodeTtlSeconds: z.number().int().positive(),
+  })
+  .strict()
+export type PrivacyFacts = z.output<typeof privacyFactsSchema>
 
 export const webConfigSchema = z
   .object({
     v: versionSchema,
-    publicUrl: z.url(),
+    publicUrl: httpUrlSchema,
     instanceName: z.string().min(1).max(80),
     isOfficial: z.boolean(),
     serverVersion: z.string().max(40),
     game: publicGameConfigSchema,
+    privacy: privacyFactsSchema,
     site: z
       .object({
-        author: z.object({ name: z.string().min(1), url: z.url() }).strict(),
-        repoUrl: z.url(),
+        author: z.object({ name: z.string().min(1), url: httpUrlSchema }).strict(),
+        repoUrl: httpUrlSchema,
         installCommand: z.string().min(1).max(200),
         helpLinks: z.record(localeSchema, z.array(linkItemSchema)),
         moreProjects: z.array(linkItemSchema.extend({ description: z.string().max(200) }).strict()),
+        instance: instanceInfoSchema,
       })
       .strict(),
   })

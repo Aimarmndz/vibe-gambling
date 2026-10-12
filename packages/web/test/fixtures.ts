@@ -34,12 +34,25 @@ export const testWebConfig: WebConfig = webConfigSchema.parse({
   isOfficial: false,
   serverVersion: '0.0.0-test',
   game: toPublicGameConfig(testGame),
+  privacy: {
+    imageOrigins: ['https://avatars.example.invalid'],
+    modSessionTtlSeconds: 31_536_000,
+    webSessionTtlSeconds: 2_592_000,
+    linkCodeTtlSeconds: 60,
+  },
   site: {
     author: { name: 'Tester', url: 'https://example.invalid/tester' },
     repoUrl: 'https://example.invalid/repo',
     installCommand: '/plugin install test',
     helpLinks: { en: [{ label: 'Help', url: 'https://example.invalid/help' }], es: [] },
     moreProjects: [],
+    instance: {
+      operator: { name: 'Test Operator', url: 'https://example.invalid/operator' },
+      hosting: { en: 'a test box in the EU', es: 'una máquina de pruebas en la UE' },
+      networkProxy: 'Test CDN',
+      contact: { label: 'example.invalid/contact', url: 'https://example.invalid/contact' },
+      backupRetentionDays: 14,
+    },
   },
 })
 

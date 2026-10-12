@@ -118,6 +118,15 @@ describe('GitHubClient', () => {
     })
   })
 
+  it('rechaza un perfil cuyo avatar no es http(s) (acabaría en un src de la web)', async () => {
+    server.use(
+      http.get(`${API}/user`, () =>
+        HttpResponse.json({ id: 5, login: 'octo', avatar_url: 'javascript:alert(1)' }),
+      ),
+    )
+    await expect(client.fetchProfile('gho_x')).rejects.toMatchObject({ code: 'github_unavailable' })
+  })
+
   it('slow_down: usa el intervalo que dice GitHub o suma 5 s', () => {
     expect(slowDownInterval(5, 12)).toBe(12)
     expect(slowDownInterval(5, null)).toBe(10)

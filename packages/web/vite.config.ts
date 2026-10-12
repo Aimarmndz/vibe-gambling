@@ -28,6 +28,34 @@ const devEnvSchema = z.object({
   WEB_DEV_INSTANCE_NAME: z.string().min(1).max(80),
 })
 
+/**
+ * Lo que en /config.json pone el servidor desde su entorno (bloque `privacy`), sacado del entorno
+ * de desarrollo versionado del servidor (`deploy/dev.env`), el mismo que usa `pnpm dev` allí.
+ */
+const serverDevEnvSchema = z.object({
+  CSP_IMG_ORIGINS: z.string(),
+  MOD_SESSION_TTL_SECONDS: z.coerce.number().int().positive(),
+  WEB_SESSION_TTL_SECONDS: z.coerce.number().int().positive(),
+  LINK_CODE_TTL_SECONDS: z.coerce.number().int().positive(),
+})
+
+function serverDevPrivacy() {
+  const vars: Record<string, string> = {}
+  for (const line of readFileSync(resolve(repoRoot, 'deploy/dev.env'), 'utf8').split('\n')) {
+    const m = /^([A-Z0-9_]+)=(.*)$/.exec(line.trim())
+    if (m) vars[m[1]!] = m[2]!
+  }
+  const env = serverDevEnvSchema.parse(vars)
+  return {
+    imageOrigins: env.CSP_IMG_ORIGINS.split(',')
+      .map(o => o.trim())
+      .filter(o => o !== ''),
+    modSessionTtlSeconds: env.MOD_SESSION_TTL_SECONDS,
+    webSessionTtlSeconds: env.WEB_SESSION_TTL_SECONDS,
+    linkCodeTtlSeconds: env.LINK_CODE_TTL_SECONDS,
+  }
+}
+
 /** /config.json de desarrollo a partir de los archivos de configuración versionados. */
 function localConfigPlugin(env: z.output<typeof devEnvSchema>): Plugin {
   return {
@@ -45,6 +73,7 @@ function localConfigPlugin(env: z.output<typeof devEnvSchema>): Plugin {
           isOfficial: false,
           serverVersion: 'dev',
           game: toPublicGameConfig(game),
+          privacy: serverDevPrivacy(),
           site,
         })
         res.setHeader('content-type', 'application/json')

@@ -2,6 +2,7 @@
 // Cliente mínimo de GitHub para el Device Flow. Las URLs base salen de la configuración,
 // así que en desarrollo y en los tests apuntan a un GitHub falso.
 // Docs: https://docs.github.com/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps#device-flow
+import { httpUrlSchema } from '@vibe-gambling/shared'
 import { z } from 'zod'
 
 import { AppError } from '../lib/errors.ts'
@@ -38,7 +39,7 @@ export interface GitHubProfile {
 const deviceCodeSchema = z.object({
   device_code: z.string().min(1).max(200),
   user_code: z.string().min(4).max(20),
-  verification_uri: z.url(),
+  verification_uri: httpUrlSchema,
   expires_in: z.number().int().positive(),
   interval: z.number().int().positive(),
 })
@@ -51,7 +52,7 @@ const tokenSchema = z.union([
 const profileSchema = z.object({
   id: z.number().int().positive(),
   login: z.string().min(1).max(39),
-  avatar_url: z.url(),
+  avatar_url: httpUrlSchema,
 })
 
 /** Lo que GitHub añade al intervalo con cada `slow_down` (regla del propio Device Flow). */
