@@ -1,0 +1,34 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#08070d" />
+    <title>Privacy — vibe-gambling</title>
+    <meta
+      name="description"
+      content="What vibe-gambling stores, why, where, for how long and how to delete your account."
+    />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="preload" href="/fonts/polygone12.woff2" as="font" type="font/woff2" crossorigin />
+    <script type="module" src="/src/privacy.ts"></script>
+  </head>
+  <body class="privacy">
+    <header class="topbar wrap">
+      <a class="brand" href="/" data-i18n="brand.title"></a>
+      <nav class="topnav">
+        <button type="button" class="lang" data-lang-toggle data-i18n="footer.language"></button>
+      </nav>
+    </header>
+    <main class="wrap">
+      <article class="prose">
+        <h1 data-i18n="privacy.title"></h1>
+        <p class="lede" data-i18n="privacy.lede"></p>
+        <div id="sections"></div>
+      </article>
+    </main>
+    <footer class="footer wrap" id="footer"></footer>
+  </body>
+</html>

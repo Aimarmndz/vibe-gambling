@@ -1,0 +1,412 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+/* Landing pública y página de privacidad: la estética de la consola POLYGONE en HTML.
+   La fuente es bitmap de 12 px: los tamaños son siempre múltiplos enteros (24/36/48/72/96). */
+@import './base.css';
+
+body.landing,
+body.privacy {
+  min-height: 100vh;
+  background: radial-gradient(ellipse 80% 50% at 70% 0%, #1d2a5e 0%, transparent 70%), var(--ink);
+}
+
+.wrap {
+  width: 100%;
+  max-width: 1232px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+.skip {
+  position: absolute;
+  left: 16px;
+  top: -100px;
+}
+
+.skip:focus {
+  top: 16px;
+  z-index: 10;
+}
+
+/* ------------------------------------------------------------ cabecera */
+.topbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 24px;
+  padding-bottom: 24px;
+}
+
+.brand {
+  color: var(--gold);
+  text-decoration: none;
+  letter-spacing: 0;
+}
+
+.topnav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  align-items: center;
+}
+
+button,
+select {
+  font: inherit;
+  color: var(--cream);
+  background: var(--night);
+  border: 4px solid var(--frame);
+  box-shadow: inset 0 0 0 4px var(--frame-inner);
+  padding: 4px 16px;
+  cursor: pointer;
+  transition: transform 160ms var(--ease);
+}
+
+button:hover,
+select:hover {
+  color: var(--gold);
+}
+
+button:active {
+  transform: translate(2px, 2px);
+}
+
+.lang {
+  padding: 0 12px;
+}
+
+/* ------------------------------------------------------------ portada */
+.hero {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 48px;
+  align-items: center;
+  padding-top: 24px;
+  padding-bottom: 48px;
+}
+
+.hero-copy {
+  flex: 1 1 480px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.kicker {
+  margin: 0;
+  color: var(--muted);
+}
+
+.headline {
+  margin: 0 0 16px;
+  display: flex;
+  flex-direction: column;
+  font-size: var(--t3);
+  font-weight: normal;
+  line-height: 1;
+}
+
+.gold {
+  color: var(--gold);
+}
+
+.red {
+  color: var(--red);
+}
+
+.lede {
+  margin: 0;
+  max-width: 40ch;
+}
+
+.label {
+  margin: 16px 0 0;
+  color: var(--muted);
+}
+
+.install {
+  display: flex;
+  flex-wrap: wrap;
+  border: 4px solid var(--frame);
+  background: var(--night);
+  box-shadow: 8px 8px 0 #000;
+}
+
+.install code {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 12px 16px;
+  font: inherit;
+  overflow-wrap: anywhere;
+}
+
+.install button {
+  border: 0;
+  box-shadow: none;
+  background: var(--gold);
+  color: var(--ink);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.screen {
+  flex: 1 1 520px;
+  min-width: 0;
+  margin: 0;
+  aspect-ratio: 4 / 3;
+  border: 4px solid var(--line);
+  box-shadow: 12px 12px 0 #000;
+  background: #000;
+}
+
+.screen canvas,
+.screen img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  image-rendering: pixelated;
+}
+
+/* ------------------------------------------------------------ cómo funciona */
+.how,
+.board,
+.hall {
+  padding-top: 72px;
+}
+
+h2 {
+  margin: 0 0 24px;
+  font-size: var(--t3);
+  font-weight: normal;
+  line-height: 1;
+}
+
+.steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 24px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.steps li {
+  display: flex;
+  gap: 16px;
+  padding: 24px;
+  background: linear-gradient(var(--menu-top), var(--menu-bottom));
+  border: 4px solid var(--frame);
+  box-shadow:
+    inset 0 0 0 4px var(--frame-inner),
+    8px 8px 0 #000;
+}
+
+.steps p {
+  margin: 0;
+}
+
+.steps .num {
+  color: var(--gold);
+  font-size: var(--t3);
+  line-height: 1;
+}
+
+/* ------------------------------------------------------------ ranking */
+.board-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.board-head h2 {
+  margin: 0;
+}
+
+.board-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tabs [aria-selected='true'] {
+  background: var(--gold);
+  color: var(--ink);
+}
+
+.table-scroll {
+  overflow-x: auto;
+  border: 4px solid var(--frame);
+  background: linear-gradient(#141c5a, var(--night));
+  box-shadow: 8px 8px 0 #000;
+}
+
+.rows {
+  width: 100%;
+  min-width: 640px;
+  border-collapse: collapse;
+}
+
+.rows th {
+  color: var(--muted);
+  font-weight: normal;
+  text-align: left;
+  padding: 12px 16px;
+  border-bottom: 4px solid var(--frame-inner);
+}
+
+.rows td {
+  padding: 8px 16px;
+  border-bottom: 2px solid var(--line);
+}
+
+.rows .num-col,
+.num-col {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.rows .rank {
+  width: 64px;
+}
+
+.rows tr.top .rank {
+  color: var(--gold);
+  font-size: var(--t3);
+}
+
+.who {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  image-rendering: pixelated;
+  background: var(--line);
+  flex: none;
+}
+
+.avatar.broken {
+  visibility: hidden;
+}
+
+.loss {
+  color: var(--loss);
+}
+
+.win {
+  color: var(--win);
+}
+
+.state {
+  min-height: 1.5em;
+  margin: 16px 0 0;
+}
+
+/* ------------------------------------------------------------ salón de la ruina */
+.hall-seasons {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 24px;
+  margin-top: 24px;
+}
+
+.hall-card {
+  border: 4px solid var(--red);
+  background: #1a0b12;
+  padding: 16px 24px;
+  box-shadow: 8px 8px 0 #000;
+}
+
+.hall-card h3 {
+  margin: 0 0 8px;
+  font-size: var(--t1);
+  font-weight: normal;
+  color: var(--muted);
+}
+
+.hall-card ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hall-card li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 0;
+}
+
+.hall-card li .num-col {
+  margin-left: auto;
+}
+
+/* ------------------------------------------------------------ pie */
+.footer {
+  margin-top: 96px;
+  padding-top: 24px;
+  padding-bottom: 48px;
+  border-top: 4px solid var(--line);
+}
+
+.footer p {
+  margin: 0 0 8px;
+}
+
+/* ------------------------------------------------------------ privacidad */
+.prose {
+  max-width: 64ch;
+  padding-bottom: 24px;
+}
+
+.prose h1 {
+  margin: 24px 0 24px;
+  font-size: var(--t3);
+  font-weight: normal;
+  line-height: 1;
+  color: var(--gold);
+}
+
+.prose h2 {
+  margin: 48px 0 16px;
+  font-size: var(--t2);
+}
+
+.prose p {
+  margin: 0 0 16px;
+}
+
+@media (min-width: 720px) {
+  .headline {
+    font-size: var(--t4);
+  }
+}
+
+@media (min-width: 1180px) {
+  .headline {
+    font-size: var(--t5);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button {
+    transition: none;
+  }
+}

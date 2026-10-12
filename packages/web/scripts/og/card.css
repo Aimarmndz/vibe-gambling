@@ -1,0 +1,52 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+@font-face {
+  font-family: 'Polygone 12';
+  src: url('../../public/fonts/polygone12.woff2') format('woff2');
+}
+html,
+body {
+  margin: 0;
+  width: 1200px;
+  height: 630px;
+  background: radial-gradient(ellipse at 80% 0%, #1d2a5e, #08070d 70%);
+  color: #f3ead6;
+  font-family: 'Polygone 12', monospace;
+  -webkit-font-smoothing: none;
+}
+main {
+  display: flex;
+  gap: 48px;
+  align-items: center;
+  height: 100%;
+  padding: 0 48px;
+  box-sizing: border-box;
+}
+img {
+  width: 640px;
+  height: 480px;
+  image-rendering: pixelated;
+  border: 6px solid #3a3d60;
+  box-shadow: 12px 12px 0 #000;
+}
+h1 {
+  margin: 0 0 24px;
+  font-size: 96px;
+  line-height: 96px;
+  font-weight: normal;
+  color: #f2c14e;
+}
+h1 span {
+  color: #c1272d;
+  font-size: 72px;
+}
+p {
+  margin: 0 0 12px;
+  font-size: 24px;
+}
+.kicker,
+.small {
+  color: #9aa0c8;
+}
+.tag {
+  font-size: 36px;
+}

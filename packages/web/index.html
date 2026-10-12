@@ -1,0 +1,145 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#08070d" />
+    <!-- Metadatos estáticos (en inglés) para buscadores y previsualizaciones; el resto de textos
+         sale de src/i18n. La imagen Open Graph se genera con scripts de Playwright (docs/). -->
+    <title>vibe-gambling — every prompt is a spin</title>
+    <meta
+      name="description"
+      content="A PS1-style roulette that pops up while Claude Code thinks. Fake coins, real addiction (not really). Global leaderboard of the most broke devs."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="vibe-gambling — every prompt is a spin" />
+    <meta
+      property="og:description"
+      content="A PS1-style roulette that pops up while Claude Code thinks. Fake coins only. Global leaderboard of the most broke devs."
+    />
+    <meta property="og:image" content="/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="A low-poly roulette wheel in PS1 style on a green casino table"
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="preload" href="/fonts/polygone12.woff2" as="font" type="font/woff2" crossorigin />
+    <script type="module" src="/src/landing.ts"></script>
+  </head>
+  <body class="landing">
+    <a class="skip" href="#leaderboard" data-i18n="landing.lb.title.broke"></a>
+    <header class="topbar wrap">
+      <a class="brand" href="/" data-i18n="brand.title"></a>
+      <nav class="topnav">
+        <a href="/play?demo" data-i18n="landing.demo"></a>
+        <button type="button" class="lang" data-lang-toggle data-i18n="footer.language"></button>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero wrap">
+        <div class="hero-copy">
+          <p class="kicker" data-i18n="landing.kicker"></p>
+          <h1 class="headline">
+            <span data-i18n="landing.headline1"></span>
+            <span data-i18n="landing.headline2"></span>
+            <span class="gold" data-i18n="landing.headline3"></span>
+          </h1>
+          <p class="lede" data-i18n="landing.lede"></p>
+          <p class="label" data-i18n="landing.install"></p>
+          <div class="install">
+            <code id="install-command"></code>
+            <button type="button" id="copy" data-i18n="landing.copy"></button>
+          </div>
+          <p class="muted" data-i18n="landing.then"></p>
+        </div>
+        <figure class="screen">
+          <canvas id="attract" aria-hidden="true"></canvas>
+          <img id="attract-still" src="/og.png" alt="" width="1200" height="630" hidden />
+        </figure>
+      </section>
+
+      <section class="how wrap" aria-labelledby="how-title">
+        <h2 id="how-title" data-i18n="landing.how.title"></h2>
+        <ol class="steps">
+          <li>
+            <span class="num">1</span>
+            <p data-i18n="landing.how.1"></p>
+          </li>
+          <li>
+            <span class="num">2</span>
+            <p data-i18n="landing.how.2"></p>
+          </li>
+          <li>
+            <span class="num">3</span>
+            <p id="how-3"></p>
+          </li>
+        </ol>
+      </section>
+
+      <section id="leaderboard" class="board wrap" aria-labelledby="board-title">
+        <div class="board-head">
+          <div>
+            <p class="kicker" id="board-kicker"></p>
+            <h2 id="board-title"></h2>
+          </div>
+          <div class="board-controls">
+            <div class="tabs" role="tablist">
+              <button
+                type="button"
+                role="tab"
+                data-board="broke"
+                data-i18n="landing.lb.tab.broke"
+              ></button>
+              <button
+                type="button"
+                role="tab"
+                data-board="rich"
+                data-i18n="landing.lb.tab.rich"
+              ></button>
+              <button
+                type="button"
+                role="tab"
+                data-board="spins"
+                data-i18n="landing.lb.tab.spins"
+              ></button>
+            </div>
+            <label class="season">
+              <span class="sr-only" data-i18n="landing.lb.seasonLabel"></span>
+              <select id="season"></select>
+            </label>
+          </div>
+        </div>
+        <div class="table-scroll">
+          <table class="rows">
+            <thead>
+              <tr>
+                <th scope="col" data-i18n="lb.rank"></th>
+                <th scope="col" data-i18n="lb.player"></th>
+                <th scope="col" class="num-col" data-i18n="lb.net"></th>
+                <th scope="col" class="num-col" data-i18n="lb.spins"></th>
+                <th scope="col" class="num-col" data-i18n="lb.streak"></th>
+              </tr>
+            </thead>
+            <tbody id="board-rows"></tbody>
+          </table>
+        </div>
+        <p class="muted state" id="board-state" aria-live="polite"></p>
+      </section>
+
+      <section class="hall wrap" aria-labelledby="hall-title">
+        <h2 id="hall-title" class="red" data-i18n="landing.hall.title"></h2>
+        <p class="lede" id="hall-lede"></p>
+        <div id="hall-seasons" class="hall-seasons"></div>
+        <p class="muted state" id="hall-state"></p>
+      </section>
+    </main>
+
+    <footer class="footer wrap" id="footer"></footer>
+  </body>
+</html>
