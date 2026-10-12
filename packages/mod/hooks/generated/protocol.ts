@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // GENERADO por scripts/sync-mod-shared.ts a partir de packages/shared/src/protocol/{common,routes}.ts. No lo edites a mano.
-// Constantes del protocolo que usa el mod: versión, SO, idiomas, errores y rutas.
+// Constantes del protocolo que usa el mod: versión, SO, idiomas, errores, textos y rutas.
 
 export const PROTOCOL_VERSION = 1 as const
 export const OS_VALUES = ['linux', 'darwin', 'win32', 'other'] as const
@@ -24,6 +24,7 @@ export const ERROR_CODES = [
   'internal',
 ] as const
 export type ErrorCode = (typeof ERROR_CODES)[number]
+export const TEXT_LIMITS = { login: 39, serverName: 80, userCode: 20, errorMessage: 500 } as const
 export const API_ROUTES = {
   meta: { method: 'GET', path: '/api/meta', auth: 'public' },
   deviceStart: { method: 'POST', path: '/api/auth/device/start', auth: 'public' },

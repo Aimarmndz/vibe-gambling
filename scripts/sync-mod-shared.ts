@@ -3,7 +3,7 @@
 //
 // El mod se instala copiando solo `packages/mod`, así que no puede importar `packages/shared`.
 // Este script copia las frases (tal cual) y las constantes del protocolo (versión, SO, idiomas,
-// códigos de error y rutas). `packages/shared/test/mod-sync.test.ts` falla si la copia está
+// códigos de error, longitudes de los textos y rutas). `packages/shared/test/mod-sync.test.ts` falla si la copia está
 // desactualizada.
 //
 // Uso: `node scripts/sync-mod-shared.ts` (escribe) o `node scripts/sync-mod-shared.ts --check`.
@@ -18,6 +18,7 @@ import {
   LOCALES,
   OS_VALUES,
   PROTOCOL_VERSION,
+  TEXT_LIMITS,
 } from '../packages/shared/src/protocol/common.ts'
 import { API_ROUTES, PAGE_PATHS } from '../packages/shared/src/protocol/routes.ts'
 
@@ -46,7 +47,7 @@ function renderProtocol(): string {
   return [
     SPDX,
     banner('packages/shared/src/protocol/{common,routes}.ts'),
-    '// Constantes del protocolo que usa el mod: versión, SO, idiomas, errores y rutas.',
+    '// Constantes del protocolo que usa el mod: versión, SO, idiomas, errores, textos y rutas.',
     '',
     constant('PROTOCOL_VERSION', PROTOCOL_VERSION),
     constant('OS_VALUES', OS_VALUES),
@@ -55,6 +56,7 @@ function renderProtocol(): string {
     'export type Locale = (typeof LOCALES)[number]',
     constant('ERROR_CODES', ERROR_CODES),
     'export type ErrorCode = (typeof ERROR_CODES)[number]',
+    constant('TEXT_LIMITS', TEXT_LIMITS),
     constant('API_ROUTES', API_ROUTES),
     'export type ApiRouteName = keyof typeof API_ROUTES',
     constant('PAGE_PATHS', PAGE_PATHS),

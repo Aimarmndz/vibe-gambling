@@ -19,6 +19,21 @@ export const LOCALES = ['en', 'es'] as const
 export const localeSchema = z.enum(LOCALES)
 export type Locale = z.output<typeof localeSchema>
 
+/**
+ * Longitudes máximas de los textos del protocolo. El mod las usa también para cortar lo que
+ * enseña del servidor (se copian a `packages/mod/hooks/generated`).
+ */
+export const TEXT_LIMITS = {
+  /** Usuario de GitHub. */
+  login: 39,
+  /** Nombre de la instancia (`/api/meta`). */
+  serverName: 80,
+  /** Código del Device Flow. */
+  userCode: 20,
+  /** `message` de un error. */
+  errorMessage: 500,
+} as const
+
 /** Identificador de turno generado por el mod (idempotencia de los reintentos). */
 export const turnIdSchema = z.string().regex(/^[A-Za-z0-9_-]{8,64}$/)
 
@@ -41,7 +56,7 @@ export const pocketColorSchema = z.enum(['red', 'black', 'green'])
 /** Datos públicos de un usuario (vienen de su perfil de GitHub). */
 export const publicUserSchema = z
   .object({
-    login: z.string().min(1).max(39),
+    login: z.string().min(1).max(TEXT_LIMITS.login),
     avatarUrl: z.url(),
     profileUrl: z.url(),
   })
@@ -154,7 +169,7 @@ export const errorResponseSchema = z
   .object({
     v: versionSchema,
     error: errorCodeSchema,
-    message: z.string().max(500),
+    message: z.string().max(TEXT_LIMITS.errorMessage),
   })
   .strict()
 export type ErrorResponse = z.output<typeof errorResponseSchema>

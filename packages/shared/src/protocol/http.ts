@@ -17,6 +17,7 @@ import {
   resolvedRoundSchema,
   selfUserSchema,
   slipSchema,
+  TEXT_LIMITS,
   turnIdSchema,
   versionSchema,
   walletSchema,
@@ -28,7 +29,7 @@ export const metaResponseSchema = z
   .object({
     v: versionSchema,
     protocol: versionSchema,
-    name: z.string().min(1).max(80),
+    name: z.string().min(1).max(TEXT_LIMITS.serverName),
     isOfficial: z.boolean(),
     serverVersion: z.string().max(40),
     publicUrl: z.url(),
@@ -45,7 +46,7 @@ export const deviceStartResponseSchema = z
     v: versionSchema,
     /** Identificador opaco para el polling (el `device_code` de GitHub nunca sale del servidor). */
     pollId: opaqueTokenSchema,
-    userCode: z.string().min(4).max(20),
+    userCode: z.string().min(4).max(TEXT_LIMITS.userCode),
     verificationUri: z.url(),
     expiresIn: z.number().int().positive(),
     interval: z.number().int().positive(),
@@ -233,7 +234,7 @@ export const settingsResponseSchema = z.object({ v: versionSchema, user: selfUse
 
 /** Borrado de cuenta: hay que repetir el login como confirmación. */
 export const deleteAccountRequestSchema = z
-  .object({ v: versionSchema, confirm: z.string().min(1).max(39) })
+  .object({ v: versionSchema, confirm: z.string().min(1).max(TEXT_LIMITS.login) })
   .strict()
 
 // ---------------------------------------------------------------- rankings
