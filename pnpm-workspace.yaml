@@ -1,5 +1,9 @@
 packages:
   - packages/*
+# esbuild < 0.25 tiene un aviso de seguridad (servidor de desarrollo, GHSA-67mh-4wv8-2f99);
+# solo lo arrastra drizzle-kit vía @esbuild-kit/core-utils, en desarrollo.
+overrides:
+  '@esbuild-kit/core-utils>esbuild': ^0.25.0
 allowBuilds:
   cpu-features: false
   esbuild: true
