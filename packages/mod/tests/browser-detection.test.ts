@@ -130,6 +130,33 @@ describe('launch commands', () => {
     ])
   })
 
+  test('Windows: a browser path that cmd would interpret falls back to the default browser', () => {
+    // Un usuario de Windows llamado `A&calc` (sin espacios, así que el argv no va entre
+    // comillas): `cmd` ejecutaría lo que va detrás del `&`. Igual con `|`, `<`, `>`, `^`, `%`, `"`.
+    for (const user of ['A&calc', 'A|calc', 'A^B', '%PATH%', 'A>out', 'A<in', 'A"B', 'A!B']) {
+      const brave = {
+        name: 'Brave',
+        path: `C:\\Users\\${user}\\AppData\\Local\\BraveSoftware\\Brave-Browser\\Application\\brave.exe`,
+        kind: 'binary' as const,
+      }
+      expect(launchCommand('win32', brave, URL_PLAY, SIZE), user).toEqual([
+        'cmd',
+        '/d',
+        '/c',
+        'start',
+        'vibe gambling',
+        URL_PLAY,
+      ])
+    }
+    // Las rutas normales (espacios, paréntesis, letras con tilde) siguen valiendo.
+    const edge = {
+      name: 'Edge',
+      path: 'C:\\Users\\José (dev)\\AppData\\Local\\Microsoft\\Edge\\Application\\msedge.exe',
+      kind: 'binary' as const,
+    }
+    expect(launchCommand('win32', edge, URL_PLAY, SIZE)?.[5]).toBe(edge.path)
+  })
+
   test('an unknown OS with no browser cannot open anything', () => {
     expect(launchCommand('other', null, URL_PLAY, SIZE)).toBeNull()
   })

@@ -136,6 +136,15 @@ export function isSafeWindowUrl(url: string, serverOrigin: string): boolean {
 }
 
 /**
+ * ¿Puede ir un argumento por `cmd /c` sin que `cmd` lo interprete? El argv se convierte en una
+ * línea de órdenes que solo lleva comillas si hay espacios, y `cmd` expande `%VAR%` incluso entre
+ * comillas: se rechaza cualquier metacarácter de `cmd` y cualquier carácter de control.
+ */
+export function isCmdSafe(arg: string): boolean {
+  return !/[&|<>^%"!\p{Cc}]/u.test(arg)
+}
+
+/**
  * Orden (argv, sin shell salvo el lanzador de Linux) que abre la ventana sin bloquear: el
  * lanzador vuelve en seguida y el navegador sigue vivo aunque la sesión de Claude Code acabe.
  */
@@ -161,7 +170,9 @@ export function launchCommand(
       return ['open', url]
     case 'win32':
       // `start "título" programa args`: el título lleva un espacio para que vaya entre comillas.
-      if (browser !== null)
+      // La ruta sale de variables de entorno (p. ej. el nombre del usuario en LOCALAPPDATA): si
+      // `cmd` pudiera interpretarla, se usa el navegador por defecto, que solo recibe la URL.
+      if (browser !== null && isCmdSafe(browser.path))
         return ['cmd', '/d', '/c', 'start', 'vibe gambling', browser.path, ...appFlags]
       return ['cmd', '/d', '/c', 'start', 'vibe gambling', url]
   }
