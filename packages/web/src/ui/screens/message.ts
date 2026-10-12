@@ -38,7 +38,7 @@ export class MessageScreen implements Screen {
 
   draw(g: CanvasRenderingContext2D, t: number): void {
     dim(g, 0.7)
-    drawWindow(g, 20, 40, 280, 160, { top: '#1b2368', bottom: PALETTE.ink })
+    drawWindow(g, 20, 40, 280, 160, { top: PALETTE.deepTop, bottom: PALETTE.ink })
     let y = 54
     if (this.opts.card) {
       drawMemoryCardIcon(g, 154, 50, Math.floor(t * 2) % 2 === 0)

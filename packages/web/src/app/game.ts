@@ -10,7 +10,8 @@ import type {
 
 import { Sfx } from '../audio/sfx.ts'
 import type { WebClientConfig } from '../config.ts'
-import { drawText, wrap } from '../font/bitmap.ts'
+import { drawText, printable, wrap } from '../font/bitmap.ts'
+import { betReadyHint } from '../game/hints.ts'
 import { PhraseMemory, describeOutcome } from '../game/outcome.ts'
 import type { OutcomeView } from '../game/outcome.ts'
 import { pocketAtLocalAngle } from '../game/spin.ts'
@@ -21,6 +22,7 @@ import { CATALOGS, createTranslator, detectLocale } from '../i18n/index.ts'
 import type { MessageKey, Translator } from '../i18n/index.ts'
 import { fetchLeaderboard, fetchMe } from '../net/api.ts'
 import { withVersion } from '../net/link.ts'
+import { webUrl } from '../net/urls.ts'
 import type { Link, LinkStatus, Outgoing } from '../net/link.ts'
 import { PSX_HEIGHT, PSX_WIDTH, PsxPipeline } from '../render/pipeline.ts'
 import { SHOTS, World, layoutToWorld } from '../render/world.ts'
@@ -32,19 +34,22 @@ import { LoanScreen } from '../ui/screens/loan.ts'
 import { MessageScreen } from '../ui/screens/message.ts'
 import { ResultScreen } from '../ui/screens/result.ts'
 import { TableScreen } from '../ui/screens/table.ts'
+import { TipScreen } from '../ui/screens/tip.ts'
 import type { AppContext, ButtonLabels, Screen, ToastKind } from './context.ts'
 import { Input } from './input.ts'
 import type { ActionEvent } from './input.ts'
+import { bootSeen, markBootSeen, markTipSeen, tipSeen } from './onboarding.ts'
 import { loadPrefs, safeStorage, savePrefs } from './prefs.ts'
 import type { Prefs } from './prefs.ts'
 import { demoLeaderboard } from './demoBoard.ts'
 
-const BOOTED_KEY = 'vibe-gambling:booted'
-
 interface Toast {
   text: string
   kind: ToastKind
-  until: number
+  /** Duración en segundos desde que se enseña de verdad. */
+  seconds: number
+  /** Cuándo desaparece (null = aún no ha cabido en pantalla). */
+  until: number | null
 }
 
 interface CameraMove {
@@ -137,9 +142,12 @@ export class Game implements AppContext {
     if (!opts.skipBoot) {
       this.boot = new BootScreen(this, this.world, () => {
         this.boot = null
-        safeStorage('session')?.setItem(BOOTED_KEY, '1')
+        markBootSeen(safeStorage('session'))
+        this.showTipOnce()
       })
       this.screens.push(this.boot)
+    } else {
+      this.showTipOnce()
     }
     this.applyPrefs()
 
@@ -164,13 +172,31 @@ export class Game implements AppContext {
         state: () => this.game,
         screens: () => this.screens.map(s => s.id),
         layoutToClient: (x: number, y: number) => this.layoutToClient(x, y),
+        render: () => ({
+          crt: this.pipeline.options.crt,
+          snap: this.world.uniforms.uSnap.value === 1,
+          muted: !this.prefs.sound,
+          audio: this.sfx.started,
+        }),
       },
     })
   }
 
   /** ¿Debe saltarse el arranque? (ya se vio en esta sesión del navegador). */
   static bootSeen(): boolean {
-    return safeStorage('session')?.getItem(BOOTED_KEY) === '1'
+    return bootSeen(safeStorage('session'))
+  }
+
+  /** "Cómo se juega" en la primera apertura de este navegador (luego, desde el menú). */
+  private showTipOnce(): void {
+    if (tipSeen(safeStorage('local'))) return
+    this.showTip(() => markTipSeen(safeStorage('local')))
+  }
+
+  showTip(onClose?: () => void): void {
+    const tip = new TipScreen(this, onClose)
+    this.push(tip)
+    this.announce([this.tr.t('tip.title'), ...tip.lines()].join(' '))
   }
 
   start(): void {
@@ -208,9 +234,13 @@ export class Game implements AppContext {
 
   push(screen: Screen): void {
     this.screens.push(screen)
+    // Las zonas clicables son del último fotograma: al cambiar de pantalla ya no valen (si no, un
+    // clic justo después de cerrar el menú abría la opción que había debajo del ratón).
+    this.hits.clear()
   }
 
   pop(screen?: Screen): void {
+    this.hits.clear()
     if (!screen) {
       if (this.screens.length > 1) this.screens.pop()
       return
@@ -224,7 +254,7 @@ export class Game implements AppContext {
     const ms = kind === 'save' ? this.client.ui.memoryCardToastMs : this.client.ui.toastMs
     this.toasts = [
       ...this.toasts.filter(t => t.text !== text),
-      { text, kind, until: this.time + ms / 1000 },
+      { text, kind, seconds: ms / 1000, until: null },
     ]
     this.announce(text)
   }
@@ -240,7 +270,12 @@ export class Game implements AppContext {
   }
 
   openLink(url: string): void {
-    window.open(url, '_blank', 'noopener,noreferrer')
+    const safe = webUrl(url)
+    if (!safe) {
+      console.warn('[game] enlace descartado: no es http(s)')
+      return
+    }
+    window.open(safe, '_blank', 'noopener,noreferrer')
   }
 
   minChip(): number {
@@ -297,8 +332,13 @@ export class Game implements AppContext {
   }
 
   private onMessage(msg: ServerMessage): void {
+    const before = this.game.slip.total
     const step = reduce(this.game, msg, Date.now())
     this.game = step.state
+    // Primera ficha sin ronda abierta: se explica que se jugará con el próximo prompt.
+    if (msg.type === 'slip' && betReadyHint(before, this.game.slip.total, this.game.phase)) {
+      this.toast(this.tr.t(this.demo ? 'toast.betReadyDemo' : 'toast.betReady'))
+    }
     for (const effect of step.effects) this.onEffect(effect)
   }
 
@@ -383,6 +423,7 @@ export class Game implements AppContext {
 
   private showMessage(opts: ConstructorParameters<typeof MessageScreen>[1]): void {
     this.screens = [this.table, new MessageScreen(this, opts)]
+    this.hits.clear()
     this.boot = null
     this.announce([opts.title, ...opts.lines].join('. '))
   }
@@ -612,15 +653,24 @@ export class Game implements AppContext {
   }
 
   private drawToasts(g: CanvasRenderingContext2D, t: number): void {
-    this.toasts = this.toasts.filter(toast => toast.until > t)
-    // Encima de la barra inferior de la mesa, o de la barra de ayuda si hay un resultado.
-    let y = this.top().id === 'result' ? 219 : 202
+    this.toasts = this.toasts.filter(toast => toast.until === null || toast.until > t)
+    // Franja libre de la pantalla de arriba: por defecto, encima de la barra inferior de la mesa.
+    // El resultado reserva el número, el veredicto y la frase: lo que no cabe espera su turno.
+    const band = this.top().toastBand?.() ?? { top: 0, bottom: 202 }
+    let y = band.bottom
     for (const toast of [...this.toasts].reverse()) {
-      const lines = toast.text.split('\n').flatMap(line => wrap(line, 196))
+      const save = toast.kind === 'save'
+      const x = save ? 96 : 112
+      const w = save ? 220 : 204
+      // El texto empieza tras el icono de la memory card y no puede pasarse del borde derecho.
+      const textX = save ? 22 : 6
+      const lines = printable(toast.text)
+        .split('\n')
+        .flatMap(line => wrap(line, w - textX - 5))
       const h = 8 + lines.length * 10
-      const x = toast.kind === 'save' ? 106 : 112
-      const w = toast.kind === 'save' ? 210 : 204
+      if (y - h - 3 < band.top) continue
       y -= h + 3
+      toast.until ??= t + toast.seconds
       if (toast.kind === 'save') {
         g.fillStyle = PALETTE.ink
         g.fillRect(x, y, w, h)
@@ -634,15 +684,15 @@ export class Game implements AppContext {
         drawWindow(g, x, y, w, h, {
           top:
             toast.kind === 'error'
-              ? '#7a1420'
+              ? PALETTE.alertTop
               : toast.kind === 'money'
-                ? '#1d6b3a'
+                ? PALETTE.moneyTop
                 : PALETTE.menuTop,
           bottom: PALETTE.menuBottom,
         })
       }
       lines.forEach((line, i) => {
-        drawText(g, line, x + (toast.kind === 'save' ? 22 : 6), y + 5 + i * 10, {
+        drawText(g, line, x + textX, y + 5 + i * 10, {
           color: PALETTE.cream,
           shadow: PALETTE.ink,
         })

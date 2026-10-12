@@ -82,12 +82,15 @@ export function fillCircle(
   }
 }
 
+/** Fila donde empieza la barra de ayuda inferior. */
+export const HELP_BAR_TOP = 222
+
 /** Barra inferior opaca con la ayuda del mando (tapa la de la mesa). */
 export function drawHelpBar(ctx: CanvasRenderingContext2D, text: string, color: string): void {
   ctx.fillStyle = 'rgba(8,7,13,0.92)'
-  ctx.fillRect(0, 222, ctx.canvas.width, 18)
+  ctx.fillRect(0, HELP_BAR_TOP, ctx.canvas.width, 18)
   ctx.fillStyle = PALETTE.frameInner
-  ctx.fillRect(0, 222, ctx.canvas.width, 1)
+  ctx.fillRect(0, HELP_BAR_TOP, ctx.canvas.width, 1)
   drawText(ctx, text, ctx.canvas.width / 2, 228, { color, align: 'center' })
 }
 

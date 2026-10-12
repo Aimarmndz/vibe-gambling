@@ -24,6 +24,20 @@ export function hasGlyph(ch: string): boolean {
   return ch in GLYPHS
 }
 
+/**
+ * Quita lo que la fuente no sabe pintar (emojis de las frases compartidas con el mod, que en la
+ * terminal sí se ven) y los espacios que dejan colgando: "Recuperando lo perdido 📈" no puede
+ * acabar en "Recuperando lo perdido ".
+ */
+export function printable(text: string): string {
+  let out = ''
+  for (const ch of text) out += ch === '\n' || hasGlyph(ch) ? ch : ' '
+  return out
+    .split('\n')
+    .map(line => line.replace(/ {2,}/g, ' ').trim())
+    .join('\n')
+}
+
 function glyphsOf(text: string): GlyphData[] {
   const out: GlyphData[] = []
   for (const ch of text) {

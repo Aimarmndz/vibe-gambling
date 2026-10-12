@@ -3,9 +3,9 @@
 // (jackpot "push to prod = bonus", racha de color, tests fallidos, apuesta automática).
 import type { AppContext, Screen } from '../../app/context.ts'
 import type { ActionEvent } from '../../app/input.ts'
-import { drawText, wrap } from '../../font/bitmap.ts'
+import { drawText, printable, wrap } from '../../font/bitmap.ts'
 import type { OutcomeView } from '../../game/outcome.ts'
-import { dim, drawHelpBar, drawWindow, fillCircle } from '../draw.ts'
+import { HELP_BAR_TOP, dim, drawHelpBar, drawWindow, fillCircle } from '../draw.ts'
 import { PALETTE, pocketHex } from '../palette.ts'
 
 export class ResultScreen implements Screen {
@@ -15,6 +15,8 @@ export class ResultScreen implements Screen {
   private readonly onClose: () => void
   private age = 0
   private closed = false
+  /** Borde inferior de la ventana de la frase (se calcula al pintar). */
+  private panelBottom = 240
 
   constructor(ctx: AppContext, view: OutcomeView, onClose: () => void) {
     this.ctx = ctx
@@ -27,6 +29,11 @@ export class ResultScreen implements Screen {
     this.closed = true
     this.ctx.pop(this)
     this.onClose()
+  }
+
+  /** Los avisos (memory card…) van entre la frase y la barra de ayuda, nunca encima del número. */
+  toastBand(): { top: number; bottom: number } {
+    return { top: this.panelBottom + 3, bottom: HELP_BAR_TOP - 3 }
   }
 
   update(dt: number): void {
@@ -57,7 +64,7 @@ export class ResultScreen implements Screen {
 
     if (v.jackpot) {
       const on = Math.floor(t * 4) % 2 === 0
-      drawWindow(g, 40, 6, 240, 15, { top: PALETTE.red, bottom: '#5a0d12' })
+      drawWindow(g, 40, 6, 240, 15, { top: PALETTE.red, bottom: PALETTE.jackpotBottom })
       drawText(
         g,
         tr.t('result.jackpot', { multiplier: this.ctx.web.game.jackpot.gitPushMultiplier }),
@@ -112,12 +119,13 @@ export class ResultScreen implements Screen {
     }
 
     // Frase y extras.
-    const lines = wrap(`“${v.phrase}”`, 268)
-    const extras = v.extras.flatMap(e => wrap(e, 268))
+    const lines = wrap(`“${printable(v.phrase)}”`, 268)
+    const extras = v.extras.flatMap(e => wrap(printable(e), 268))
     if (v.interest > 0) extras.push(tr.t('result.interest', { amount: tr.n(v.interest) }))
     const h = 12 + lines.length * 11 + (extras.length ? 4 + extras.length * 10 : 0)
     const y0 = 138
     drawWindow(g, 18, y0, 284, h)
+    this.panelBottom = y0 + h
     let y = y0 + 7
     for (const line of lines) {
       drawText(g, line, 160, y, { color: PALETTE.cream, align: 'center', shadow: PALETTE.ink })

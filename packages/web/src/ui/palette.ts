@@ -27,6 +27,11 @@ export const PALETTE = Object.freeze({
   carpet: '#3a0f1c',
   carpetLine: '#1c2a6a',
   shadow: '#000000',
+  /** Ventanas de aviso: error (rojo), dinero (verde), pantallas completas y jackpot. */
+  alertTop: '#7a1420',
+  moneyTop: '#1d6b3a',
+  deepTop: '#1b2368',
+  jackpotBottom: '#5a0d12',
 })
 
 /** Colores de las fichas, de la menor a la mayor (se repiten si hay más fichas). */
@@ -42,4 +47,30 @@ export const CHIP_COLORS: readonly string[] = Object.freeze([
 
 export function pocketHex(color: PocketColor): string {
   return color === 'red' ? PALETTE.red : color === 'black' ? PALETTE.black : PALETTE.green
+}
+
+/** Mezcla lineal de dos colores `#rrggbb` (t = 0 → a, t = 1 → b), como el degradado del canvas. */
+export function mixHex(a: string, b: string, t: number): string {
+  const pa = rgbOf(a)
+  const pb = rgbOf(b)
+  const out = pa.map((v, i) => Math.round(v + (pb[i]! - v) * t))
+  return `#${out.map(v => v.toString(16).padStart(2, '0')).join('')}`
+}
+
+function rgbOf(hex: string): [number, number, number] {
+  const n = parseInt(hex.slice(1), 16)
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255]
+}
+
+/** Relación de contraste WCAG 2.x entre dos colores `#rrggbb`. */
+export function contrastRatio(a: string, b: string): number {
+  const lum = (hex: string) => {
+    const [r, g, bl] = rgbOf(hex).map(c => {
+      const v = c / 255
+      return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4
+    }) as [number, number, number]
+    return 0.2126 * r + 0.7152 * g + 0.0722 * bl
+  }
+  const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x) as [number, number]
+  return (hi + 0.05) / (lo + 0.05)
 }

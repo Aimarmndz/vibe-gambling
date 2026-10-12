@@ -61,7 +61,7 @@ export class MemoryCardScreen implements Screen {
   draw(g: CanvasRenderingContext2D, t: number): void {
     const { tr } = this.ctx
     dim(g, 0.85)
-    drawWindow(g, 6, 6, 308, 228, { top: '#1b2368', bottom: PALETTE.ink })
+    drawWindow(g, 6, 6, 308, 228, { top: PALETTE.deepTop, bottom: PALETTE.ink })
     drawText(g, tr.t('mc.title'), 16, 14, { color: PALETTE.cream })
 
     // Rejilla de bloques.

@@ -8,6 +8,7 @@ import type { AppContext, Screen } from '../../app/context.ts'
 import type { ActionEvent } from '../../app/input.ts'
 import { drawText, measure } from '../../font/bitmap.ts'
 import { dim, drawWindow } from '../draw.ts'
+import { webUrl } from '../../net/urls.ts'
 import { PALETTE } from '../palette.ts'
 
 const AVATAR = 12
@@ -18,6 +19,11 @@ function avatar(url: string): HTMLCanvasElement | null {
   const cached = avatars.get(url)
   if (cached instanceof HTMLCanvasElement) return cached
   if (cached) return null
+  const safe = webUrl(url)
+  if (!safe) {
+    avatars.set(url, 'failed')
+    return null
+  }
   avatars.set(url, 'loading')
   const img = new Image()
   img.crossOrigin = 'anonymous'
@@ -35,7 +41,7 @@ function avatar(url: string): HTMLCanvasElement | null {
     avatars.set(url, canvas)
   }
   img.onerror = () => avatars.set(url, 'failed')
-  const sized = new URL(url)
+  const sized = new URL(safe)
   sized.searchParams.set('s', '24')
   img.src = sized.toString()
   return null
@@ -58,19 +64,35 @@ export class LeaderboardScreen implements Screen {
   private rank: number | null = null
   private request = 0
 
+  /** Carga aplazada hasta que caiga la bola (para no destripar el resultado). */
+  private deferred = false
+  private rankLoaded = false
+
   constructor(ctx: AppContext) {
     this.ctx = ctx
     this.load()
-    ctx.brokeRank().then(
-      rank => (this.rank = rank),
-      (error: unknown) => console.warn('[ranking] sin puesto propio', error),
-    )
   }
 
+  /**
+   * Mientras cae la bola el servidor ya conoce el resultado: el ranking (y el puesto propio) lo
+   * reflejaría antes de revealAt. Se espera a que termine la caída.
+   */
   private load(): void {
     const id = ++this.request
     this.data = null
     this.error = false
+    if (this.ctx.state().phase === 'landing') {
+      this.deferred = true
+      return
+    }
+    this.deferred = false
+    if (!this.rankLoaded) {
+      this.rankLoaded = true
+      this.ctx.brokeRank().then(
+        rank => (this.rank = rank),
+        (error: unknown) => console.warn('[ranking] sin puesto propio', error),
+      )
+    }
     this.ctx.leaderboard(this.board, this.ctx.client.leaderboard.inGameLimit).then(
       data => {
         if (id === this.request) this.data = data
@@ -88,6 +110,10 @@ export class LeaderboardScreen implements Screen {
     this.board = LEADERBOARD_BOARDS[(i + dir + n) % n]!
     this.ctx.sfx.play('move')
     this.load()
+  }
+
+  update(): void {
+    if (this.deferred && this.ctx.state().phase !== 'landing') this.load()
   }
 
   action(e: ActionEvent): void {
