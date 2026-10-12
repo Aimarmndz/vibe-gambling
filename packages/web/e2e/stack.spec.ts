@@ -17,6 +17,7 @@ import {
   linkResponseSchema,
   turnEndResponseSchema,
   turnStartResponseSchema,
+  webConfigSchema,
 } from '@vibe-gambling/shared'
 import type { GameState } from '../src/game/state.ts'
 
@@ -305,5 +306,24 @@ test('landing con el ranking y página de privacidad', async ({ page }) => {
   await shot(page, 'landing', true)
   await page.goto('/privacy')
   await expect(page.locator('#sections h2')).toHaveCount(9)
+  // Lo que depende de la instancia sale de /config.json (site.json y el entorno del servidor).
+  const web = webConfigSchema.parse(await (await page.request.get('/config.json')).json())
+  const { instance } = web.site
+  const sections = page.locator('#sections')
+  await expect(
+    sections.getByRole('link', { name: instance.operator.name }).first(),
+  ).toHaveAttribute('href', instance.operator.url)
+  await expect(sections).toContainText(instance.hosting.es)
+  if (instance.networkProxy) await expect(sections).toContainText(instance.networkProxy)
+  for (const origin of web.privacy.imageOrigins) {
+    await expect(sections).toContainText(new URL(origin).host)
+  }
+  if (instance.backupRetentionDays !== null) {
+    await expect(sections).toContainText(`${instance.backupRetentionDays} días`)
+  }
+  await expect(sections.getByRole('link', { name: instance.contact.label })).toHaveAttribute(
+    'href',
+    instance.contact.url,
+  )
   await shot(page, 'privacy', true)
 })

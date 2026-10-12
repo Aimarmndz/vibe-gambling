@@ -17,6 +17,7 @@ export default defineConfig({
         'src/app/onboarding.ts',
         'src/legal/**/*.ts',
         'src/ui/status.ts',
+        'src/pages/privacy.ts',
       ],
       reporter: ['text', 'html'],
       thresholds: {
