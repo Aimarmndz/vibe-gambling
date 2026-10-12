@@ -25,6 +25,26 @@
         "label": "FEJAR",
         "url": "https://www.fejar.org/"
       }
+    ],
+    "fr": [
+      {
+        "label": "Joueurs Info Service",
+        "url": "https://www.joueurs-info-service.fr/"
+      },
+      {
+        "label": "SOS Joueurs",
+        "url": "https://www.sosjoueurs.org/"
+      }
+    ],
+    "de": [
+      {
+        "label": "Check dein Spiel",
+        "url": "https://www.check-dein-spiel.de/"
+      },
+      {
+        "label": "Fachverband Glücksspielsucht",
+        "url": "https://www.gluecksspielsucht.de/"
+      }
     ]
   },
   "moreProjects": [
@@ -41,7 +61,9 @@
     },
     "hosting": {
       "en": "an IONOS VPS in the European Union",
-      "es": "una VPS de IONOS en la Unión Europea"
+      "es": "una VPS de IONOS en la Unión Europea",
+      "fr": "un VPS d’IONOS dans l’Union européenne",
+      "de": "einem VPS von IONOS in der Europäischen Union"
     },
     "networkProxy": "Cloudflare",
     "contact": {
