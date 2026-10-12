@@ -687,6 +687,8 @@ export class GameService {
       round: AchievementRoundInput | null
       pending: number
       wasBankrupt: boolean
+      /** Cuándo terminó el turno de la tirada si no es ahora (tirada pendiente). */
+      turnAt?: Date | null
     },
   ): Promise<Achievement[]> {
     const ach = this.#d.achievements
@@ -695,6 +697,7 @@ export class GameService {
       userId: wallet.userId,
       seasonId: wallet.seasonId,
       now,
+      turnAt: ev.turnAt ?? null,
       ctx: {
         event: ev.event,
         round: ev.round?.round ?? null,
@@ -847,6 +850,8 @@ export class GameService {
       },
       pending: await this.#pendingCount(tx, wallet.userId, wallet.seasonId),
       wasBankrupt: wallet.brokeAt !== null,
+      // Una tirada pendiente se guardó al terminar su turno: "Push el viernes" mira ese día.
+      turnAt: round.deferredAt,
     })
     return { kind: 'resolved', round: resolvedRow, wallet: walletRow, fresh: true, unlocked }
   }

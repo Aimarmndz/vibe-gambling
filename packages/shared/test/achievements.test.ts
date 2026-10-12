@@ -93,6 +93,28 @@ describe('catálogo', () => {
   })
 })
 
+describe('Push el viernes con tiradas pendientes', () => {
+  const jackpotRound = mkRound({
+    net: 20,
+    jackpot: true,
+    bets: [{ won: true, selection: { kind: 'red' } }],
+  })
+  it('cuenta el día del turno (el del push), no el de la tirada', () => {
+    const pushedThursday = ctx({
+      round: jackpotRound,
+      local: { weekday: 5, hour: 18 },
+      turnLocal: { weekday: 4, hour: 18 },
+    })
+    expect(all(pushedThursday)).not.toContain('friday_push')
+    const pushedFriday = ctx({
+      round: jackpotRound,
+      local: { weekday: 6, hour: 11 },
+      turnLocal: { weekday: 5, hour: 23 },
+    })
+    expect(all(pushedFriday)).toContain('friday_push')
+  })
+})
+
 describe('cada logro', () => {
   const cases: Array<[AchievementId, AchievementContext, AchievementContext]> = [
     ['first_spin', ctx(), ctx({ event: 'loan', round: null })],

@@ -64,6 +64,11 @@ export interface AchievementContext {
   readonly lifetimeZeros: number
   /** Día de la semana (0 = domingo) y hora de pared en la zona horaria de la temporada. */
   readonly local: { readonly weekday: number; readonly hour: number }
+  /**
+   * Lo mismo, pero del momento en que terminó el turno que trajo la tirada (el del `git push`).
+   * Solo cambia con las tiradas pendientes, que se tiran después; sin él, `local`.
+   */
+  readonly turnLocal?: { readonly weekday: number; readonly hour: number }
 }
 
 /** Lo que enseña la barra de progreso de los logros contables. */
@@ -147,7 +152,10 @@ export const ACHIEVEMENTS = [
   {
     id: 'friday_push',
     hidden: false,
-    check: ctx => round(ctx)?.spectacle.jackpot === true && ctx.local.weekday === FRIDAY,
+    // El chiste es hacer el push un viernes: con una tirada pendiente cuenta el día del turno,
+    // no el día en que se gasta (si no, bastaría con guardar pushes y gastarlos el viernes).
+    check: ctx =>
+      round(ctx)?.spectacle.jackpot === true && (ctx.turnLocal ?? ctx.local).weekday === FRIDAY,
   },
   {
     id: 'queue_full',

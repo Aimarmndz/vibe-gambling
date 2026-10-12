@@ -189,6 +189,56 @@ describe('nivel de espectáculo en round.resolved', () => {
     const ids = (await achievementRows(t, user.id)).map(r => r.achievementId)
     expect(ids).not.toContain('friday_push')
   })
+
+  it('"Push el viernes" mira cuándo se hizo el push, no cuándo se gasta la tirada pendiente', async () => {
+    const own = await startTestApp()
+    try {
+      // Jueves 15 (Madrid): push con la ventana cerrada; se gasta el viernes 16.
+      const { user } = await createUser(own, 'push-jueves')
+      await own.services.game.placeBet(user.id, { kind: 'red' }, 10)
+      const queued = await own.services.game.turnEnd(user.id, {
+        v: 1,
+        turnId: turnId(),
+        durationMs: 5,
+        gitPushOk: true,
+        testFailed: false,
+        ...MOD_META,
+      })
+      expect(queued.status).toBe('queued')
+      own.clock.set('2026-10-16T10:00:00Z')
+      own.rng.fix(1)
+      const spent = await own.services.game.spendPending(user.id, {
+        quick: false,
+        requestId: 'spend-friday-1',
+      })
+      expect(spent.round.spectacle).toMatchObject({ jackpot: true })
+      expect((await achievementRows(own, user.id)).map(r => r.achievementId)).not.toContain(
+        'friday_push',
+      )
+
+      // Viernes 16: push con la ventana cerrada; se gasta el sábado 17. Cuenta.
+      const other = await createUser(own, 'push-viernes')
+      await own.services.game.placeBet(other.user.id, { kind: 'red' }, 10)
+      await own.services.game.turnEnd(other.user.id, {
+        v: 1,
+        turnId: turnId(),
+        durationMs: 5,
+        gitPushOk: true,
+        testFailed: false,
+        ...MOD_META,
+      })
+      own.clock.set('2026-10-17T10:00:00Z')
+      await own.services.game.spendPending(other.user.id, {
+        quick: false,
+        requestId: 'spend-saturday-1',
+      })
+      expect((await achievementRows(own, other.user.id)).map(r => r.achievementId)).toContain(
+        'friday_push',
+      )
+    } finally {
+      await own.close()
+    }
+  })
 })
 
 describe('bancarrota y banco', () => {

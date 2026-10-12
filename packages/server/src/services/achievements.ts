@@ -65,15 +65,24 @@ export class AchievementService {
    */
   async unlock(
     tx: Tx,
-    args: { userId: string; seasonId: string; now: Date; ctx: EventContext },
+    args: {
+      userId: string
+      seasonId: string
+      now: Date
+      /** Cuándo terminó el turno, si no es ahora (tirada pendiente gastada más tarde). */
+      turnAt?: Date | null
+      ctx: EventContext
+    },
   ): Promise<Achievement[]> {
     const have = await tx
       .select({ id: achievements.achievementId })
       .from(achievements)
       .where(eq(achievements.userId, args.userId))
-    const local = localClock(args.now, this.#game.season.timeZone)
+    const tz = this.#game.season.timeZone
+    const local = localClock(args.now, tz)
+    const turnLocal = args.turnAt ? localClock(args.turnAt, tz) : local
     const fresh = evaluateAchievements(
-      { ...args.ctx, local },
+      { ...args.ctx, local, turnLocal },
       this.#rules,
       new Set(have.map(h => h.id)),
     )
