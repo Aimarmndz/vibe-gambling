@@ -177,9 +177,17 @@ test('la ventana juega una ronda de verdad contra el servidor', async ({
   await page.waitForTimeout(1500)
   await shot(page, 'boot-title')
   await page.keyboard.press('x')
+  // Primera apertura: "cómo se juega" (el giro lo lanza un prompt en Claude Code).
+  await page.waitForFunction(() =>
+    (window as unknown as { __vg?: Hooks }).__vg?.screens().includes('tip'),
+  )
+  await page.waitForTimeout(300)
+  await shot(page, 'tip')
+  await page.keyboard.press('x')
   await page.waitForFunction(
     () => (window as unknown as { __vg?: Hooks }).__vg?.state().user !== null,
   )
+  expect(await screens(page)).not.toContain('tip')
   expect(page.url()).not.toContain('code=')
   await page.waitForTimeout(500)
   await shot(page, 'table')
@@ -190,6 +198,8 @@ test('la ventana juega una ronda de verdad contra el servidor', async ({
   await page.waitForFunction(
     () => (window as unknown as { __vg: Hooks }).__vg.state().slip.bets.length === 1,
   )
+  // Sin botón de girar: la primera ficha avisa de que se jugará con el próximo prompt.
+  await expect(page.locator('#live')).toContainText('próximo prompt')
   await clickLayout(page, 5, 4.5)
   await page.waitForFunction(
     () => (window as unknown as { __vg: Hooks }).__vg.state().slip.bets.length === 2,
@@ -211,6 +221,8 @@ test('la ventana juega una ronda de verdad contra el servidor', async ({
   await page.keyboard.press('p')
   await page.waitForTimeout(200)
   await shot(page, 'menu')
+  // CONTINUAR · CÓMO SE GIRA · CLASIFICACIÓN · MEMORY CARD…
+  await page.keyboard.press('ArrowDown')
   await page.keyboard.press('ArrowDown')
   await page.keyboard.press('ArrowDown')
   await page.keyboard.press('x')

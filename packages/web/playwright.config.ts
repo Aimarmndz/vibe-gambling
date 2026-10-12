@@ -18,6 +18,13 @@ const e2eSchema = z.object({
   E2E_SERVER_PORT: z.coerce.number().int().min(1).max(65535),
   E2E_FAKE_GITHUB_PORT: z.coerce.number().int().min(1).max(65535),
   E2E_DATABASE_URL: z.url(),
+  /**
+   * Opcional: servidor de navegadores de Playwright (`playwright run-server`) para WebKit/Firefox
+   * cuando el sistema no puede ejecutarlos (p. ej. WebKit en Arch: le faltan bibliotecas de
+   * Ubuntu). Ver docs/DECISIONES.md, sección Web. En el CI (Ubuntu) van en local.
+   */
+  E2E_WEBKIT_WS_ENDPOINT: z.url().optional(),
+  E2E_FIREFOX_WS_ENDPOINT: z.url().optional(),
 })
 
 function readEnvFile(path: string): Record<string, string> {
@@ -32,6 +39,8 @@ function readEnvFile(path: string): Record<string, string> {
 const e2e = e2eSchema.parse({ ...readEnvFile(resolve(here, 'e2e/e2e.env')), ...process.env })
 const baseURL = `http://localhost:${e2e.E2E_SERVER_PORT}`
 const fakeGitHub = `http://localhost:${e2e.E2E_FAKE_GITHUB_PORT}`
+// Los tests lo necesitan para distinguir avatares de esta ejecución (ver smoke.spec.ts).
+process.env.E2E_FAKE_GITHUB_URL = fakeGitHub
 // Usuario de GitHub falso único por ejecución (id y login), para empezar siempre con saldo limpio.
 const runId = process.env.E2E_RUN_ID ?? Date.now().toString(36)
 process.env.E2E_RUN_ID = runId
@@ -58,6 +67,11 @@ const env: Record<string, string> = {
   LOG_LEVEL: 'warn',
 }
 
+/** Conectar a un servidor de navegadores remoto si se ha configurado uno. */
+function remote(wsEndpoint: string | undefined) {
+  return wsEndpoint ? { connectOptions: { wsEndpoint } } : {}
+}
+
 export default defineConfig({
   testDir: 'e2e',
   fullyParallel: false,
@@ -75,8 +89,29 @@ export default defineConfig({
   },
   projects: [
     {
+      // Chromium hace el recorrido completo (y las capturas de docs/screenshots) y el humo.
       name: 'chromium',
       use: { ...devices['Desktop Chrome'], viewport: { width: 960, height: 720 } },
+    },
+    {
+      name: 'firefox',
+      testMatch: 'smoke.spec.ts',
+      use: {
+        ...devices['Desktop Firefox'],
+        viewport: { width: 960, height: 720 },
+        launchOptions: {},
+        ...remote(e2e.E2E_FIREFOX_WS_ENDPOINT),
+      },
+    },
+    {
+      name: 'webkit',
+      testMatch: 'smoke.spec.ts',
+      use: {
+        ...devices['Desktop Safari'],
+        viewport: { width: 960, height: 720 },
+        launchOptions: {},
+        ...remote(e2e.E2E_WEBKIT_WS_ENDPOINT),
+      },
     },
   ],
   webServer: [

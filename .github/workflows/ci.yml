@@ -200,10 +200,11 @@ jobs:
           key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
       - name: Instalar navegadores de Playwright
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: pnpm --filter @vibe-gambling/web exec playwright install --with-deps
+        # Chromium hace el recorrido completo; Firefox y WebKit, el humo (e2e/smoke.spec.ts).
+        run: pnpm --filter @vibe-gambling/web exec playwright install --with-deps chromium firefox webkit
       - name: Instalar dependencias del sistema de Playwright
         if: steps.playwright-cache.outputs.cache-hit == 'true'
-        run: pnpm --filter @vibe-gambling/web exec playwright install-deps
+        run: pnpm --filter @vibe-gambling/web exec playwright install-deps chromium firefox webkit
       - name: Playwright contra la pila
         # La configuración de Playwright de la web levanta el servidor (con su GitHub falso) contra
         # la base de datos del service y sirve los estáticos recién construidos.
