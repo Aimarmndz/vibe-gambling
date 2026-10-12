@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Cambio de temporada. Un job interno comprueba cada N ms si alguna temporada ha vencido; si es
-// así, caduca sus rondas abiertas, guarda el Salón de la Ruina, la cierra y abre la siguiente.
+// así, caduca sus rondas abiertas y sus tiradas pendientes, guarda el Salón de la Ruina, la
+// cierra y abre la siguiente.
 // Corre bajo `pg_try_advisory_xact_lock`: si hubiera dos instancias, solo una hace el trabajo.
 // Las carteras de la temporada nueva se crean de forma perezosa con la primera tirada.
 import type { GameConfig, SeasonBounds } from '@vibe-gambling/shared'
@@ -110,6 +111,13 @@ export class SeasonService {
           .where(and(eq(rounds.seasonId, season.id), eq(rounds.status, 'open')))
           .returning({ userId: rounds.userId, roundId: rounds.id })
         expired.push(...gone)
+
+        // Las tiradas pendientes caducan con su temporada, antes del Salón de la Ruina: no se
+        // gastaron, así que no cuentan (ni para las tiradas ni para el patrimonio).
+        await tx
+          .update(rounds)
+          .set({ status: 'expired', expiredAt: now })
+          .where(and(eq(rounds.seasonId, season.id), eq(rounds.status, 'deferred')))
 
         const top = await tx
           .select({ userId: wallets.userId, netWorth: wallets.netWorth, spins: wallets.spins })

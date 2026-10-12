@@ -9,6 +9,11 @@ export interface Notifier {
   send(userId: string, message: ServerMessage): void
   /** Si el usuario tiene alguna ventana conectada. */
   isConnected(userId: string): boolean
+  /**
+   * Si el usuario tiene alguna ventana conectada **y visible** (según su último `presence`): con
+   * una así, el turno se juega en directo; si no, se guarda como tirada pendiente.
+   */
+  isAttentive(userId: string): boolean
   /** Usuarios con alguna ventana conectada ahora mismo. */
   connectedUsers(): string[]
   /** Despide y cierra todas las ventanas del usuario. */
@@ -21,6 +26,7 @@ export interface Notifier {
 export const nullNotifier: Notifier = {
   send: () => {},
   isConnected: () => false,
+  isAttentive: () => false,
   connectedUsers: () => [],
   closeUser: () => {},
   closeSession: () => {},

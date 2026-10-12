@@ -20,6 +20,11 @@ export interface Connection {
   alive: boolean
   /** Mensajes en espera hasta que salga el `hello` (null cuando ya salió). */
   pending: ServerMessage[] | null
+  /**
+   * Si la ventana se ve (último `presence`). Empieza en true: la ventana lo manda nada más
+   * conectar, y una que no lo mande (anterior a este mensaje) se comporta como antes, en directo.
+   */
+  visible: boolean
 }
 
 /** Código de cierre estándar "el servidor se va" (RFC 6455). */
@@ -103,6 +108,18 @@ export class Hub implements Notifier {
 
   isConnected(userId: string): boolean {
     return this.count(userId) > 0
+  }
+
+  isAttentive(userId: string): boolean {
+    for (const connection of this.#byUser.get(userId) ?? []) {
+      if (connection.visible) return true
+    }
+    return false
+  }
+
+  /** La ventana avisa de que se ve o se ha ocultado (`presence`). */
+  setVisible(connection: Connection, visible: boolean): void {
+    connection.visible = visible
   }
 
   connectedUsers(): string[] {
