@@ -47,6 +47,32 @@ describe('isGitPush', () => {
     }
   })
 
+  test('sees through wrappers and subshells', () => {
+    for (const command of [
+      'timeout 60 git push',
+      'timeout --signal=KILL 2m git push origin main',
+      'sudo -u deploy git push',
+      'nice -n 10 git push',
+      '(cd app && git push)',
+      '{ git push; }',
+    ]) {
+      expect(isGitPush(command), command).toBe(true)
+    }
+  })
+
+  test('help and combined dry-run flags are not a push', () => {
+    for (const command of [
+      'git push --help',
+      'git push -h',
+      'git push -fn origin main',
+      'git push -un',
+      'git help push',
+      'command -v git',
+    ]) {
+      expect(isGitPush(command), command).toBe(false)
+    }
+  })
+
   test('splits on operators but not inside quotes or redirections', () => {
     expect(splitCommands('a && b || c; d | e').map(s => s.text)).toEqual(['a', 'b', 'c', 'd', 'e'])
     expect(splitCommands('git push 2>&1').map(s => s.text)).toEqual(['git push 2>&1'])
@@ -136,3 +162,17 @@ describe('in a real turn', () => {
     expect(w.to('/api/turn/end')[0]?.body).toMatchObject({ gitPushOk: false })
   })
 })
+
+test(
+  'a push still running in the background is not counted (its exit code is unknown)',
+  { options: TEST_OPTIONS },
+  async ($, on) => {
+    bashTool(on)
+    const w = world(on, { routes: happyCasino(true), store: LOGGED_IN })
+    await startSession($, w)
+    await playTurn($, w, {
+      bash: [{ command: 'git push origin main', backgroundTaskId: 'bash-1' }],
+    })
+    expect(w.to('/api/turn/end')[0]?.body).toMatchObject({ gitPushOk: false })
+  },
+)

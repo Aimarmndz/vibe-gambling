@@ -60,6 +60,51 @@ describe('isTestCommand', () => {
     }
   })
 
+  test('recognises runners launched through a package manager or a wrapper', () => {
+    for (const command of [
+      'pnpm vitest',
+      'pnpm vitest run --coverage',
+      'pnpm exec vitest run',
+      'pnpm dlx vitest',
+      'pnpm --filter @vibe-gambling/web exec playwright test',
+      'yarn jest --ci',
+      'yarn dlx vitest',
+      'bun x vitest',
+      'bunx vitest',
+      'npm exec -- jest',
+      'npm t',
+      'npx --yes jest',
+      'uv run pytest -q',
+      'uv run python -m pytest',
+      'poetry run pytest',
+      'pipenv run pytest',
+      'bundle exec rspec',
+      'deno test',
+      'timeout 600 pnpm test',
+      'timeout -s KILL 10m npm test',
+      '(cd server && pnpm test)',
+      'sudo -u ci npm test',
+    ]) {
+      expect(isTestCommand(command), command).toBe(true)
+    }
+  })
+
+  test('installing or removing a test runner is not running tests', () => {
+    for (const command of [
+      'pnpm add -D vitest',
+      'npm install jest',
+      'yarn add vitest',
+      'pnpm remove jest',
+      'uv pip install pytest',
+      'poetry add pytest',
+      'bundle install',
+      'echo pnpm test',
+      'which vitest',
+    ]) {
+      expect(isTestCommand(command), command).toBe(false)
+    }
+  })
+
   test('only a failing run counts', () => {
     expect(
       isFailedTestRun('pnpm test', { succeeded: false, failed: true, nothingPushed: false }),

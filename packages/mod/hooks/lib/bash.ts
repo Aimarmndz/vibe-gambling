@@ -103,14 +103,51 @@ function tokenize(segment: string): string[] {
   return tokens
 }
 
-/** Palabras de un comando simple, sin asignaciones de entorno ni envoltorios (`sudo`, `env`…). */
+/** Envoltorios que lanzan otro comando: sus opciones con valor aparte y sus argumentos fijos. */
+interface Wrapper {
+  readonly optionsWithValue: ReadonlySet<string>
+  /** Argumentos posicionales antes del comando (la duración de `timeout`). */
+  readonly positional: number
+}
+
+const WRAPPERS: ReadonlyMap<string, Wrapper> = new Map([
+  [
+    'sudo',
+    {
+      optionsWithValue: new Set(['-u', '-g', '-C', '-h', '-p', '-U', '-r', '-t', '-D']),
+      positional: 0,
+    },
+  ],
+  ['env', { optionsWithValue: new Set(['-u', '-C', '-S']), positional: 0 }],
+  ['command', { optionsWithValue: new Set<string>(), positional: 0 }],
+  ['time', { optionsWithValue: new Set(['-f', '-o']), positional: 0 }],
+  ['nice', { optionsWithValue: new Set(['-n']), positional: 0 }],
+  ['nohup', { optionsWithValue: new Set<string>(), positional: 0 }],
+  ['exec', { optionsWithValue: new Set(['-a']), positional: 0 }],
+  ['timeout', { optionsWithValue: new Set(['-s', '-k']), positional: 1 }],
+])
+
+/**
+ * Palabras de un comando simple, sin asignaciones de entorno, envoltorios (`sudo`, `timeout 60`…)
+ * ni los paréntesis o llaves de un subshell o un grupo.
+ */
 function words(segment: string): string[] {
-  const tokens = tokenize(segment.replace(/^[({\s]+/, ''))
-  const wrappers = new Set(['sudo', 'env', 'command', 'time', 'nice', 'nohup', 'exec'])
-  while (tokens.length > 0) {
-    const first = tokens[0]!
-    if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(first) || wrappers.has(first)) tokens.shift()
-    else break
+  const tokens = tokenize(segment.replace(/^[({\s]+/, '').replace(/[)}\s]+$/, ''))
+  for (;;) {
+    const first = tokens[0]
+    if (first === undefined) break
+    if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(first)) {
+      tokens.shift()
+      continue
+    }
+    const wrapper = WRAPPERS.get(first)
+    if (wrapper === undefined) break
+    tokens.shift()
+    while (tokens[0]?.startsWith('-') === true) {
+      const option = tokens.shift()!
+      if (wrapper.optionsWithValue.has(option)) tokens.shift()
+    }
+    tokens.splice(0, wrapper.positional)
   }
   return tokens
 }
@@ -130,15 +167,22 @@ function gitSubcommand(tokens: readonly string[]): { name: string; args: string[
   return name === undefined ? null : { name, args: rest.slice(i + 1) }
 }
 
-/** Índice del `git push` real del comando (no `--dry-run`), o -1. */
+/** ¿Este argumento de `git push` lo convierte en algo que no sube nada (prueba o ayuda)? */
+function isNoopPushArg(arg: string): boolean {
+  // `-n` también dentro de un grupo de opciones cortas (`-fn`, `-un`).
+  return (
+    arg === '--dry-run' ||
+    arg === '--help' ||
+    arg === '-h' ||
+    /^-[A-Za-z0-9]*n[A-Za-z0-9]*$/.test(arg)
+  )
+}
+
+/** Índice del `git push` real del comando (no `--dry-run` ni `--help`), o -1. */
 function gitPushIndex(segments: readonly Segment[]): number {
   return segments.findIndex(segment => {
     const git = gitSubcommand(words(segment.text))
-    return (
-      git !== null &&
-      git.name === 'push' &&
-      !git.args.some(arg => arg === '--dry-run' || arg === '-n')
-    )
+    return git !== null && git.name === 'push' && !git.args.some(isNoopPushArg)
   })
 }
 
@@ -220,15 +264,38 @@ function isTestScript(name: string | undefined): boolean {
   return name !== undefined && /^(test|tests|e2e|spec)([:-]\S*)?$/.test(name)
 }
 
+/** Lanzadores que ejecutan otro programa: `npx jest`, `uv run pytest`, `bundle exec rspec`… */
+const RUNNER_PREFIXES: ReadonlyMap<string, string | null> = new Map([
+  ['npx', null],
+  ['bunx', null],
+  ['pnpx', null],
+  ['uv', 'run'],
+  ['poetry', 'run'],
+  ['pipenv', 'run'],
+  ['pdm', 'run'],
+  ['hatch', 'run'],
+  ['rye', 'run'],
+  ['bundle', 'exec'],
+])
+
+/** Subcomandos de un gestor de paquetes que ejecutan el programa que va detrás. */
+const EXEC_SUBCOMMANDS = new Set(['run', 'exec', 'x', 'dlx'])
+
 /** ¿Este comando simple lanza tests? */
 function isTestSegment(segment: string): boolean {
   const tokens = words(segment)
   let program = basename(tokens[0] ?? '')
   let args = tokens.slice(1)
-  // npx / pnpm exec / bunx / python -m … delegan en el lanzador real.
-  if (program === 'npx' || program === 'bunx' || program === 'pnpx') {
+  // npx / uv run / bundle exec … delegan en el lanzador real.
+  if (RUNNER_PREFIXES.has(program)) {
+    const subcommand = RUNNER_PREFIXES.get(program)
+    if (subcommand !== null) {
+      if (args[0] !== subcommand) return false
+      args = args.slice(1)
+    }
     const index = args.findIndex(arg => !arg.startsWith('-'))
-    program = basename(args[index] ?? '')
+    if (index === -1) return false
+    program = basename(args[index]!)
     args = args.slice(index + 1)
   }
   if (/^python(3(\.\d+)?)?$/.test(program) && args[0] === '-m') {
@@ -251,8 +318,18 @@ function isTestSegment(segment: string): boolean {
     if (!arg.startsWith('-')) positional.push(arg)
   }
   const [first, second, third] = positional
+  // `npm t` y `npm tst` son alias de `npm test`.
+  if (program === 'npm' && (first === 't' || first === 'tst')) return true
   if (isTestScript(first)) return true
-  if ((first === 'run' || first === 'exec' || first === 'x') && isTestScript(second)) return true
+  // `pnpm vitest`, `yarn jest`: el gestor ejecuta el binario del lanzador.
+  if (first !== undefined && TEST_RUNNERS.has(first)) return true
+  if (first !== undefined && EXEC_SUBCOMMANDS.has(first)) {
+    if (isTestScript(second)) return true
+    if (second !== undefined && TEST_RUNNERS.has(second)) return true
+    // `pnpm exec playwright test`
+    if (second === 'playwright' || second === 'cypress') return third === 'test' || third === 'run'
+    return false
+  }
   // `pnpm -r run test`, `yarn workspace web test`
   return first === 'workspace' && (isTestScript(third) || isTestScript(second))
 }
