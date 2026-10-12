@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Arranque falso de la consola POLYGONE (inventada): gema dorada que gira, logotipo, "Licensed by
-// Vibe Coding Entertainment" y pantalla de título con "Created by …". Se salta con cualquier tecla.
+// Vibe Coding Entertainment" y pantalla de título con la atribución "Created by Aimar
+// (github.com/Aimarmndz)" de LICENSE. Se salta con cualquier tecla.
 import {
   Color,
   Group,
@@ -20,6 +21,7 @@ import { createPsxMaterial, createPsxUniforms } from '../../render/psxMaterial.t
 import { PSX_HEIGHT, PSX_WIDTH } from '../../render/pipeline.ts'
 import type { World } from '../../render/world.ts'
 import { WHEEL_CENTER } from '../../render/world.ts'
+import { attribution } from '../../legal/attribution.ts'
 import { PALETTE } from '../palette.ts'
 
 /** Coreografía del arranque (segundos). */
@@ -119,14 +121,16 @@ export class BootScreen implements Screen {
       this.played.licensed = true
       this.ctx.sfx.play('licensed')
     }
-    // La gema entra girando muy rápido y frena hasta quedarse de frente.
-    const k = Math.min(1, Math.max(0, (t - T.gemIn) / 1.6))
+    // La gema entra girando muy rápido y frena hasta quedarse de frente. Con movimiento reducido
+    // aparece ya quieta y la cámara del título no da vueltas.
+    const still = this.ctx.reducedMotion
+    const k = still ? 1 : Math.min(1, Math.max(0, (t - T.gemIn) / 1.6))
     const ease = 1 - Math.pow(1 - k, 3)
-    this.gem.rotation.y = (1 - ease) * Math.PI * 6 + t * 0.6
+    this.gem.rotation.y = (1 - ease) * Math.PI * 6 + (still ? 0.4 : t * 0.6)
     this.gem.rotation.x = 0.25 + (1 - ease) * 0.9
     this.gem.scale.setScalar(0.05 + ease * 0.95)
     // Título: la cámara da una vuelta lenta alrededor de la ruleta.
-    const a = (t - T.title) * 0.25
+    const a = still ? 0 : (t - T.title) * 0.25
     this.titleCamera.position.set(
       WHEEL_CENTER.x + Math.sin(a) * 7.5,
       4.4,
@@ -206,8 +210,17 @@ export class BootScreen implements Screen {
           shadow: PALETTE.ink,
         })
       }
-      const footer = `${tr.t('boot.createdBy', { author: this.ctx.web.site.author.name })} · ${tr.t('brand.fakeCoins')}`
-      drawText(g, footer, 160, 210, { color: PALETTE.muted, align: 'center', shadow: PALETTE.ink })
+      // Atribución obligatoria (términos 7(b) de LICENSE) y aviso de monedas de mentira.
+      drawText(g, attribution(this.ctx.web.site.author, tr).text, 160, 207, {
+        color: PALETTE.cream,
+        align: 'center',
+        shadow: PALETTE.ink,
+      })
+      drawText(g, tr.t('brand.fakeCoins'), 160, 218, {
+        color: PALETTE.muted,
+        align: 'center',
+        shadow: PALETTE.ink,
+      })
       this.cover(g, fade(T.title, Number.POSITIVE_INFINITY))
     }
     if (!this.ctx.sfx.running) {

@@ -3,6 +3,8 @@
 import type { Locale, WebConfig } from '@vibe-gambling/shared'
 
 import { loadPrefs, safeStorage, savePrefs } from '../app/prefs.ts'
+import { attribution } from '../legal/attribution.ts'
+import { webUrl } from '../net/urls.ts'
 import { CATALOGS, createTranslator, detectLocale } from '../i18n/index.ts'
 import type { MessageKey, Translator } from '../i18n/index.ts'
 
@@ -41,12 +43,15 @@ function el<K extends keyof HTMLElementTagNameMap>(
   return node
 }
 
-export function externalLink(href: string, text: string): HTMLAnchorElement {
-  return el('a', { href, target: '_blank', rel: 'noopener noreferrer' }, text)
+/** Enlace externo en otra pestaña; si la URL no es http(s), solo el texto (sin enlace). */
+export function externalLink(href: string, text: string): HTMLAnchorElement | HTMLSpanElement {
+  const safe = webUrl(href)
+  if (!safe) return el('span', {}, text)
+  return el('a', { href: safe, target: '_blank', rel: 'noopener noreferrer' }, text)
 }
 
 /**
- * Pie siempre visible: "Created by Aimar — github.com/Aimarmndz · Fake coins only. If real
+ * Pie siempre visible: "Created by Aimar (github.com/Aimarmndz) · Fake coins only. If real
  * gambling worries you: …" con los enlaces de ayuda del idioma, el descargo de marcas y enlaces.
  */
 export function renderFooter(
@@ -56,13 +61,12 @@ export function renderFooter(
   onLanguage: () => void,
 ): void {
   root.replaceChildren()
-  const author = web.site.author
+  // Atribución obligatoria (términos 7(b) de LICENSE), con la URL del autor como enlace.
+  const credit = attribution(web.site.author, tr)
   const line1 = el('p')
-  line1.append(
-    `${tr.t('footer.createdBy', { author: author.name })} — `,
-    externalLink(author.url, author.url.replace(/^https?:\/\//, '')),
-    ` · ${tr.t('footer.fakeCoins')} `,
-  )
+  const who = el('span', { class: 'attribution' })
+  who.append(credit.before, externalLink(credit.href, credit.label), credit.after)
+  line1.append(who, ` · ${tr.t('footer.fakeCoins')} `)
   const help = web.site.helpLinks[tr.locale] ?? []
   help.forEach((link, i) => {
     if (i > 0) line1.append(' · ')
