@@ -177,5 +177,13 @@ describe('formatting', () => {
     expect(localeFromEnv(['', undefined, undefined, 'fr:en'])).toBe('fr')
     expect(localeFromEnv(['ja_JP.UTF-8', 'es_ES'])).toBe('en')
     expect(localeFromEnv(['deutsch'])).toBe('en')
+    // Valores raros: nunca rompen ni eligen un idioma por accidente.
+    expect(localeFromEnv(['C.UTF-8', 'es_ES.UTF-8'])).toBe('en')
+    expect(localeFromEnv(['POSIX'])).toBe('en')
+    expect(localeFromEnv(['  ', 'fr_FR'])).toBe('en')
+    expect(localeFromEnv(['es_ES.ISO-8859-15@euro'])).toBe('es')
+    expect(localeFromEnv(['DE_de'])).toBe('de')
+    expect(localeFromEnv(['__proto__', 'constructor'])).toBe('en')
+    expect(localeFromEnv(['x'.repeat(100_000)])).toBe('en')
   })
 })
