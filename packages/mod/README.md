@@ -22,23 +22,27 @@ The Claude Code side of vibe-gambling: every prompt is a spin. It opens the PS1-
 
 ## Privacy
 
-The mod sends **only** a random turn id, the turn duration, two booleans (`gitPushOk`, `testFailed`), the plugin version, the generic OS (`linux`/`darwin`/`win32`/`other`) and your session token — plus what you type in `/bet`. Never prompts, answers, code, commands, paths, file or repo names. Bash commands are inspected locally to compute the two booleans and then forgotten. `tests/privacy.test.ts` enforces it.
+The mod sends **only** a random turn id, the turn duration, two booleans (`gitPushOk`, `testFailed`), the plugin version, the generic OS (`linux`/`darwin`/`win32`/`other`) and your session token — plus what you type in `/bet`. Never prompts, answers, code, commands, paths, file or repo names. Bash commands are inspected locally to compute the two booleans and then forgotten. `tests/privacy.test.ts` enforces it for turns, every command, the login and the error paths, and checks the debug log too.
+
+Text that comes from the server (device code, login, server name, error messages) is stripped of control characters and escape sequences before it reaches your terminal, so a compromised self-hosted server cannot write to your clipboard or redraw your screen. Servers must use `https`; plain `http` is accepted only for this machine (`localhost`, `127.0.0.1`, `[::1]`), because your session token would otherwise travel in clear text.
 
 ## Options
 
-Set them in `/config` (or `pluginConfigs["vibe-gambling"].options` in your settings). The defaults live in `.claude-plugin/plugin.json`.
+Set them in `/config` (or `pluginConfigs["vibe-gambling"].options` in your settings). The defaults and the allowed ranges (`min`/`max`) live in `.claude-plugin/plugin.json`; Claude Code refuses to load the mod with a value outside them and says which one.
 
 | Option                   | Default                  | Meaning                                                     |
 | ------------------------ | ------------------------ | ----------------------------------------------------------- |
 | `serverUrl`              | `https://vibe.aimar.dev` | Server to play on (`/vibe-server` changes it)               |
 | `autoOpen`               | `true`                   | Open the window on each prompt if it is not open            |
 | `language`               | `auto`                   | `auto` (system locale), `en` or `es`                        |
-| `turnTimeoutMs`          | `1500`                   | Timeout of the requests made during a turn (max 1500)       |
-| `commandTimeoutMs`       | `5000`                   | Timeout of the slash commands' requests                     |
+| `turnTimeoutMs`          | `1500`                   | Timeout of the requests made during a turn (100–1500)       |
+| `commandTimeoutMs`       | `5000`                   | Timeout of the slash commands' requests (500–30000)         |
 | `windowReopenCooldownMs` | `60000`                  | Wait for an opened window to connect before opening another |
 | `windowSize`             | `960,720`                | App-mode window size                                        |
-| `launchTimeoutMs`        | `5000`                   | How long the browser launcher may take                      |
-| `revealMaxDelayMs`       | `30000`                  | Longest wait before the result toast                        |
+| `launchTimeoutMs`        | `5000`                   | How long the browser launcher may take (500–30000)          |
+| `revealMaxDelayMs`       | `30000`                  | Longest wait before the result toast (0–120000)             |
+
+A turn never waits for the casino: every request runs in the background. In `claude -p` the mod waits for `turn/end` before the process exits, at most `turnTimeoutMs` in total, and never opens a window (nobody is watching).
 
 ## Development
 
