@@ -19,12 +19,13 @@
     "node": ">=24"
   },
   "scripts": {
-    "lint": "eslint . && prettier --check . && pnpm lint:spdx",
+    "lint": "eslint . && prettier --check . && pnpm lint:spdx && pnpm docs:protocol --check",
     "lint:spdx": "node scripts/check-spdx.ts",
     "format": "prettier --write .",
     "typecheck": "pnpm -r --parallel typecheck && pnpm typecheck:scripts",
     "typecheck:scripts": "tsc -p scripts",
     "sync:mod": "node scripts/sync-mod-shared.ts",
+    "docs:protocol": "node scripts/gen-protocol-docs.ts",
     "test": "pnpm -r test",
     "build": "pnpm -r build"
   },
