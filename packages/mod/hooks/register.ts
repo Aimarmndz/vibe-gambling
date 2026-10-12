@@ -17,7 +17,6 @@ import {
   createRuntime,
   detectOs,
   loadSession,
-  readPluginVersion,
   refreshMe,
   resolveLocale,
   setStatus,
@@ -55,7 +54,6 @@ function ioOf($: EngineInterface): Io {
   }
   return {
     pluginName: $.plugin.name,
-    pluginRoot: $.plugin.root,
     fetch: (url, init) => $.http.fetch(url, { ...init, headers: { ...init.headers } }),
     now: () => $.clock.now(),
     after: (ms, fn) => $.clock.after(ms, fn),
@@ -68,7 +66,6 @@ function ioOf($: EngineInterface): Io {
     env,
     run: (argv, timeoutMs) => $.process.run(argv, { timeoutMs }),
     exists: path => $.fs.exists(path),
-    readText: async path => String(await $.fs.read(path)),
     configSet: (key, value) => $.config.set({ key, value }),
   }
 }
@@ -124,7 +121,6 @@ export const register: Register = (on, options) => {
       runtime.messages = MESSAGES[runtime.locale]
       // `uname` va con el timeout del turno: `turn/start` espera al SO y no puede esperar más.
       runtime.os = detectOs(io, runtime.config?.turnTimeoutMs ?? MAX_TURN_TIMEOUT_MS)
-      runtime.pluginVersion = readPluginVersion(io)
 
       // Nombres literales: así el engine sabe que cada comando lo responde este módulo. Cada
       // registro va por separado: si el engine rechaza uno, los demás siguen.

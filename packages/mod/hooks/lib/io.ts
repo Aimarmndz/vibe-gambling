@@ -40,7 +40,6 @@ export interface Timer {
 
 export interface Io {
   readonly pluginName: string
-  readonly pluginRoot: string
   fetch(url: string, init: HttpRequestInit): Promise<HttpReply>
   now(): Promise<number>
   after(ms: number, fn: () => void): Timer
@@ -54,6 +53,5 @@ export interface Io {
   env(name: EnvName): Promise<string | undefined>
   run(argv: readonly string[], timeoutMs: number): Promise<ProcessReply>
   exists(path: string): Promise<boolean>
-  readText(path: string): Promise<string>
   configSet(key: string, value: string): Promise<{ readonly deny?: string | undefined }>
 }

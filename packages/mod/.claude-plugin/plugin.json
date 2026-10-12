@@ -23,8 +23,8 @@
     "language": {
       "type": "string",
       "title": "Language",
-      "description": "Language of the mod's messages: auto (system language), en or es.",
-      "options": ["auto", "en", "es"],
+      "description": "Language of the mod's messages: auto (system language), en, es, fr or de.",
+      "options": ["auto", "en", "es", "fr", "de"],
       "default": "auto"
     },
     "turnTimeoutMs": {

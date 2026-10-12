@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// GENERADO por scripts/sync-mod-shared.ts a partir de packages/shared/src/i18n/phrases.es.ts. No lo edites a mano.
-// Frases de ludópata de mentira (español). Humor sobre la ludopatía ficticia y la cultura dev;
-// nunca sobre personas ni colectivos. Las plantillas usan {marcadores}.
+// GENERADO por scripts/gen-locales.ts a partir de locales/es/phrases.json. No lo edites a mano.
 import type { PhraseCatalog } from './phrases.ts'
 
 export const phrasesEs: PhraseCatalog = {
@@ -85,5 +83,10 @@ export const phrasesEs: PhraseCatalog = {
     'Saldo a cero. Momento perfecto para pedir un préstamo con un TAE razonable del {apr} %.',
     'Estás sin blanca. Pero en la ruina se aprende mucho.',
     'Bancarrota. Tu patrimonio ya es un número negativo con mucho carácter.',
+  ],
+  pendingDropped: [
+    'Ya tienes {max} tiradas pendientes. Este prompt se va a la papelera, como mis propósitos de año nuevo.',
+    'Tope de {max} tiradas pendientes. La ruleta no fía más: abre la ventana y gasta alguna.',
+    '{max} tiradas pendientes y subiendo. Esto ya no es un vicio, es un backlog.',
   ],
 }

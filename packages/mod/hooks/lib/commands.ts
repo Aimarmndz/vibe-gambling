@@ -160,7 +160,14 @@ export async function balance(ctx: CommandContext): Promise<string> {
       ? m.rankNone
       : `#${me.brokeRank}`
   const coins = (n: number): string => formatCoins(n, runtime.locale)
-  return m.balance(coins(me.wallet.balance), coins(me.wallet.debt), coins(me.wallet.netWorth), rank)
+  const text = m.balance(
+    coins(me.wallet.balance),
+    coins(me.wallet.debt),
+    coins(me.wallet.netWorth),
+    rank,
+  )
+  const pending = me.wallet.pendingSpins ?? 0
+  return pending > 0 ? `${text}\n${m.pendingHint(coins(pending))}` : text
 }
 
 // ------------------------------------------------------------------ /vibe-login, /vibe-logout
@@ -232,7 +239,7 @@ export async function server(ctx: CommandContext, raw: string): Promise<string> 
       : m.serverCurrent(config.serverUrl, '', null)
   }
 
-  const wanted = arg === 'default' ? await manifestDefault(io, 'serverUrl') : arg
+  const wanted = arg === 'default' ? manifestDefault('serverUrl') : arg
   if (typeof wanted === 'string' && isPlainHttpRemote(wanted)) {
     return m.serverNeedsHttps(arg.slice(0, 200))
   }

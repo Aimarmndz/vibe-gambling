@@ -5,7 +5,7 @@
 import type { Io } from './io.ts'
 import { callApi, debug, isUnauthorized } from './api.ts'
 import type { ModConfig } from './config.ts'
-import { resultToast } from './format.ts'
+import { queuedToast, resultToast } from './format.ts'
 import { turnEndBody, turnStartBody } from './payloads.ts'
 import { isTurnEnd, isTurnStart } from './responses.ts'
 import type { TurnEndView } from './responses.ts'
@@ -48,8 +48,8 @@ async function startRound(
     }
     return null
   }
-  const [os, pluginVersion] = await Promise.all([runtime.os, runtime.pluginVersion])
-  if (pluginVersion === null) return null
+  const os = await runtime.os
+  const { pluginVersion } = runtime
   const result = await callApi(io, {
     baseUrl: config.serverUrl,
     route: 'turnStart',
@@ -104,6 +104,20 @@ function revealResult(io: Io, runtime: Runtime, config: ModConfig, response: Tur
     showWallet(io, runtime, response.wallet)
     return
   }
+  if (response.status === 'queued') {
+    // No hay nada que destripar: la tirada se jugará cuando el jugador la gaste en la ventana.
+    const shown = queuedToast(
+      response.dropped,
+      response.wallet,
+      runtime.locale,
+      runtime.messages,
+      runtime.lastPhrase,
+    )
+    if (shown.phrase !== null) runtime.lastPhrase = shown.phrase
+    toast(io, shown.text)
+    showWallet(io, runtime, response.wallet)
+    return
+  }
   const { round, wallet } = response
   // Se mide con los relojes del servidor (resolvedAt → revealAt) para no depender del reloj local.
   const spinLeft = Date.parse(round.revealAt) - Date.parse(round.resolvedAt)
@@ -128,8 +142,8 @@ async function endRound(
 ): Promise<void> {
   const session = await record.started
   if (session === null) return
-  const [os, pluginVersion] = await Promise.all([runtime.os, runtime.pluginVersion])
-  if (pluginVersion === null) return
+  const os = await runtime.os
+  const { pluginVersion } = runtime
   const result = await callApi(io, {
     baseUrl: config.serverUrl,
     route: 'turnEnd',

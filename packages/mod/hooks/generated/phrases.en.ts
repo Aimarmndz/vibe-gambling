@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// GENERADO por scripts/sync-mod-shared.ts a partir de packages/shared/src/i18n/phrases.en.ts. No lo edites a mano.
-// Fake-gambling-addict phrases (English). Humor about fictional gambling and dev culture;
-// never about people or groups. Templates use {placeholders}.
+// GENERADO por scripts/gen-locales.ts a partir de locales/en/phrases.json. No lo edites a mano.
 import type { PhraseCatalog } from './phrases.ts'
 
 export const phrasesEn: PhraseCatalog = {
@@ -85,5 +83,10 @@ export const phrasesEn: PhraseCatalog = {
     'Balance at zero. Perfect time for a loan at a reasonable {apr}% APR.',
     "You're broke. But you learn a lot from ruin.",
     'Bankrupt. Your net worth is now a negative number with a lot of character.',
+  ],
+  pendingDropped: [
+    'You already have {max} pending spins. This prompt goes in the bin, like my New Year resolutions.',
+    'Pending spin cap of {max} reached. The wheel stops lending: open the window and spend some.',
+    '{max} pending spins and counting. This is not a habit anymore, it is a backlog.',
   ],
 }

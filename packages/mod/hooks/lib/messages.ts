@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Textos del mod en inglés y español (el idioma del sistema; inglés por defecto).
-// Las frases de ludópata vienen de `shared` (copia generada en `../generated`). Módulo puro.
+// Textos del mod en todos los idiomas de `locales/` (el del sistema; inglés por defecto). Los
+// textos y las frases son la copia generada en `../generated` (`pnpm gen:locales`). Módulo puro.
+import { MOD_TEXTS, REFERENCE_LOCALE } from '../generated/locales.ts'
+import type { ModTextKey, ModTexts } from '../generated/locales.ts'
+import { fillTemplate } from '../generated/phrases.ts'
+import { LOCALES } from '../generated/protocol.ts'
 import type { Locale } from '../generated/protocol.ts'
 import type { PocketColor } from './responses.ts'
 
@@ -14,6 +18,14 @@ export interface Messages {
   readonly loginHint: string
   readonly jackpotTag: string
   readonly noRound: string
+  /** Trozo de la status line con las tiradas pendientes. */
+  readonly pendingCount: (count: string) => string
+  /** Toast: el prompt terminó sin ventana visible y la tirada se guardó. */
+  readonly spinSaved: (count: string) => string
+  /** Toast: tope de tiradas pendientes alcanzado, este prompt se descarta. */
+  readonly spinDropped: (count: string) => string
+  /** `/balance`: cuántas hay y cómo se gastan. */
+  readonly pendingHint: (count: string) => string
 
   readonly commands: Readonly<Record<CommandId, { description: string; argumentHint?: string }>>
 
@@ -85,204 +97,141 @@ export type CommandId =
   | 'server'
   | 'deleteAccount'
 
-const en: Messages = {
-  coin: '🪙',
-  colors: { red: 'red', black: 'black', green: 'green' },
-  debtLabel: 'debt',
-  statusOffline: '🎰 offline',
-  statusLogin: '🎰 /vibe-login',
-  statusBadConfig: '🎰 bad config',
-  loginHint: '🎰 Every prompt is a spin. Run /vibe-login to take a seat at the table.',
-  jackpotTag: '🚀 JACKPOT',
-  noRound: 'The wheel stopped without you. Next prompt, next spin.',
+const COMMAND_IDS: readonly CommandId[] = [
+  'roulette',
+  'bet',
+  'allIn',
+  'balance',
+  'login',
+  'logout',
+  'hide',
+  'show',
+  'server',
+  'deleteAccount',
+]
 
-  commands: {
-    roulette: { description: 'Open the roulette window' },
-    bet: {
-      description: 'Bet fake coins on the current or next spin',
-      argumentHint: '<amount> <square>',
-    },
-    allIn: { description: 'Bet your whole balance (red by default)', argumentHint: '[square]' },
-    balance: { description: 'Balance, debt, net worth and rank' },
-    login: { description: 'Log in with GitHub (device code)' },
-    logout: { description: 'Log out of vibe-gambling' },
-    hide: { description: 'Hide from the public leaderboard' },
-    show: { description: 'Show up on the public leaderboard again' },
-    server: {
-      description: 'Show or change the vibe-gambling server',
-      argumentHint: '[url|default]',
-    },
-    deleteAccount: { description: 'Delete your account and all its data', argumentHint: '<login>' },
-  },
+/** Mensajes de un idioma a partir de sus textos (copia generada de `locales/<idioma>/mod.json`). */
+export function buildMessages(t: ModTexts): Messages {
+  const text = (key: ModTextKey) => t[key]
+  const hintOf = (id: CommandId): string | undefined =>
+    (t as Readonly<Record<string, string>>)[`command.${id}.argumentHint`]
+  const state = (official: boolean | null) =>
+    official === null
+      ? t['serverState.unreachable']
+      : official
+        ? t['serverState.official']
+        : t['serverState.selfHosted']
+  return {
+    coin: t.coin,
+    colors: { red: t['color.red'], black: t['color.black'], green: t['color.green'] },
+    debtLabel: t.debtLabel,
+    statusOffline: t.statusOffline,
+    statusLogin: t.statusLogin,
+    statusBadConfig: t.statusBadConfig,
+    loginHint: t.loginHint,
+    jackpotTag: t.jackpotTag,
+    noRound: t.noRound,
+    pendingCount: count => fillTemplate(t.pendingCount, { count }),
+    spinSaved: count => fillTemplate(t.spinSaved, { count }),
+    spinDropped: count => fillTemplate(t.spinDropped, { count }),
+    pendingHint: count => fillTemplate(t.pendingHint, { count }),
 
-  notLoggedIn: "You're not logged in. Run /vibe-login first.",
-  offline:
-    '🎰 The casino is unreachable right now. Your fake coins are safe (they were never real).',
-  serverError: detail => `The server said no: ${detail}`,
-  badConfig: errors => `vibe-gambling is misconfigured: ${errors}. Fix it in /config.`,
-  sessionExpired: 'Your session expired. Run /vibe-login again.',
+    commands: Object.fromEntries(
+      COMMAND_IDS.map(id => {
+        const argumentHint = hintOf(id)
+        const description = text(`command.${id}.description` as ModTextKey)
+        return [id, argumentHint === undefined ? { description } : { description, argumentHint }]
+      }),
+    ) as Messages['commands'],
 
-  openingWindow: '🎰 Opening the table…',
-  windowFailed: "Couldn't open the window. Is there a browser around?",
+    notLoggedIn: t.notLoggedIn,
+    offline: t.offline,
+    serverError: detail => fillTemplate(t.serverError, { detail }),
+    badConfig: errors => fillTemplate(t.badConfig, { errors }),
+    sessionExpired: t.sessionExpired,
 
-  betUsage: 'Usage: /bet <amount> <square>, e.g. /bet 200 red, /bet 50 17, /bet 100 1st12',
-  allInUsage: 'Usage: /all-in [square], e.g. /all-in black',
-  betBadAmount: raw => `"${raw}" is not an amount. Whole fake coins only (or "all-in").`,
-  betBadTarget: raw => `"${raw}" is too long to be a square on this table.`,
-  betPlaced: (amount, target, round, balance) =>
-    `🎰 ${amount} on ${target} (${round === 'current' ? 'this spin' : 'next spin'}). Balance: ${balance}.`,
-  insufficientFunds:
-    "Not enough fake coins. The Ludo-Credit Express is in the window, if you're brave.",
-  tooManyBets: 'Too many chips on the table for one spin. Even addicts have limits.',
-  invalidBet: target => `"${target}" is not a square on this table.`,
+    openingWindow: t.openingWindow,
+    windowFailed: t.windowFailed,
 
-  balance: (balance, debt, netWorth, rank) =>
-    `🎰 Balance ${balance} · Debt ${debt} · Net worth ${netWorth} · ${rank}`,
-  rankHidden: 'hidden from the leaderboard',
-  rankNone: 'not ranked yet',
+    betUsage: t.betUsage,
+    allInUsage: t.allInUsage,
+    betBadAmount: raw => fillTemplate(t.betBadAmount, { raw }),
+    betBadTarget: raw => fillTemplate(t.betBadTarget, { raw }),
+    betPlaced: (amount, target, round, balance) =>
+      fillTemplate(t.betPlaced, {
+        amount,
+        target,
+        balance,
+        round: round === 'current' ? t['betRound.current'] : t['betRound.next'],
+      }),
+    insufficientFunds: t.insufficientFunds,
+    tooManyBets: t.tooManyBets,
+    invalidBet: target => fillTemplate(t.invalidBet, { target }),
 
-  alreadyLoggedIn: login => `You're already logged in as @${login}. /vibe-logout first to switch.`,
-  loginPrompt: (uri, code, minutes) =>
-    `🎰 Go to ${uri} and enter ${code}. You have ${minutes} min; I'll keep checking in the background.`,
-  loginInProgress: (uri, code) => `Still waiting: go to ${uri} and enter ${code}.`,
-  loginWelcome: login => `🎰 Welcome to the table, @${login}.`,
-  loginPublicNotice:
-    'Heads-up: you appear on the public leaderboard (login and avatar). /vibe-hide to vanish.',
-  loginExpired: 'The login code expired. Run /vibe-login to get a new one.',
-  loginDenied: 'GitHub login was cancelled. The table will wait.',
-  loginFailed: detail =>
-    `The login stopped: the server said "${detail}". Run /vibe-login to try again.`,
-  loggedOut: '🎰 Logged out. The wheel will miss you.',
-  notLoggedInLogout: "You weren't logged in. Mission accomplished anyway.",
+    balance: (balance, debt, netWorth, rank) =>
+      fillTemplate(t.balance, { balance, debt, netWorth, rank }),
+    rankHidden: t.rankHidden,
+    rankNone: t.rankNone,
 
-  hidden: "🎰 You're hidden from the leaderboard (and the Hall of Ruin).",
-  shown: "🎰 You're back on the leaderboard. Shame is public again.",
+    alreadyLoggedIn: login => fillTemplate(t.alreadyLoggedIn, { login }),
+    loginPrompt: (uri, code, minutes) => fillTemplate(t.loginPrompt, { uri, code, minutes }),
+    loginInProgress: (uri, code) => fillTemplate(t.loginInProgress, { uri, code }),
+    loginWelcome: login => fillTemplate(t.loginWelcome, { login }),
+    loginPublicNotice: t.loginPublicNotice,
+    loginExpired: t.loginExpired,
+    loginDenied: t.loginDenied,
+    loginFailed: detail => fillTemplate(t.loginFailed, { detail }),
+    loggedOut: t.loggedOut,
+    notLoggedInLogout: t.notLoggedInLogout,
 
-  serverCurrent: (url, name, official) =>
-    `🎰 Server: ${url}${name === '' ? '' : ` — ${name}`}${
-      official === null ? ' (unreachable)' : official ? ' (official)' : ' (self-hosted)'
-    }`,
-  serverBadUrl: raw => `"${raw}" is not an http(s) URL.`,
-  serverNeedsHttps: raw =>
-    `"${raw}" uses plain http: your session token would travel in clear text. Use https (http is only for localhost).`,
-  serverUnreachable: url => `Couldn't reach ${url}/api/meta. Server not changed.`,
-  serverIncompatible: (url, protocol, expected) =>
-    `${url} speaks protocol v${protocol}, this mod speaks v${expected}. Server not changed.`,
-  serverChanged: (url, name, official) =>
-    `🎰 Now playing at ${url} — ${name}${official ? ' (official)' : ' (self-hosted)'}. Log in there with /vibe-login.`,
-  serverChangeDenied: reason => `Couldn't save the server: ${reason}`,
-  officialTag: 'official',
-  selfHostedTag: 'self-hosted',
+    hidden: t.hidden,
+    shown: t.shown,
 
-  deleteUsage: login =>
-    `This deletes your account and every spin, forever. To confirm, type: /vibe-delete-account ${login}`,
-  deleteMismatch: "That's not your login. Nothing was deleted.",
-  deleted: '🎰 Account deleted. All data is gone. The house thanks you for playing.',
+    serverCurrent: (url, name, official) =>
+      fillTemplate(t.serverCurrent, {
+        url,
+        name: name === '' ? '' : fillTemplate(t.serverNameSuffix, { name }),
+        state: state(official),
+      }),
+    serverBadUrl: raw => fillTemplate(t.serverBadUrl, { raw }),
+    serverNeedsHttps: raw => fillTemplate(t.serverNeedsHttps, { raw }),
+    serverUnreachable: url => fillTemplate(t.serverUnreachable, { url }),
+    serverIncompatible: (url, protocol, expected) =>
+      fillTemplate(t.serverIncompatible, { url, protocol, expected }),
+    serverChanged: (url, name, official) =>
+      fillTemplate(t.serverChanged, { url, name, state: state(official) }),
+    serverChangeDenied: reason => fillTemplate(t.serverChangeDenied, { reason }),
+    officialTag: t.officialTag,
+    selfHostedTag: t.selfHostedTag,
+
+    deleteUsage: login => fillTemplate(t.deleteUsage, { login }),
+    deleteMismatch: t.deleteMismatch,
+    deleted: t.deleted,
+  }
 }
 
-const es: Messages = {
-  coin: '🪙',
-  colors: { red: 'rojo', black: 'negro', green: 'verde' },
-  debtLabel: 'deuda',
-  statusOffline: '🎰 sin conexión',
-  statusLogin: '🎰 /vibe-login',
-  statusBadConfig: '🎰 config rota',
-  loginHint: '🎰 Cada prompt es una tirada. Usa /vibe-login para sentarte a la mesa.',
-  jackpotTag: '🚀 JACKPOT',
-  noRound: 'La ruleta paró sin ti. Siguiente prompt, siguiente tirada.',
-
-  commands: {
-    roulette: { description: 'Abre la ventana de la ruleta' },
-    bet: {
-      description: 'Apuesta monedas de mentira a la tirada actual o la siguiente',
-      argumentHint: '<cantidad> <casilla>',
-    },
-    allIn: {
-      description: 'Apuesta todo tu saldo (al rojo por defecto)',
-      argumentHint: '[casilla]',
-    },
-    balance: { description: 'Saldo, deuda, patrimonio y puesto' },
-    login: { description: 'Entra con GitHub (código de dispositivo)' },
-    logout: { description: 'Cierra la sesión de vibe-gambling' },
-    hide: { description: 'Ocúltate del ranking público' },
-    show: { description: 'Vuelve a aparecer en el ranking público' },
-    server: {
-      description: 'Muestra o cambia el servidor de vibe-gambling',
-      argumentHint: '[url|default]',
-    },
-    deleteAccount: { description: 'Borra tu cuenta y todos sus datos', argumentHint: '<login>' },
-  },
-
-  notLoggedIn: 'No has entrado. Usa /vibe-login primero.',
-  offline: '🎰 El casino no responde. Tus monedas están a salvo (nunca fueron de verdad).',
-  serverError: detail => `El servidor dice que no: ${detail}`,
-  badConfig: errors => `vibe-gambling está mal configurado: ${errors}. Arréglalo en /config.`,
-  sessionExpired: 'Tu sesión ha caducado. Vuelve a usar /vibe-login.',
-
-  openingWindow: '🎰 Abriendo la mesa…',
-  windowFailed: 'No he podido abrir la ventana. ¿Hay algún navegador por ahí?',
-
-  betUsage: 'Uso: /bet <cantidad> <casilla>, p. ej. /bet 200 rojo, /apostar 50 17, /bet 100 1a12',
-  allInUsage: 'Uso: /all-in [casilla], p. ej. /all-in negro',
-  betBadAmount: raw => `"${raw}" no es una cantidad. Solo monedas enteras (o "all-in").`,
-  betBadTarget: raw => `"${raw}" es demasiado largo para ser una casilla de esta mesa.`,
-  betPlaced: (amount, target, round, balance) =>
-    `🎰 ${amount} a ${target} (${round === 'current' ? 'esta tirada' : 'la siguiente'}). Saldo: ${balance}.`,
-  insufficientFunds: 'No te llega. El Ludo-Crédito Express te espera en la ventana, si te atreves.',
-  tooManyBets: 'Demasiadas fichas para una tirada. Hasta los ludópatas tienen límites.',
-  invalidBet: target => `"${target}" no es una casilla de esta mesa.`,
-
-  balance: (balance, debt, netWorth, rank) =>
-    `🎰 Saldo ${balance} · Deuda ${debt} · Patrimonio ${netWorth} · ${rank}`,
-  rankHidden: 'oculto del ranking',
-  rankNone: 'aún sin puesto',
-
-  alreadyLoggedIn: login => `Ya has entrado como @${login}. Usa /vibe-logout antes para cambiar.`,
-  loginPrompt: (uri, code, minutes) =>
-    `🎰 Ve a ${uri} y escribe ${code}. Tienes ${minutes} min; yo voy comprobando en segundo plano.`,
-  loginInProgress: (uri, code) => `Sigo esperando: ve a ${uri} y escribe ${code}.`,
-  loginWelcome: login => `🎰 Bienvenido a la mesa, @${login}.`,
-  loginPublicNotice:
-    'Ojo: apareces en el ranking público (usuario y avatar). Usa /vibe-hide para desaparecer.',
-  loginExpired: 'El código ha caducado. Usa /vibe-login para pedir otro.',
-  loginDenied: 'Has cancelado el login en GitHub. La mesa esperará.',
-  loginFailed: detail =>
-    `El login se ha cortado: el servidor dice "${detail}". Usa /vibe-login para volver a intentarlo.`,
-  loggedOut: '🎰 Sesión cerrada. La ruleta te echará de menos.',
-  notLoggedInLogout: 'No habías entrado. Misión cumplida igualmente.',
-
-  hidden: '🎰 Estás oculto del ranking (y del Salón de la Ruina).',
-  shown: '🎰 Vuelves al ranking. La vergüenza vuelve a ser pública.',
-
-  serverCurrent: (url, name, official) =>
-    `🎰 Servidor: ${url}${name === '' ? '' : ` — ${name}`}${
-      official === null ? ' (no responde)' : official ? ' (oficial)' : ' (self-host)'
-    }`,
-  serverBadUrl: raw => `"${raw}" no es una URL http(s).`,
-  serverNeedsHttps: raw =>
-    `"${raw}" va por http sin cifrar: tu token de sesión viajaría en claro. Usa https (http solo vale para localhost).`,
-  serverUnreachable: url => `No he podido llegar a ${url}/api/meta. No cambio de servidor.`,
-  serverIncompatible: (url, protocol, expected) =>
-    `${url} habla el protocolo v${protocol} y este mod el v${expected}. No cambio de servidor.`,
-  serverChanged: (url, name, official) =>
-    `🎰 Ahora juegas en ${url} — ${name}${official ? ' (oficial)' : ' (self-host)'}. Entra ahí con /vibe-login.`,
-  serverChangeDenied: reason => `No he podido guardar el servidor: ${reason}`,
-  officialTag: 'oficial',
-  selfHostedTag: 'self-host',
-
-  deleteUsage: login =>
-    `Esto borra tu cuenta y todas tus tiradas para siempre. Para confirmarlo escribe: /vibe-delete-account ${login}`,
-  deleteMismatch: 'Ese no es tu usuario. No he borrado nada.',
-  deleted: '🎰 Cuenta borrada. No queda nada. La casa te agradece tu visita.',
-}
-
-export const MESSAGES: Readonly<Record<Locale, Messages>> = { en, es }
+/** Mensajes de cada idioma registrado (`locales/`, copia generada por `pnpm gen:locales`). */
+export const MESSAGES: Readonly<Record<Locale, Messages>> = Object.fromEntries(
+  LOCALES.map(locale => [locale, buildMessages(MOD_TEXTS[locale])]),
+) as Record<Locale, Messages>
 
 /**
  * Idioma a partir de las variables de locale del sistema (`LC_ALL`, `LC_MESSAGES`, `LANG`,
- * `LANGUAGE`, en ese orden). Español si empieza por `es`; inglés en cualquier otro caso.
+ * `LANGUAGE`, en ese orden): manda la primera con valor (sin contar `C`). Se busca el idioma con
+ * región (`pt_BR` → `pt-BR`) y, si no, el idioma sin región (`fr_CA.UTF-8` → `fr`); si no está
+ * entre los registrados, inglés.
  */
 export function localeFromEnv(values: readonly (string | undefined)[]): Locale {
   const first = values.find(value => value !== undefined && value !== '' && value !== 'C')
-  return first !== undefined && /^es([_.@:-]|$)/i.test(first) ? 'es' : 'en'
+  const match =
+    first === undefined ? null : /^([a-z]{2,3})(?:[_-]([a-z]{2}))?(?=[_.@:-]|$)/i.exec(first)
+  if (match) {
+    const base = match[1]!.toLowerCase()
+    const region = match[2]?.toUpperCase()
+    const found =
+      LOCALES.find(code => region !== undefined && code === `${base}-${region}`) ??
+      LOCALES.find(code => code === base)
+    if (found !== undefined) return found
+  }
+  return REFERENCE_LOCALE
 }

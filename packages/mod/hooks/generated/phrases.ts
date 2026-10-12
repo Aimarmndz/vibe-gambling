@@ -15,6 +15,7 @@ export const PHRASE_CATEGORIES = [
   'noBet',
   'streakWarning',
   'broke',
+  'pendingDropped',
 ] as const
 export type PhraseCategory = (typeof PHRASE_CATEGORIES)[number]
 export type PhraseCatalog = Readonly<Record<PhraseCategory, readonly string[]>>

@@ -2,6 +2,8 @@
 
 The Claude Code side of vibe-gambling: every prompt is a spin. It opens the PS1-style roulette window when you send a prompt, closes the round when Claude finishes, and shows the result in a toast and your balance in the status line. Fake coins only.
 
+With no game window open and visible when the turn ends, the server keeps the spin as a **pending spin** instead of rolling it: the mod says so in a toast (`🎰 Spin saved for later · 20 pending`), adds the count to the status line (`🎰 750 🪙 · 20 pending`) and `/balance` reminds you. You spend them in the window with SPIN / SPIN ALL. Past the cap (`pendingSpins.max`, 100 by default) the prompt is dropped with a joke. Nothing new is sent for this: the server decides from the window's visibility.
+
 ```text
 /plugin install vibe-gambling --marketplace Aimarmndz/vibe-gambling
 /vibe-login
@@ -14,7 +16,7 @@ The Claude Code side of vibe-gambling: every prompt is a spin. It opens the PS1-
 | `/roulette`                    | `/ruleta`  | Open the window                                                     |
 | `/bet <amount> <square>`       | `/apostar` | Bet on the current or next spin (`/bet 200 red`, `/bet 100 1st12`)  |
 | `/all-in [square]`             |            | Your whole balance (red by default)                                 |
-| `/balance`                     | `/saldo`   | Balance, debt, net worth and rank                                   |
+| `/balance`                     | `/saldo`   | Balance, debt, net worth, rank and pending spins                    |
 | `/vibe-login`, `/vibe-logout`  |            | GitHub device-code login / log out                                  |
 | `/vibe-hide`, `/vibe-show`     |            | Hide from / show on the public leaderboard                          |
 | `/vibe-server [url\|default]`  |            | Show or change the server (self-hosting); checks `GET /api/meta`    |

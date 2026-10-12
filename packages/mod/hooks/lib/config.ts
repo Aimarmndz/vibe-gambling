@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Configuración del mod: valida las opciones que el engine lee del `userConfig` del manifiesto.
 // Los valores por defecto viven en `.claude-plugin/plugin.json`, nunca aquí. Módulo puro (sin `$`).
+import { LOCALES } from '../generated/protocol.ts'
 
 /** Tope de las llamadas de red durante un turno: regla de oro del plan (≤ 1,5 s), no configuración. */
 export const MAX_TURN_TIMEOUT_MS = 1500
 
-export const LANGUAGE_OPTIONS = ['auto', 'en', 'es'] as const
+/** `auto` (el del sistema) y los idiomas registrados en `locales/` (copia generada). */
+export const LANGUAGE_OPTIONS = ['auto', ...LOCALES] as const
 export type LanguageOption = (typeof LANGUAGE_OPTIONS)[number]
 
 export interface WindowSize {
@@ -30,7 +32,7 @@ export interface ModConfig {
   readonly launchTimeoutMs: number
   /** Espera máxima para enseñar el resultado (el giro mínimo lo marca el servidor con `revealAt`). */
   readonly revealMaxDelayMs: number
-  /** Idioma de los mensajes: el del sistema (`auto`), inglés o español. */
+  /** Idioma de los mensajes: el del sistema (`auto`) o uno de los registrados. */
   readonly language: LanguageOption
 }
 

@@ -5,7 +5,7 @@
 export const PROTOCOL_VERSION = 1 as const
 export const OS_VALUES = ['linux', 'darwin', 'win32', 'other'] as const
 export type Os = (typeof OS_VALUES)[number]
-export const LOCALES = ['en', 'es'] as const
+export const LOCALES = ['en', 'es', 'fr', 'de'] as const
 export type Locale = (typeof LOCALES)[number]
 export const ERROR_CODES = [
   'invalid_request',

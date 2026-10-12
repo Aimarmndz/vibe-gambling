@@ -49,9 +49,16 @@ export interface WalletView {
   readonly debt: number
   readonly netWorth: number
   readonly spins: number
+  /** Tiradas pendientes. Un servidor anterior a ellas no lo manda: entonces no hay ninguna. */
+  readonly pendingSpins?: number
 }
 export const isWallet: Guard<WalletView> = (v): v is WalletView =>
-  isObj(v) && isInt(v.balance) && isInt(v.debt) && isInt(v.netWorth) && isInt(v.spins)
+  isObj(v) &&
+  isInt(v.balance) &&
+  isInt(v.debt) &&
+  isInt(v.netWorth) &&
+  isInt(v.spins) &&
+  (v.pendingSpins === undefined || (isInt(v.pendingSpins) && v.pendingSpins >= 0))
 
 export type PocketColor = 'red' | 'black' | 'green'
 const isColor = (v: unknown): v is PocketColor => v === 'red' || v === 'black' || v === 'green'
@@ -100,10 +107,14 @@ export const isTurnStart: Guard<TurnStartView> = (v): v is TurnStartView =>
 export type TurnEndView =
   | { readonly status: 'resolved'; readonly round: ResolvedRoundView; readonly wallet: WalletView }
   | { readonly status: 'no_round'; readonly wallet: WalletView }
+  /** Sin ventana visible: tirada guardada como pendiente (o descartada por el tope). */
+  | { readonly status: 'queued'; readonly dropped: boolean; readonly wallet: WalletView }
 export const isTurnEnd: Guard<TurnEndView> = (v): v is TurnEndView =>
   isObj(v) &&
   isWallet(v.wallet) &&
-  ((v.status === 'resolved' && isResolvedRound(v.round)) || v.status === 'no_round')
+  ((v.status === 'resolved' && isResolvedRound(v.round)) ||
+    v.status === 'no_round' ||
+    (v.status === 'queued' && isBool(v.dropped)))
 
 export interface UserView {
   readonly login: string

@@ -6,6 +6,8 @@ import type { Io } from './io.ts'
 /** Opciones del `userConfig` tal y como las entrega el engine. */
 export type PluginOptions = Readonly<Record<string, unknown>>
 
+import { PLUGIN_VERSION, USER_CONFIG_DEFAULTS } from '../generated/manifest.ts'
+import type { UserConfigKey } from '../generated/manifest.ts'
 import { OS_VALUES } from '../generated/protocol.ts'
 import type { Locale, Os } from '../generated/protocol.ts'
 import { callApi, debug, isUnauthorized } from './api.ts'
@@ -31,7 +33,8 @@ export interface Runtime {
   messages: Messages
   /** Se rellena en `session.start`. */
   os: Promise<Os>
-  pluginVersion: Promise<string | null>
+  /** La de `plugin.json`, generada en `generated/manifest.ts` (una sola fuente de verdad). */
+  readonly pluginVersion: string
   isInteractive: boolean
   /** Para no repetir la última frase del toast. */
   lastPhrase: string | null
@@ -47,7 +50,7 @@ export function createRuntime(options: PluginOptions): Runtime {
     locale: 'en',
     messages: MESSAGES.en,
     os: Promise.resolve('other'),
-    pluginVersion: Promise.resolve(null),
+    pluginVersion: PLUGIN_VERSION,
     isInteractive: false,
     lastPhrase: null,
     loginHintShown: false,
@@ -83,41 +86,12 @@ export async function detectOs(io: Io, timeoutMs: number): Promise<Os> {
   }
 }
 
-/** Versión del plugin: la del propio `plugin.json` (una sola fuente de verdad). */
-export async function readPluginVersion(io: Io): Promise<string | null> {
-  try {
-    const manifest: unknown = JSON.parse(
-      String(await io.readText(`${io.pluginRoot}/.claude-plugin/plugin.json`)),
-    )
-    const version =
-      typeof manifest === 'object' && manifest !== null && 'version' in manifest
-        ? manifest.version
-        : null
-    return typeof version === 'string' && /^\d{1,4}\.\d{1,4}\.\d{1,4}/.test(version)
-      ? version
-      : null
-  } catch (error) {
-    debug(io, `no he podido leer la versión del plugin: ${String(error)}`)
-    return null
-  }
-}
-
-/** Valor por defecto de una opción, leído del `userConfig` del manifiesto. */
-export async function manifestDefault(io: Io, key: string): Promise<unknown> {
-  try {
-    const manifest: unknown = JSON.parse(
-      String(await io.readText(`${io.pluginRoot}/.claude-plugin/plugin.json`)),
-    )
-    if (typeof manifest !== 'object' || manifest === null || !('userConfig' in manifest))
-      return null
-    const fields = manifest.userConfig
-    if (typeof fields !== 'object' || fields === null || !(key in fields)) return null
-    const field: unknown = (fields as Record<string, unknown>)[key]
-    return typeof field === 'object' && field !== null && 'default' in field ? field.default : null
-  } catch (error) {
-    debug(io, `no he podido leer el manifiesto: ${String(error)}`)
-    return null
-  }
+/**
+ * Valor por defecto de una opción, el del `userConfig` del manifiesto. Sale de
+ * `generated/manifest.ts` (generado de `plugin.json`): el mod no lee su manifiesto del disco.
+ */
+export function manifestDefault<K extends UserConfigKey>(key: K): (typeof USER_CONFIG_DEFAULTS)[K] {
+  return USER_CONFIG_DEFAULTS[key]
 }
 
 // ------------------------------------------------------------------ sesión en `$.store`

@@ -2,30 +2,60 @@
 // Lo que el mod enseña: la status line con el saldo y el toast con el resultado. Módulo puro.
 import { PHRASE_CATEGORIES, fillTemplate, pickPhrase } from '../generated/phrases.ts'
 import type { PhraseCatalog, PhraseCategory } from '../generated/phrases.ts'
-import { phrasesEn } from '../generated/phrases.en.ts'
-import { phrasesEs } from '../generated/phrases.es.ts'
+import { LOCALE_INFO, PHRASES } from '../generated/locales.ts'
 import type { Locale } from '../generated/protocol.ts'
 import type { Messages } from './messages.ts'
 import type { PocketColor, ResolvedRoundView, WalletView } from './responses.ts'
 
-export const PHRASES: Readonly<Record<Locale, PhraseCatalog>> = { en: phrasesEn, es: phrasesEs }
+export { PHRASES }
 
 const COLOR_EMOJI: Readonly<Record<PocketColor, string>> = { red: '🔴', black: '⚫', green: '🟢' }
 
-/** Formatea monedas con separador de miles (`1,234` / `1.234`) y signo menos tipográfico. */
+/**
+ * Formatea monedas con el separador de miles del idioma (`1,234` / `1.234` / `1 234`) y signo
+ * menos tipográfico.
+ */
 export function formatCoins(amount: number, locale: Locale, signed = false): string {
   const digits = Math.abs(Math.trunc(amount)).toString()
-  const grouped = digits.replace(/\B(?=(\d{3})+(?!\d))/g, locale === 'es' ? '.' : ',')
+  const grouped = digits.replace(/\B(?=(\d{3})+(?!\d))/g, LOCALE_INFO[locale].groupSeparator)
   if (amount < 0) return `−${grouped}`
   return signed && amount > 0 ? `+${grouped}` : grouped
 }
 
-/** Status line: saldo y, si hay, deuda. */
+/** Status line: saldo y, si hay, deuda y tiradas pendientes. */
 export function statusText(wallet: WalletView, locale: Locale, messages: Messages): string {
-  const balance = `🎰 ${formatCoins(wallet.balance, locale)} ${messages.coin}`
-  return wallet.debt > 0
-    ? `${balance} · ${messages.debtLabel} ${formatCoins(wallet.debt, locale)}`
-    : balance
+  const parts = [`🎰 ${formatCoins(wallet.balance, locale)} ${messages.coin}`]
+  if (wallet.debt > 0) parts.push(`${messages.debtLabel} ${formatCoins(wallet.debt, locale)}`)
+  const pending = wallet.pendingSpins ?? 0
+  if (pending > 0) parts.push(messages.pendingCount(formatCoins(pending, locale)))
+  return parts.join(' · ')
+}
+
+/**
+ * Toast de un turno que terminó sin ventana visible: la tirada se ha guardado como pendiente o,
+ * si ya estaba en el tope, se ha descartado con una frase de broma.
+ */
+export function queuedToast(
+  dropped: boolean,
+  wallet: WalletView,
+  locale: Locale,
+  messages: Messages,
+  previousPhrase: string | null,
+  random: () => number = Math.random,
+): ResultToast {
+  const count = formatCoins(wallet.pendingSpins ?? 0, locale)
+  if (!dropped) return { text: messages.spinSaved(count), phrase: null }
+  // En el tope, el contador es justo el tope: con él se rellena el {max} de las frases.
+  const phrase = pickFilledPhrase(
+    PHRASES[locale],
+    'pendingDropped',
+    { max: count },
+    previousPhrase,
+    random,
+  )
+  const parts = [messages.spinDropped(count)]
+  if (phrase !== null) parts.push(`“${phrase.text}”`)
+  return { text: parts.join(' · '), phrase: phrase?.template ?? null }
 }
 
 /** Categoría de frase para una ronda resuelta. */
