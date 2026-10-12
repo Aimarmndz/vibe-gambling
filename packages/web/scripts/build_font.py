@@ -36,6 +36,7 @@ ACCENTS = {
     'grave': ['.#...', '..#..'],
     'tilde': ['.##.#', '#.##.'],
     'diaeresis': ['.....', '.#.#.'],
+    'circumflex': ['..#..', '.#.#.'],
 }
 
 # Letras compuestas: carácter → (base, acento).
@@ -46,7 +47,17 @@ COMPOSED = {
     'Á': ('A', 'acute'), 'É': ('E', 'acute'), 'Í': ('I', 'acute'), 'Ó': ('O', 'acute'),
     'Ú': ('U', 'acute'), 'À': ('A', 'grave'), 'È': ('E', 'grave'), 'Ò': ('O', 'grave'),
     'Ù': ('U', 'grave'), 'Ñ': ('N', 'tilde'), 'Ü': ('U', 'diaeresis'), 'Ö': ('O', 'diaeresis'),
+    # Francés y alemán (î, ï, ç, ß, œ… van dibujadas a mano en el archivo fuente).
+    'â': ('a', 'circumflex'), 'ê': ('e', 'circumflex'), 'ô': ('o', 'circumflex'),
+    'û': ('u', 'circumflex'), 'ä': ('a', 'diaeresis'), 'ë': ('e', 'diaeresis'),
+    'ÿ': ('y', 'diaeresis'),
+    'Â': ('A', 'circumflex'), 'Ê': ('E', 'circumflex'), 'Î': ('I', 'circumflex'),
+    'Ô': ('O', 'circumflex'), 'Û': ('U', 'circumflex'), 'Ä': ('A', 'diaeresis'),
+    'Ë': ('E', 'diaeresis'), 'Ï': ('I', 'diaeresis'),
 }
+
+# Nombres de los glifos invisibles en las cabeceras del archivo fuente.
+NAMED = {'SPACE': ' ', 'NBSP': '\u00a0', 'NNBSP': '\u202f'}
 
 
 def parse(text: str) -> dict[str, dict]:
@@ -62,7 +73,7 @@ def parse(text: str) -> dict[str, dict]:
             char, _, top = head.rpartition(' @')
             if not char or not top.isdigit():
                 sys.exit(f'línea {lineno}: cabecera mal formada: {line!r}')
-            char = ' ' if char == 'SPACE' else char
+            char = NAMED.get(char, char)
             if len(char) != 1:
                 sys.exit(f'línea {lineno}: un glifo es un solo carácter: {char!r}')
             if char in glyphs:
