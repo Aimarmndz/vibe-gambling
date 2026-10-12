@@ -74,6 +74,12 @@ describe('préstamo e intereses', () => {
     expect(canRequestLoan(10, cfg)).toBe(false)
   })
 
+  it('el banco deja de prestar cuando el préstamo pasaría del tope de deuda', () => {
+    expect(canRequestLoan(0, cfg, 999_000)).toBe(true)
+    expect(canRequestLoan(0, cfg, 999_001)).toBe(false)
+    expect(canRequestLoan(0, cfg, 1_000_000)).toBe(false)
+  })
+
   it('suma el préstamo al saldo y a la deuda; son ilimitados', () => {
     let state = { balance: 0, debt: 0 }
     state = applyLoan(state.balance, state.debt, cfg)
@@ -172,7 +178,7 @@ describe('boleto y apuestas automáticas', () => {
           let debt = 0
           let ledger = cfg.startingBalance // entradas − salidas, llevado aparte
           for (const r of rounds) {
-            if (canRequestLoan(balance, cfg)) {
+            if (canRequestLoan(balance, cfg, debt)) {
               ;({ balance, debt } = applyLoan(balance, debt, cfg))
               ledger += cfg.loan.amount
             }

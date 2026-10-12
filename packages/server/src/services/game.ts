@@ -275,7 +275,7 @@ export class GameService {
       await ensureSeason(tx, season)
       const wallet = await this.#lockWallet(tx, userId, season.id)
       // Las fichas del boleto cuentan: si no, bastaría con apostarlo todo, pedir y retirar.
-      if (!canRequestLoan(wallet.balance + totalStake(wallet.slip), cfg)) {
+      if (!canRequestLoan(wallet.balance + totalStake(wallet.slip), cfg, wallet.debt)) {
         throw new AppError(
           'loan_not_allowed',
           'You still have coins. The bank only lends to the truly broke.',

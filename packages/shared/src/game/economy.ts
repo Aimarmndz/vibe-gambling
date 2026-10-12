@@ -70,9 +70,13 @@ export function accrueInterest(debt: number, cfg: GameConfig): number {
   return Math.min(next, cfg.loan.maxDebt)
 }
 
-/** El préstamo solo se ofrece cuando el saldo no llega ni para la ficha mínima. */
-export function canRequestLoan(balance: number, cfg: GameConfig): boolean {
-  return balance < minBet(cfg)
+/**
+ * El préstamo solo se ofrece cuando el saldo no llega ni para la ficha mínima y mientras
+ * el banco tenga crédito que dar: al llegar al tope de deuda deja de prestar
+ * (si no, cada préstamo sería dinero gratis porque la deuda ya no puede crecer).
+ */
+export function canRequestLoan(balance: number, cfg: GameConfig, debt = 0): boolean {
+  return balance < minBet(cfg) && debt + cfg.loan.amount <= cfg.loan.maxDebt
 }
 
 /** Saldo y deuda tras aceptar un préstamo. La deuda nunca pasa del tope. */
