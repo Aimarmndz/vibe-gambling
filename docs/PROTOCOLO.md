@@ -79,7 +79,7 @@ Toda respuesta que no es 2xx tiene el cuerpo [`ErrorResponse`](#errorresponse): 
 
 <!-- END GENERATED errors -->
 
-Comunes a todas las rutas: `400 invalid_request` (JSON roto, campo de más o fuera de rango, versión distinta), `413 payload_too_large`, `429 rate_limited` y `500 internal`. Las de rutas con sesión: `401 unauthorized` y `403 forbidden`. Cada ruta de abajo lista solo los errores **propios**. `protocol_mismatch` está reservado: el servidor actual no lo emite (una versión distinta da `invalid_request`).
+Comunes a todas las rutas: `400 invalid_request` (JSON roto, campo de más o fuera de rango), `400 protocol_mismatch` (el cuerpo trae otra `v`: el cliente habla otra versión del protocolo; por WebSocket llega como mensaje `error` con ese código), `413 payload_too_large`, `429 rate_limited` y `500 internal`. Las de rutas con sesión: `401 unauthorized` y `403 forbidden`. Cada ruta de abajo lista solo los errores **propios**.
 
 ## Límites
 

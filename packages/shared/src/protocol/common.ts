@@ -10,6 +10,16 @@ import { seasonIdSchema } from '../game/season.ts'
 export const PROTOCOL_VERSION = 1
 export const versionSchema = z.literal(PROTOCOL_VERSION)
 
+/**
+ * ¿Es un mensaje de otra versión del protocolo? Sirve para responder `protocol_mismatch`
+ * en vez de un `invalid_request` genérico cuando un cliente viejo o nuevo habla con este servidor.
+ */
+export function isOtherProtocolVersion(message: unknown): boolean {
+  if (typeof message !== 'object' || message === null || !('v' in message)) return false
+  const { v } = message as { v: unknown }
+  return typeof v === 'number' && v !== PROTOCOL_VERSION
+}
+
 /** SO genérico: lo único que el mod cuenta del ordenador. */
 export const OS_VALUES = ['linux', 'darwin', 'win32', 'other'] as const
 export const osSchema = z.enum(OS_VALUES)

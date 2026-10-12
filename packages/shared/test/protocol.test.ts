@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   clientMessageSchema,
+  isOtherProtocolVersion,
   leaderboardQuerySchema,
   logoutRequestSchema,
   PROTOCOL_VERSION,
@@ -35,6 +36,11 @@ describe('protocolo', () => {
   })
 
   it('rechaza versiones de protocolo desconocidas', () => {
+    expect(isOtherProtocolVersion({ v: 2, type: 'sync' })).toBe(true)
+    expect(isOtherProtocolVersion({ v: 1 })).toBe(false)
+    expect(isOtherProtocolVersion({ v: '2' })).toBe(false)
+    expect(isOtherProtocolVersion(null)).toBe(false)
+    expect(isOtherProtocolVersion({})).toBe(false)
     expect(clientMessageSchema.safeParse({ v: 2, type: 'sync' }).success).toBe(false)
   })
 

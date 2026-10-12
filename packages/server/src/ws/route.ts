@@ -4,7 +4,12 @@
 // - Límite de conexiones por usuario, de tamaño (ws cierra con 1009) y de mensajes por ventana.
 // - Lo primero que recibe la ventana es siempre `hello`; los avisos que lleguen mientras se
 //   prepara se guardan y se mandan después, en orden.
-import { clientMessageSchema, WS_CLOSE_CODES } from '@vibe-gambling/shared'
+import {
+  clientMessageSchema,
+  isOtherProtocolVersion,
+  PROTOCOL_VERSION,
+  WS_CLOSE_CODES,
+} from '@vibe-gambling/shared'
 import type { ClientMessage, ServerMessage } from '@vibe-gambling/shared'
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import type { RawData, WebSocket } from 'ws'
@@ -126,7 +131,7 @@ export async function wsRoutes(app: FastifyInstance, options: WsOptions): Promis
       chain = chain
         .then(async () => {
           // Un `ping` no toca nada: no merece una consulta.
-          if (parsed?.type === 'ping' || (await stillValid())) {
+          if ((typeof parsed === 'object' && parsed?.type === 'ping') || (await stillValid())) {
             await handle(services, hub, connection, parsed)
           }
         })
@@ -145,7 +150,7 @@ function errorMessage(
   return { v: V, type: 'error', error, message }
 }
 
-function parseMessage(data: RawData, isBinary: boolean): ClientMessage | null {
+function parseMessage(data: RawData, isBinary: boolean): ClientMessage | 'mismatch' | null {
   if (isBinary) return null
   const text = Array.isArray(data) ? Buffer.concat(data).toString('utf8') : data.toString('utf8')
   let json: unknown
@@ -154,6 +159,7 @@ function parseMessage(data: RawData, isBinary: boolean): ClientMessage | null {
   } catch {
     return null
   }
+  if (isOtherProtocolVersion(json)) return 'mismatch'
   const result = clientMessageSchema.safeParse(json)
   return result.success ? result.data : null
 }
@@ -177,8 +183,15 @@ async function handle(
   services: Services,
   hub: Hub,
   connection: Connection,
-  message: ClientMessage | null,
+  message: ClientMessage | 'mismatch' | null,
 ): Promise<void> {
+  if (message === 'mismatch') {
+    hub.sendTo(
+      connection,
+      errorMessage('protocol_mismatch', `This server speaks protocol v${PROTOCOL_VERSION}.`),
+    )
+    return
+  }
   if (!message) {
     hub.sendTo(
       connection,

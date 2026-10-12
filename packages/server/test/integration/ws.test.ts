@@ -188,6 +188,8 @@ describe('WebSocket', () => {
     expect((await a.next('error')).error).toBe('invalid_request')
     a.send({ v: 1, type: 'bet.place', selection: { kind: 'split', numbers: [1, 5] }, amount: 10 })
     expect((await a.next('error')).error).toBe('invalid_request')
+    a.send({ v: 2, type: 'sync' })
+    expect((await a.next('error')).error).toBe('protocol_mismatch')
     a.ws.close()
     b.ws.close()
   })

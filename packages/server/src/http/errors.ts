@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Todas las respuestas de error tienen la forma `{ v, error, message }` de `errorResponseSchema`.
+import { isOtherProtocolVersion, PROTOCOL_VERSION } from '@vibe-gambling/shared'
 import type { ErrorCode, ErrorResponse } from '@vibe-gambling/shared'
 import type { FastifyError, FastifyInstance } from 'fastify'
 import { hasZodFastifySchemaValidationErrors } from 'fastify-type-provider-zod'
@@ -35,6 +36,11 @@ export function registerErrorHandlers(app: FastifyInstance): void {
       return reply.code(error.statusCode).send(errorBody(error.code, error.message))
     }
     if (hasZodFastifySchemaValidationErrors(error)) {
+      if (error.validationContext === 'body' && isOtherProtocolVersion(request.body)) {
+        return reply
+          .code(statusOf('protocol_mismatch'))
+          .send(errorBody('protocol_mismatch', `This server speaks protocol v${PROTOCOL_VERSION}.`))
+      }
       const issue = error.validation[0]
       const where = issue?.instancePath ? ` (${issue.instancePath})` : ''
       const message = `Invalid ${error.validationContext ?? 'request'}${where}: ${issue?.message ?? 'bad input'}`
