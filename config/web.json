@@ -1,0 +1,16 @@
+{
+  "ws": {
+    "pingIntervalMs": 25000,
+    "pongTimeoutMs": 10000,
+    "reconnect": { "baseMs": 500, "maxMs": 15000, "jitter": 0.3 }
+  },
+  "ui": {
+    "resultHoldMs": 8000,
+    "memoryCardToastMs": 2600,
+    "toastMs": 3200,
+    "titleHoldMs": 2200
+  },
+  "spin": { "landingMs": 4200, "reducedLandingMs": 1200 },
+  "leaderboard": { "pageLimit": 25, "inGameLimit": 10 },
+  "demo": { "thinkMs": 5000, "pauseMs": 9000, "login": "demo-player" }
+}
