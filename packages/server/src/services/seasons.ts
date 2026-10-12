@@ -80,13 +80,29 @@ export class SeasonService {
       if (!lock?.locked) return { ran: false, closed: [] as string[] }
 
       await ensureSeason(tx, current)
+      // Bloqueo exclusivo de las temporadas a cerrar: las operaciones de dinero toman un
+      // cerrojo compartido sobre su temporada, así que ninguna se cuela durante el cierre.
       const open = await tx
         .select()
         .from(seasons)
         .where(and(isNull(seasons.closedAt), lte(seasons.endsAt, now)))
         .orderBy(asc(seasons.endsAt))
+        .for('update')
       const closed: string[] = []
       for (const season of seasonsToClose(open, now)) {
+        // Las fichas que quedaban en el boleto vuelven al saldo: no se ha tirado con ellas, y
+        // así el patrimonio que guarda el Salón de la Ruina es el real.
+        await tx
+          .update(wallets)
+          .set({
+            balance: sql`${wallets.balance} + (
+              select coalesce(sum((bet ->> 'amount')::bigint), 0)
+              from jsonb_array_elements(${wallets.slip}) as bet)`,
+            slip: [],
+            updatedAt: now,
+          })
+          .where(and(eq(wallets.seasonId, season.id), sql`${wallets.slip} <> '[]'::jsonb`))
+
         // Las rondas a medias de la temporada vencida no se resuelven: caducan sin tirada.
         const gone = await tx
           .update(rounds)

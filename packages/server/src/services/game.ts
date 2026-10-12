@@ -72,6 +72,11 @@ export class GameService {
     this.#d = deps
   }
 
+  /** Instante actual según el reloj inyectado (el mismo de `openedAt` y `revealAt`). */
+  now(): Date {
+    return this.#d.clock.now()
+  }
+
   /** Temporada en curso según el reloj y `config/game.json`. */
   currentSeason(now: Date = this.#d.clock.now()): SeasonBounds {
     const { timeZone, startDay } = this.#d.game.season
@@ -340,10 +345,30 @@ export class GameService {
   // ---------------------------------------------------------------- internos
 
   async #lockWallet(tx: Tx, userId: string, seasonId: string): Promise<WalletRow> {
-    await tx
-      .insert(wallets)
-      .values({ userId, seasonId, balance: this.#d.game.startingBalance })
-      .onConflictDoNothing()
+    // Una petición que leyó el reloj justo antes del cambio de mes puede llegar con la temporada
+    // ya cerrada: sus monedas se quedarían en una temporada que ya no se juega. El cerrojo
+    // compartido sobre la fila de la temporada espera a que termine un cierre en curso (que la
+    // bloquea en exclusiva) y luego ve su `closed_at`.
+    const [season] = await tx
+      .select({ closedAt: seasons.closedAt })
+      .from(seasons)
+      .where(eq(seasons.id, seasonId))
+      .for('key share')
+    if (season?.closedAt) {
+      throw new AppError('conflict', 'The season just ended. Try again.')
+    }
+    try {
+      await tx
+        .insert(wallets)
+        .values({ userId, seasonId, balance: this.#d.game.startingBalance })
+        .onConflictDoNothing()
+    } catch (error) {
+      // La cuenta se ha borrado entre la autenticación y esta transacción.
+      if (isForeignKeyViolation(error)) {
+        throw new AppError('unauthorized', 'This account no longer exists.', { cause: error })
+      }
+      throw error
+    }
     const [row] = await tx
       .select()
       .from(wallets)
@@ -531,6 +556,16 @@ export async function ensureSeason(tx: Executor, season: SeasonBounds): Promise<
     .insert(seasons)
     .values({ id: season.id, startsAt: season.startsAt, endsAt: season.endsAt })
     .onConflictDoNothing()
+}
+
+/** SQLSTATE 23503: la fila a la que apunta la clave foránea ya no existe. */
+const FOREIGN_KEY_VIOLATION = '23503'
+
+function isForeignKeyViolation(error: unknown): boolean {
+  for (let e: unknown = error; e instanceof Error; e = e.cause) {
+    if ((e as Error & { code?: unknown }).code === FOREIGN_KEY_VIOLATION) return true
+  }
+  return false
 }
 
 function must<T>(value: T | undefined): T {
