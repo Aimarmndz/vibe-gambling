@@ -1,0 +1,336 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Modo demo (`/play?demo`): un servidor de mentira dentro del navegador para probar la ventana sin
+// cuenta. No toca el servidor real ni el ranking: es una partida local que se pierde al cerrar.
+// Usa la misma lógica de shared que el servidor; el azar es local porque aquí no hay nada en juego.
+import {
+  PROTOCOL_VERSION,
+  accrueInterest,
+  addToSlip,
+  applyLoan,
+  bestStreak,
+  canRequestLoan,
+  chooseRoundBets,
+  clientMessageSchema,
+  colorOf,
+  colorStreak,
+  netWorth,
+  nextStreak,
+  resolveBets,
+  seasonAt,
+  totalStake,
+} from '@vibe-gambling/shared'
+import type {
+  Bet,
+  ClientMessageInput,
+  GameConfig,
+  OpenRound,
+  PublicGameConfig,
+  ResolvedRound,
+  SelfUser,
+  ServerMessage,
+  Wallet,
+} from '@vibe-gambling/shared'
+
+import type { WebClientConfig } from '../config.ts'
+import type { Link, LinkStatus } from './link.ts'
+
+export interface DemoTurnOptions {
+  result?: number
+  gitPushOk?: boolean
+  testFailed?: boolean
+  /** Milisegundos que "piensa Claude" antes de resolver. */
+  thinkMs?: number
+}
+
+/** Mandos del modo demo para los tests y las capturas (`window.__vgDemo`). */
+export interface DemoControls {
+  turn(options?: DemoTurnOptions): Promise<void>
+  setWallet(balance: number, debt?: number): void
+}
+
+/** La configuración completa que necesitan las funciones de shared, a partir de la pública. */
+export function demoGameConfig(pub: PublicGameConfig): GameConfig {
+  const minChip = Math.min(...pub.chips)
+  return {
+    startingBalance: pub.startingBalance,
+    chips: [...pub.chips],
+    allIn: pub.allIn,
+    maxBetsPerRound: pub.maxBetsPerRound,
+    // La apuesta por defecto real no es pública: en la demo es la ficha mínima al rojo.
+    defaultBet: { selection: { kind: 'red' }, amount: minChip },
+    loan: { ...pub.loan, maxDebt: Number.MAX_SAFE_INTEGER },
+    jackpot: { ...pub.jackpot },
+    season: { timeZone: pub.seasonTimeZone, startDay: pub.seasonStartDay },
+    hallOfRuinSize: 10,
+    spin: { minSpinMs: pub.minSpinMs },
+    round: { staleAfterMs: 30 * 60 * 1000 },
+    streak: { colorWarningAt: pub.colorWarningAt, historySize: 50 },
+  }
+}
+
+function randomPocket(): number {
+  const buf = new Uint32Array(1)
+  // Rechazo para que el reparto sea uniforme entre 0 y 36.
+  for (;;) {
+    crypto.getRandomValues(buf)
+    const v = buf[0]!
+    if (v < Math.floor(0x1_0000_0000 / 37) * 37) return v % 37
+  }
+}
+
+function uuid(): string {
+  return crypto.randomUUID()
+}
+
+const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms))
+
+export class DemoLink implements Link {
+  readonly controls: DemoControls
+  private readonly cfg: GameConfig
+  private readonly client: WebClientConfig['demo']
+  private readonly auto: boolean
+  private readonly messageListeners: ((msg: ServerMessage) => void)[] = []
+  private readonly statusListeners: ((status: LinkStatus) => void)[] = []
+  private user: SelfUser
+  private wallet: Wallet
+  private slip: Bet[] = []
+  private lastBets: Bet[] | null = null
+  private round: OpenRound | null = null
+  private lastRound: ResolvedRound | null = null
+  private readonly history: number[] = []
+  private running = false
+  private busy = false
+
+  constructor(pub: PublicGameConfig, client: WebClientConfig['demo'], auto: boolean) {
+    this.cfg = demoGameConfig(pub)
+    this.client = client
+    this.auto = auto
+    const now = new Date()
+    this.user = {
+      login: client.login,
+      avatarUrl: 'https://avatars.githubusercontent.com/u/0',
+      profileUrl: 'https://github.com/',
+      hidden: true,
+      locale: null,
+      createdAt: now.toISOString(),
+    }
+    const season = seasonAt(now, this.cfg.season.timeZone, this.cfg.season.startDay)
+    this.wallet = {
+      seasonId: season.id,
+      balance: this.cfg.startingBalance,
+      debt: 0,
+      netWorth: this.cfg.startingBalance,
+      spins: 0,
+      loans: 0,
+      currentStreak: 0,
+      bestStreak: 0,
+    }
+    this.controls = {
+      turn: options => this.turn(options),
+      setWallet: (balance, debt = this.wallet.debt) => {
+        this.wallet = { ...this.wallet, balance, debt, netWorth: netWorth(balance, debt) }
+        this.emit({ v: PROTOCOL_VERSION, type: 'wallet', wallet: this.wallet })
+      },
+    }
+  }
+
+  onMessage(listener: (msg: ServerMessage) => void): void {
+    this.messageListeners.push(listener)
+  }
+
+  onStatus(listener: (status: LinkStatus) => void): void {
+    this.statusListeners.push(listener)
+  }
+
+  start(): void {
+    if (this.running) return
+    this.running = true
+    for (const l of this.statusListeners) l('open')
+    setTimeout(() => this.emit(this.hello()), 0)
+    if (this.auto) void this.loop()
+  }
+
+  stop(): void {
+    this.running = false
+  }
+
+  send(msg: ClientMessageInput): boolean {
+    const parsed = clientMessageSchema.safeParse(msg)
+    if (!parsed.success) {
+      console.error('[demo] mensaje fuera de contrato', parsed.error.issues)
+      return false
+    }
+    // Respuesta asíncrona, como la de un servidor de verdad.
+    setTimeout(() => this.handle(parsed.data), 30)
+    return true
+  }
+
+  private emit(msg: ServerMessage): void {
+    for (const l of this.messageListeners) l(msg)
+  }
+
+  private hello(): ServerMessage {
+    return {
+      v: PROTOCOL_VERSION,
+      type: 'hello',
+      user: this.user,
+      wallet: this.wallet,
+      slip: this.slipView(),
+      round: this.round,
+      lastRound: this.lastRound,
+      serverTime: new Date().toISOString(),
+    }
+  }
+
+  private slipView() {
+    return { bets: [...this.slip], total: totalStake(this.slip) }
+  }
+
+  private setBalance(balance: number, debt = this.wallet.debt): void {
+    this.wallet = { ...this.wallet, balance, debt, netWorth: netWorth(balance, debt) }
+  }
+
+  private reject(
+    error: 'insufficient_funds' | 'too_many_bets' | 'loan_not_allowed',
+    message: string,
+  ) {
+    this.emit({ v: PROTOCOL_VERSION, type: 'bet.rejected', error, message })
+  }
+
+  private handle(msg: ReturnType<typeof clientMessageSchema.parse>): void {
+    switch (msg.type) {
+      case 'bet.place': {
+        const amount = msg.amount === 'all-in' ? this.wallet.balance : msg.amount
+        if (amount <= 0 || amount > this.wallet.balance) {
+          this.reject('insufficient_funds', 'not enough coins')
+          return
+        }
+        const next = addToSlip(this.slip, { selection: msg.selection, amount }, this.cfg)
+        if (!next) {
+          this.reject('too_many_bets', 'too many bets')
+          return
+        }
+        this.slip = next
+        this.setBalance(this.wallet.balance - amount)
+        this.emit({ v: PROTOCOL_VERSION, type: 'slip', slip: this.slipView(), wallet: this.wallet })
+        return
+      }
+      case 'bet.clear':
+        this.setBalance(this.wallet.balance + totalStake(this.slip))
+        this.slip = []
+        this.emit({ v: PROTOCOL_VERSION, type: 'slip', slip: this.slipView(), wallet: this.wallet })
+        return
+      case 'loan.request': {
+        if (!canRequestLoan(this.wallet.balance, this.cfg)) {
+          this.reject('loan_not_allowed', 'you still have coins')
+          return
+        }
+        const after = applyLoan(this.wallet.balance, this.wallet.debt, this.cfg)
+        this.setBalance(after.balance, after.debt)
+        this.wallet = { ...this.wallet, loans: this.wallet.loans + 1 }
+        this.emit({
+          v: PROTOCOL_VERSION,
+          type: 'loan.granted',
+          amount: this.cfg.loan.amount,
+          wallet: this.wallet,
+        })
+        return
+      }
+      case 'settings.update':
+        this.user = {
+          ...this.user,
+          ...(msg.hidden !== undefined ? { hidden: msg.hidden } : {}),
+          ...(msg.locale !== undefined ? { locale: msg.locale } : {}),
+        }
+        this.emit({ v: PROTOCOL_VERSION, type: 'settings', user: this.user })
+        return
+      case 'sync':
+        this.emit(this.hello())
+        return
+      case 'ping':
+        this.emit({ v: PROTOCOL_VERSION, type: 'pong', t: msg.t })
+        return
+    }
+  }
+
+  private async loop(): Promise<void> {
+    while (this.running) {
+      await sleep(this.client.pauseMs)
+      if (!this.running) return
+      await this.turn()
+    }
+  }
+
+  /** Un turno de Claude simulado: abre ronda, "piensa" y resuelve. */
+  private async turn(options: DemoTurnOptions = {}): Promise<void> {
+    if (this.busy) return
+    this.busy = true
+    try {
+      const openedAt = new Date()
+      this.round = { roundId: uuid(), openedAt: openedAt.toISOString() }
+      this.emit({ v: PROTOCOL_VERSION, type: 'round.started', round: this.round })
+      await sleep(options.thinkMs ?? this.client.thinkMs)
+      this.resolve(openedAt, options)
+    } finally {
+      this.busy = false
+    }
+  }
+
+  private resolve(openedAt: Date, options: DemoTurnOptions): void {
+    const round = this.round
+    if (!round) return
+    const result = options.result ?? randomPocket()
+    const choice = chooseRoundBets({
+      slip: this.slip,
+      lastBets: this.lastBets,
+      balance: this.wallet.balance,
+      cfg: this.cfg,
+    })
+    const jackpot = options.gitPushOk ? this.cfg.jackpot.gitPushMultiplier : 1
+    const outcome = resolveBets(choice.bets, result, jackpot)
+    const debtBefore = this.wallet.debt
+    const debt = accrueInterest(debtBefore, this.cfg)
+    const balance = this.wallet.balance - choice.charge + outcome.returned
+    const net = choice.bets.length > 0 ? outcome.net : null
+    const current = nextStreak(this.wallet.currentStreak, net)
+    this.history.push(result)
+    if (choice.bets.length > 0) this.lastBets = choice.bets
+    this.slip = []
+    this.round = null
+    this.wallet = {
+      ...this.wallet,
+      balance,
+      debt,
+      netWorth: netWorth(balance, debt),
+      spins: this.wallet.spins + 1,
+      currentStreak: current,
+      bestStreak: bestStreak(this.wallet.bestStreak, current),
+    }
+    const now = Date.now()
+    const resolved: ResolvedRound = {
+      roundId: round.roundId,
+      openedAt: round.openedAt,
+      resolvedAt: new Date(now).toISOString(),
+      result,
+      color: colorOf(result),
+      bets: outcome.outcomes.map(o => ({
+        selection: o.bet.selection,
+        amount: o.bet.amount,
+        won: o.won,
+        payout: o.payout,
+      })),
+      source: choice.source,
+      staked: outcome.staked,
+      returned: outcome.returned,
+      net: outcome.net,
+      jackpot: outcome.jackpot,
+      gitPushOk: options.gitPushOk ?? false,
+      testFailed: options.testFailed ?? false,
+      interestCharged: debt - debtBefore,
+      colorStreak: colorStreak(this.history.slice(-this.cfg.streak.historySize)),
+      revealAt: new Date(Math.max(now, openedAt.getTime() + this.cfg.spin.minSpinMs)).toISOString(),
+    }
+    this.lastRound = resolved
+    this.emit({ v: PROTOCOL_VERSION, type: 'round.resolved', round: resolved, wallet: this.wallet })
+  }
+}
