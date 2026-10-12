@@ -41,8 +41,8 @@ export const modTextsFr: ModTexts = {
   sessionExpired: 'Ta session a expiré. Relance /vibe-login.',
   openingWindow: '🎰 Ouverture de la table…',
   windowFailed: 'Impossible d’ouvrir la fenêtre. Il y a un navigateur dans le coin ?',
-  betUsage: 'Usage : /bet <montant> <case>, p. ex. /bet 200 red, /bet 50 17, /bet 100 1st12',
-  allInUsage: 'Usage : /all-in [case], p. ex. /all-in black',
+  betUsage: 'Syntaxe : /bet <montant> <case>, p. ex. /bet 200 red, /bet 50 17, /bet 100 1st12',
+  allInUsage: 'Syntaxe : /all-in [case], p. ex. /all-in black',
   betBadAmount:
     '« {raw} » n’est pas un montant. Pièces fictives entières uniquement (ou « all-in »).',
   betBadTarget: '« {raw} » est trop long pour être une case de cette table.',
@@ -68,7 +68,7 @@ export const modTextsFr: ModTexts = {
   loginDenied: 'La connexion GitHub a été annulée. La table t’attendra.',
   loginFailed:
     'La connexion s’est arrêtée : le serveur a répondu « {detail} ». Lance /vibe-login pour réessayer.',
-  loggedOut: '🎰 Déconnecté. La roue va s’ennuyer de toi.',
+  loggedOut: '🎰 Déconnecté. Tu vas manquer à la roue.',
   notLoggedInLogout: 'Tu n’étais pas connecté. Mission accomplie quand même.',
   hidden: '🎰 Tu es masqué du classement (et du Panthéon de la ruine).',
   shown: '🎰 Te revoilà dans le classement. La honte redevient publique.',

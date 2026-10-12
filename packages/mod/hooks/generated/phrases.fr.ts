@@ -45,7 +45,7 @@ export const phrasesFr: PhraseCatalog = {
     'EN PLEIN ! Je démissionne. Demain. Peut-être.',
     'Ça va direct sur mon LinkedIn.',
     'J’ai battu le marché. Et le bon sens.',
-    'Plein dans le mille, comme un regex qui marche du premier coup.',
+    'Plein dans le mille, comme une regex qui marche du premier coup.',
   ],
   bigLoss: [
     'Tout est sous contrôle. Tout. Est. Sous. Contrôle.',
@@ -80,7 +80,7 @@ export const phrasesFr: PhraseCatalog = {
   ],
   streakWarning: [
     '{count} {color} d’affilée. Le {pick} DOIT tomber.',
-    '{count} fois {color}. Statistiquement, le {pick} est dû (non, il ne l’est pas).',
+    '{count} {color} de suite. Statistiquement, le {pick} est dû (non, il ne l’est pas).',
     '{count} {color} d’affilée. Là, c’est personnel.',
   ],
   broke: [
