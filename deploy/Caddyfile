@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Caddy para self-host en una máquina vacía (docker-compose.caddy.yml). HTTPS automático.
+# Si tu instancia va detrás de Cloudflare, no uses este archivo: añade el sitio a tu proxy
+# (ver docs/DESPLIEGUE.md) o usa REAL_IP_HEADER=CF-Connecting-IP con los rangos de Cloudflare.
+{$SITE_ADDRESS} {
+	encode zstd gzip
+	reverse_proxy server:{$UPSTREAM_PORT} {
+		# La IP real del cliente, sobrescribiendo lo que mande él (el servidor solo la cree si
+		# llega desde TRUST_PROXY_CIDRS, es decir, desde este Caddy).
+		header_up X-Real-IP {remote_host}
+	}
+}

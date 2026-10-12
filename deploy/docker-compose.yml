@@ -1,0 +1,65 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Compose de PRODUCCIÓN: servidor + Postgres 17, SIN proxy propio.
+# El servidor escucha solo en 127.0.0.1:${PORT}; el reverse proxy que ya hay en la VPS
+# (Caddy, Nginx, Traefik…) le pasa el tráfico de vibe.aimar.dev. Postgres no expone puertos.
+#   cp .env.example .env && $EDITOR .env
+#   docker compose pull && docker compose up -d
+# Guía completa: docs/DESPLIEGUE.md. Para una máquina vacía, ver docker-compose.caddy.yml.
+name: vibe-gambling
+
+services:
+  server:
+    image: ghcr.io/aimarmndz/vibe-gambling:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:?}:${POSTGRES_PASSWORD:?}@postgres:5432/${POSTGRES_DB:?}
+    ports:
+      - '127.0.0.1:${PORT:?}:${PORT:?}'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [vibe]
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
+    stop_grace_period: 15s
+    logging:
+      driver: json-file
+      options: { max-size: 10m, max-file: '5' }
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+      POSTGRES_DB: ${POSTGRES_DB:?}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks: [vibe]
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/run/postgresql
+    security_opt: ['no-new-privileges:true']
+    shm_size: 128m
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    logging:
+      driver: json-file
+      options: { max-size: 10m, max-file: '5' }
+
+networks:
+  vibe:
+    ipam:
+      config:
+        - subnet: ${DOCKER_SUBNET:?}
+
+volumes:
+  pgdata:

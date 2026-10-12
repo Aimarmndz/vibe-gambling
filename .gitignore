@@ -26,6 +26,8 @@ packages/mod/.claude-plugin/types/
 .env*
 !.env.example
 !**/.env.example
+# Entorno de desarrollo versionado a propósito (sin secretos)
+!deploy/dev.env
 *.pem
 *.key
 *.crt

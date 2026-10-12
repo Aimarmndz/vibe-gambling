@@ -1,0 +1,16 @@
+# Todo lo que no hace falta para construir la imagen (y nada de secretos).
+**/node_modules
+**/dist
+**/coverage
+**/playwright-report
+**/test-results
+**/.env
+**/.env.*
+.git
+.github
+.plan
+.claude
+docs
+deploy
+scripts
+*.log
