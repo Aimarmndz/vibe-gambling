@@ -11,6 +11,8 @@ import { drawText, measure } from '../../font/bitmap.ts'
 import { chipLabel, describePayout, describeSelection } from '../../game/describe.ts'
 import { idleStatusKey, spinHelpOnRepeat, tableHelpKey } from '../../game/hints.ts'
 import { INITIAL_CURSOR, hitTest, moveCursor } from '../../game/layout.ts'
+import { pendingSpins } from '../../game/state.ts'
+import { BumpCounter } from '../counter.ts'
 import type { Point } from '../../game/layout.ts'
 import { drawChipIcon, drawWindow } from '../draw.ts'
 import { CHIP_COLORS, PALETTE } from '../palette.ts'
@@ -37,10 +39,13 @@ export class TableScreen implements Screen {
   chipIndex = 0
   private readonly ctx: AppContext
   private readonly host: TableHost
+  /** Contador de tiradas pendientes del HUD (bota al sumar y al gastar). */
+  private readonly pendingCounter: BumpCounter
 
   constructor(ctx: AppContext, host: TableHost) {
     this.ctx = ctx
     this.host = host
+    this.pendingCounter = new BumpCounter(ctx.client.ui.counterBumpMs, ctx.reducedMotion)
     // Por defecto, la ficha más pequeña que no sea ridícula: la segunda si existe.
     this.chipIndex = Math.min(1, this.ctx.web.game.chips.length - 1)
   }
@@ -117,6 +122,11 @@ export class TableScreen implements Screen {
         this.ctx.sfx.play('accept')
         this.ctx.push(new MenuScreen(this.ctx))
         return
+      case 'spin':
+        // GIRAR: con pendientes, gasta una; sin ellas, explica de dónde salen.
+        if (pendingSpins(this.ctx.state()) > 0) this.ctx.spinPending()
+        else this.ctx.showPending()
+        return
       case 'mute':
         return
     }
@@ -142,6 +152,50 @@ export class TableScreen implements Screen {
     this.cycleChip(delta > 0 ? 1 : -1)
   }
 
+  update(_dt: number, t: number): void {
+    this.pendingCounter.see(pendingSpins(this.ctx.state()), t)
+  }
+
+  /**
+   * Fila "PENDIENTES n" del panel derecho (docs/DISENO-V2.md, HUD): el panel crece de 29 a 40 px
+   * cuando hay alguna. El número bota al sumar o gastar; en el tope, en rojo que respira.
+   * Clic: la pantalla de tiradas pendientes.
+   */
+  private drawPendingRow(g: CanvasRenderingContext2D, t: number, count: number): void {
+    const { tr } = this.ctx
+    const look = this.pendingCounter.look(t)
+    const full = count >= this.ctx.web.game.pendingSpins.max
+    drawText(g, tr.t('hud.pending'), 228, 32, { color: PALETTE.muted, shadow: PALETTE.ink })
+    const breathe = Math.floor(t) % 2 === 0
+    const color = full
+      ? breathe
+        ? PALETTE.loss
+        : PALETTE.cream
+      : look.flash
+        ? PALETTE.cream
+        : PALETTE.gold
+    // En el tope solo el número (en rojo que respira): "100 MÁX" no cabe junto a "PENDIENTES".
+    drawText(g, tr.n(count), 310, 32 + look.dy, { color, align: 'right', shadow: PALETTE.ink })
+    if (look.delta) {
+      drawText(g, look.delta, 310, 22 - look.deltaRise, {
+        color: look.delta.startsWith('+') ? PALETTE.gold : PALETTE.loss,
+        align: 'right',
+        shadow: PALETTE.ink,
+      })
+    }
+    this.ctx.hits.add({
+      x: 222,
+      y: 29,
+      w: 94,
+      h: 15,
+      id: 'hud:pending',
+      onClick: () => {
+        this.ctx.sfx.play('accept')
+        this.ctx.showPending()
+      },
+    })
+  }
+
   draw(g: CanvasRenderingContext2D, t: number): void {
     const { tr } = this.ctx
     const state = this.ctx.state()
@@ -162,8 +216,9 @@ export class TableScreen implements Screen {
       drawText(g, tr.t('status.connecting'), 10, 10, { color: muted })
     }
 
-    // Racha y tiradas: arriba a la derecha.
-    drawWindow(g, 222, 4, 94, 29)
+    // Racha, tiradas y (si hay) tiradas pendientes: arriba a la derecha.
+    const pending = pendingSpins(state)
+    drawWindow(g, 222, 4, 94, pending > 0 ? 40 : 29)
     if (w) {
       const streak = w.currentStreak
       const streakText = streak > 0 ? `▲${streak}` : streak < 0 ? `▼${-streak}` : '–'
@@ -177,6 +232,8 @@ export class TableScreen implements Screen {
         shadow: PALETTE.ink,
       })
     }
+
+    if (w && pending > 0) this.drawPendingRow(g, t, pending)
 
     // Estado: centrado bajo la ruleta.
     const status = this.statusText()
@@ -248,12 +305,24 @@ export class TableScreen implements Screen {
     if (conn === 'connecting') return { text: tr.t('status.connecting'), kind: 'connecting' }
     if (conn === 'reconnecting') return { text: tr.t('status.offline'), kind: 'offline' }
     const state = this.ctx.state()
+    const loop = this.ctx.spinAll()
+    if (loop.running) {
+      const n = tr.n(pendingSpins(state))
+      return { text: tr.t('status.spinAll', { n, ...this.ctx.buttons() }), kind: 'pending' }
+    }
     switch (state.phase) {
       case 'spinning':
         return { text: tr.t('status.thinking'), kind: 'thinking' }
       case 'landing':
         return { text: tr.t('status.landing'), kind: 'landing' }
       case 'idle': {
+        const pending = pendingSpins(state)
+        if (pending > 0 && !this.ctx.demo) {
+          return {
+            text: tr.t('status.pending', { n: tr.n(pending), ...this.ctx.buttons() }),
+            kind: 'pending',
+          }
+        }
         // Sin ronda abierta: el giro lo lanza un prompt en Claude Code, no la ventana.
         const key = idleStatusKey(this.ctx.demo, state.slip.total)
         const ready = key === 'status.ready' || key === 'status.demoReady'

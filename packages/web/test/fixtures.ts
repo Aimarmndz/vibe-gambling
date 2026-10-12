@@ -24,7 +24,17 @@ export const testGame = gameConfigSchema.parse({
   hallOfRuinSize: 5,
   spin: { minSpinMs: 1000 },
   round: { staleAfterMs: 60_000 },
-  streak: { colorWarningAt: 3, historySize: 20 },
+  streak: { colorWarningAt: 3, historySize: 20, onFireAt: 3 },
+  pendingSpins: { max: 50, quickSpinMs: 400 },
+  bigWin: { minNetMultiple: 5, megaNetMultiple: 15 },
+  achievements: {
+    proDebtorLoans: 2,
+    compoundInterestDebt: 1_000,
+    zeroCollectorZeros: 2,
+    addictSpins: 10,
+    nightOwl: { fromHour: 3, toHour: 6 },
+  },
+  stats: { recentRounds: 5, seriesPoints: 10, loanMarks: 3, bankHistory: 5 },
 })
 
 export const testWebConfig: WebConfig = webConfigSchema.parse({
@@ -66,6 +76,7 @@ export function wallet(patch: Partial<Wallet> = {}): Wallet {
     loans: 0,
     currentStreak: 0,
     bestStreak: 0,
+    pendingSpins: 0,
   }
   const w = { ...base, ...patch }
   return walletSchema.parse({ ...w, netWorth: w.balance - w.debt })

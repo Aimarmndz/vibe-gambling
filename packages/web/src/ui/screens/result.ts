@@ -13,15 +13,23 @@ export class ResultScreen implements Screen {
   private readonly ctx: AppContext
   private readonly view: OutcomeView
   private readonly onClose: () => void
+  /** Cuánto se queda en pantalla (más corto en GIRAR TODAS). */
+  private readonly holdMs: number
   private age = 0
   private closed = false
   /** Borde inferior de la ventana de la frase (se calcula al pintar). */
   private panelBottom = 240
 
-  constructor(ctx: AppContext, view: OutcomeView, onClose: () => void) {
+  constructor(
+    ctx: AppContext,
+    view: OutcomeView,
+    onClose: () => void,
+    holdMs: number = ctx.client.ui.resultHoldMs,
+  ) {
     this.ctx = ctx
     this.view = view
     this.onClose = onClose
+    this.holdMs = holdMs
   }
 
   close(): void {
@@ -38,7 +46,7 @@ export class ResultScreen implements Screen {
 
   update(dt: number): void {
     this.age += dt
-    if (this.age * 1000 >= this.ctx.client.ui.resultHoldMs) this.close()
+    if (this.age * 1000 >= this.holdMs) this.close()
   }
 
   action(e: ActionEvent): void {

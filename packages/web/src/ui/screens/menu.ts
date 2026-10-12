@@ -1,9 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Menú de pausa (START), ajustes y créditos.
+import { forLocale } from '@vibe-gambling/shared'
+import type { Locale } from '@vibe-gambling/shared'
+import { FLAG_HEIGHT, FLAG_WIDTH } from '@vibe-gambling/shared/i18n'
+
 import type { AppContext, Screen } from '../../app/context.ts'
 import type { ActionEvent } from '../../app/input.ts'
 import { drawText, wrap } from '../../font/bitmap.ts'
+import { pendingSpins } from '../../game/state.ts'
+import { LANGUAGES, cycleLocale, languageOf } from '../../i18n/index.ts'
 import { dim, drawHelpBar, drawWindow } from '../draw.ts'
+import { drawFlag } from '../flags.ts'
 import { ListMenu } from '../listMenu.ts'
 import { attribution, displayUrl } from '../../legal/attribution.ts'
 import { PALETTE } from '../palette.ts'
@@ -11,6 +18,35 @@ import { LeaderboardScreen } from './leaderboard.ts'
 import { MemoryCardScreen } from './memoryCard.ts'
 
 const ROW = 14
+/** Separación entre banderas y ancho máximo de la fila de banderas en Ajustes. */
+const FLAG_GAP = 5
+const LANGUAGE_ROW_WIDTH = 132
+
+/**
+ * Esquinas oro alrededor de una caja (selección del menú v2, a escala de la bandera): brazos de
+ * 3 px a 1 px por fuera que respiran 1 px cada 250 ms, a saltos.
+ */
+function drawCorners(
+  g: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  t: number,
+): void {
+  const o = 2 + (Math.floor(t * 4) % 2)
+  const arm = 3
+  g.fillStyle = PALETTE.gold
+  for (const [cx, cy, sx, sy] of [
+    [x - o, y - o, 1, 1],
+    [x + w - 1 + o, y - o, -1, 1],
+    [x - o, y + h - 1 + o, 1, -1],
+    [x + w - 1 + o, y + h - 1 + o, -1, -1],
+  ] as const) {
+    g.fillRect(sx > 0 ? cx : cx - arm + 1, cy, arm, 1)
+    g.fillRect(cx, sy > 0 ? cy : cy - arm + 1, 1, arm)
+  }
+}
 
 export class MenuScreen implements Screen {
   readonly id = 'menu'
@@ -21,6 +57,15 @@ export class MenuScreen implements Screen {
     this.ctx = ctx
     this.menu = new ListMenu(ctx, 'menu', [
       { label: () => ctx.tr.t('menu.resume'), accept: () => ctx.pop(this) },
+      {
+        label: () => ctx.tr.t('menu.pending'),
+        value: () => ctx.tr.n(pendingSpins(ctx.state())),
+        accept: () => {
+          ctx.pop(this)
+          ctx.showPending()
+        },
+        disabled: () => ctx.demo,
+      },
       { label: () => ctx.tr.t('menu.howTo'), accept: () => ctx.showTip() },
       {
         label: () => ctx.tr.t('menu.leaderboard'),
@@ -55,9 +100,9 @@ export class MenuScreen implements Screen {
     dim(g, 0.45)
     const h = 30 + this.menu.items.length * ROW
     const y = 120 - h / 2
-    drawWindow(g, 92, y, 136, h)
+    drawWindow(g, 76, y, 168, h)
     drawText(g, this.ctx.tr.t('menu.title'), 160, y + 8, { color: PALETTE.muted, align: 'center' })
-    this.menu.draw(g, 104, y + 24, 112, ROW, t)
+    this.menu.draw(g, 88, y + 24, 144, ROW, t)
     drawHelpBar(g, this.ctx.tr.t('help.menu', { ...this.ctx.buttons() }), PALETTE.muted)
   }
 }
@@ -84,12 +129,8 @@ export class SettingsScreen implements Screen {
       },
       {
         label: () => ctx.tr.t('settings.language'),
-        value: () => ctx.tr.t('meta.lang'),
-        change: () => {
-          const locale = ctx.tr.locale === 'en' ? 'es' : 'en'
-          ctx.setPrefs({ locale })
-          ctx.send({ type: 'settings.update', locale })
-        },
+        change: dir => this.chooseLocale(cycleLocale(this.locale(), dir)),
+        drawValue: (g, right, y, selected, t) => this.drawLanguages(g, right, y, selected, t),
       },
       {
         label: () => ctx.tr.t('settings.leaderboard'),
@@ -106,6 +147,80 @@ export class SettingsScreen implements Screen {
         change: () => ctx.setPrefs({ quality: ctx.prefs.quality === 'high' ? 'low' : 'high' }),
       },
     ])
+  }
+
+  /** Idioma elegido (las preferencias cambian al momento; los textos, al llegar su chunk). */
+  private locale(): Locale {
+    return this.ctx.prefs.locale ?? this.ctx.tr.locale
+  }
+
+  /** Cambia el idioma al instante y lo guarda en el navegador y en el servidor. */
+  private chooseLocale(locale: Locale): void {
+    if (locale === this.locale()) return
+    this.ctx.setPrefs({ locale })
+    this.ctx.send({ type: 'settings.update', locale })
+  }
+
+  /**
+   * Fila de banderas alineada a la derecha, con el nombre del idioma delante. La elegida va a
+   * color con esquinas oro que respiran (como la selección del menú v2); las demás, apagadas.
+   * Si no caben todas, se ve una ventana alrededor de la elegida con ◄ ► en los bordes.
+   */
+  private drawLanguages(
+    g: CanvasRenderingContext2D,
+    right: number,
+    y: number,
+    selected: boolean,
+    t: number,
+  ): void {
+    const current = this.locale()
+    const pitch = FLAG_WIDTH + FLAG_GAP
+    const fit = Math.max(1, Math.floor((LANGUAGE_ROW_WIDTH + FLAG_GAP) / pitch))
+    const at = LANGUAGES.findIndex(l => l.code === current)
+    const first = Math.min(
+      Math.max(0, at - Math.floor(fit / 2)),
+      Math.max(0, LANGUAGES.length - fit),
+    )
+    const shown = LANGUAGES.slice(first, first + fit)
+    const fy = y - 2
+    let x = right - shown.length * pitch + FLAG_GAP
+    const name = languageOf(current).meta.nativeName
+    const color = selected ? PALETTE.gold : PALETTE.cream
+    drawText(g, name, x - (first > 0 ? 14 : 6), y, { color, align: 'right', shadow: PALETTE.ink })
+    if (first > 0) drawText(g, '◄', x - 2, y, { color: PALETTE.muted, align: 'right' })
+    const hover = this.ctx.hoverId()
+    for (const language of shown) {
+      const id = `settings:lang:${language.code}`
+      const active = language.code === current
+      drawFlag(g, language.flag, x, fy)
+      if (!active) {
+        // Apagada: tinta al 55 % por encima (como los pozos de la v2).
+        g.fillStyle = 'rgba(8,7,13,0.55)'
+        g.fillRect(x, fy, FLAG_WIDTH, FLAG_HEIGHT)
+      }
+      if (active) drawCorners(g, x, fy, FLAG_WIDTH, FLAG_HEIGHT, t)
+      else if (hover === id) {
+        g.fillStyle = PALETTE.cream
+        g.fillRect(x - 1, fy - 1, FLAG_WIDTH + 2, 1)
+        g.fillRect(x - 1, fy + FLAG_HEIGHT, FLAG_WIDTH + 2, 1)
+      }
+      this.ctx.hits.add({
+        x: x - 2,
+        y: fy - 2,
+        w: FLAG_WIDTH + 4,
+        h: FLAG_HEIGHT + 4,
+        id,
+        onClick: () => {
+          this.menu.index = this.menu.items.findIndex(i => i.drawValue !== undefined)
+          if (language.code !== current) this.ctx.sfx.play('move')
+          this.chooseLocale(language.code)
+        },
+      })
+      x += pitch
+    }
+    if (first + fit < LANGUAGES.length) {
+      drawText(g, '►', right + 2, y, { color: PALETTE.muted })
+    }
   }
 
   action(e: ActionEvent): void {
@@ -151,7 +266,7 @@ export class CreditsScreen implements Screen {
     this.ctx = ctx
     const site = ctx.web.site
     // Los enlaces de ayuda del idioma actual (el idioma no cambia con los créditos abiertos).
-    const help = site.helpLinks[ctx.tr.locale] ?? []
+    const help = forLocale(site.helpLinks, ctx.tr.locale)
     this.menu = new ListMenu(ctx, 'credits', [
       {
         label: () => displayUrl(site.author.url),

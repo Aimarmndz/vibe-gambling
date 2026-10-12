@@ -64,7 +64,18 @@ export function demoGameConfig(pub: PublicGameConfig): GameConfig {
     hallOfRuinSize: 10,
     spin: { minSpinMs: pub.minSpinMs },
     round: { staleAfterMs: 30 * 60 * 1000 },
-    streak: { colorWarningAt: pub.colorWarningAt, historySize: 50 },
+    streak: { colorWarningAt: pub.colorWarningAt, historySize: 50, onFireAt: pub.onFireAt },
+    pendingSpins: { ...pub.pendingSpins },
+    bigWin: { ...pub.bigWin },
+    // Logros y estadísticas son del servidor: la demo no los usa (valores solo para el tipo).
+    achievements: {
+      proDebtorLoans: 1,
+      compoundInterestDebt: Number.MAX_SAFE_INTEGER,
+      zeroCollectorZeros: 1,
+      addictSpins: 1,
+      nightOwl: { fromHour: 0, toHour: 1 },
+    },
+    stats: { recentRounds: 1, seriesPoints: 2, loanMarks: 0, bankHistory: 1 },
   }
 }
 
@@ -131,6 +142,8 @@ export class DemoLink implements Link {
       loans: 0,
       currentStreak: 0,
       bestStreak: 0,
+      // La demo gira sola con la ventana abierta: nunca acumula tiradas pendientes.
+      pendingSpins: 0,
     }
     this.controls = {
       turn: options => this.turn(options),
@@ -256,6 +269,16 @@ export class DemoLink implements Link {
         return
       case 'ping':
         this.emit({ v: PROTOCOL_VERSION, type: 'pong', t: msg.t })
+        return
+      case 'presence':
+        return
+      case 'spin.pending':
+        this.emit({
+          v: PROTOCOL_VERSION,
+          type: 'error',
+          error: 'not_found',
+          message: 'no pending spins in the demo',
+        })
         return
     }
   }

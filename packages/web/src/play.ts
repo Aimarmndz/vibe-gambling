@@ -6,7 +6,7 @@ import './zodJitless.ts'
 import './styles/play.css'
 
 import { clientConfig, loadWebConfig } from './config.ts'
-import { createTranslator, detectLocale } from './i18n/index.ts'
+import { applyDocumentLanguage, detectLocale, loadTranslator } from './i18n/index.ts'
 import type { Translator } from './i18n/index.ts'
 import { ApiError, redeemCode, takeCodeFromUrl } from './net/api.ts'
 import { loadPrefs, safeStorage } from './app/prefs.ts'
@@ -24,9 +24,10 @@ function fallback(tr: Translator, title: string, body: string): void {
 }
 
 async function main(): Promise<void> {
+  // Idioma inicial: el guardado por el usuario → el del navegador → inglés.
   const prefs = loadPrefs(safeStorage('local'))
-  const tr = createTranslator(prefs.locale ?? detectLocale(navigator.languages))
-  document.documentElement.lang = tr.locale
+  const tr = await loadTranslator(prefs.locale ?? detectLocale(navigator.languages))
+  applyDocumentLanguage(tr)
 
   if (!hasWebGL2()) {
     fallback(tr, tr.t('nowebgl.title'), tr.t('nowebgl.body'))
@@ -86,13 +87,19 @@ async function main(): Promise<void> {
     reducedMotion,
     skipBoot: Game.bootSeen() || params.has('noboot'),
     linkExpired,
+    translator: tr,
   })
   game.start()
   document.getElementById('screen')?.focus()
 }
 
-main().catch((error: unknown) => {
+main().catch(async (error: unknown) => {
   console.error('[play] error al arrancar', error)
-  const tr = createTranslator(detectLocale(navigator.languages))
-  fallback(tr, tr.t('error.config'), String(error))
+  try {
+    const tr = await loadTranslator(detectLocale(navigator.languages))
+    fallback(tr, tr.t('error.config'), String(error))
+  } catch (inner) {
+    // Ni siquiera hay textos (chunk de idioma inaccesible): queda el error en la consola.
+    console.error('[play] tampoco se pudieron cargar los textos', inner)
+  }
 })

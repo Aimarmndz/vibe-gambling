@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 
 import { measure, printable } from '../src/font/bitmap.ts'
 import { betReadyHint, idleStatusKey, spinHelpOnRepeat, tableHelpKey } from '../src/game/hints.ts'
-import { CATALOGS } from '../src/i18n/index.ts'
+import { CATALOGS } from './translators.ts'
 import { PALETTE, contrastRatio, mixHex } from '../src/ui/palette.ts'
 import { STATUS_BOX, STATUS_LOOKS, statusColor } from '../src/ui/status.ts'
 
@@ -20,7 +20,8 @@ describe('cómo se gira', () => {
     for (const catalog of Object.values(CATALOGS)) {
       expect(catalog['status.ready']).toMatch(/PROMPT/)
       expect(catalog['help.spin']).toMatch(/CLAUDE CODE/)
-      expect(catalog['toast.betReady']).toMatch(/prompt/)
+      // "prompt" con mayúscula en alemán (es un sustantivo).
+      expect(catalog['toast.betReady']).toMatch(/prompt/i)
       expect(catalog['toast.howToSpin']).toMatch(/Claude Code/)
       expect(catalog['tip.2']).toMatch(/Claude Code/)
     }

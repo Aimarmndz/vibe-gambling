@@ -4,7 +4,15 @@
 // fase tenue usaba el color del bisel y "CLAUDE ESTÁ PENSANDO…" desaparecía medio segundo.
 import { PALETTE } from './palette.ts'
 
-export type StatusKind = 'connecting' | 'offline' | 'thinking' | 'landing' | 'idle' | 'ready'
+export type StatusKind =
+  | 'connecting'
+  | 'offline'
+  | 'thinking'
+  | 'landing'
+  | 'idle'
+  | 'ready'
+  /** Hay tiradas pendientes por gastar (o GIRAR TODAS en marcha). */
+  | 'pending'
 
 export interface StatusLook {
   color: string
@@ -37,6 +45,12 @@ export const STATUS_LOOKS: Readonly<Record<StatusKind, StatusLook>> = Object.fre
   landing: { color: PALETTE.cream, blink: null, top: PALETTE.menuTop, bottom: PALETTE.menuBottom },
   idle: { color: PALETTE.cream, blink: null, top: PALETTE.menuTop, bottom: PALETTE.menuBottom },
   ready: { color: PALETTE.gold, blink: null, top: PALETTE.menuTop, bottom: PALETTE.menuBottom },
+  pending: {
+    color: PALETTE.gold,
+    blink: PALETTE.cream,
+    top: PALETTE.moneyTop,
+    bottom: PALETTE.menuBottom,
+  },
 })
 
 /** Color del texto en el instante `t` (segundos): dos fases por segundo. */

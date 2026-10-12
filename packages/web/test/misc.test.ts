@@ -3,11 +3,11 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { measure, wrap, hasGlyph } from '../src/font/bitmap.ts'
 import { chipLabel, describePayout, describeSelection } from '../src/game/describe.ts'
-import { createTranslator } from '../src/i18n/index.ts'
+import { translator } from './translators.ts'
 
 describe('nombres de apuestas y fichas', () => {
-  const es = createTranslator('es')
-  const en = createTranslator('en')
+  const es = translator('es')
+  const en = translator('en')
   it('describe cada tipo de apuesta con su pago', () => {
     expect(describeSelection({ kind: 'straight', numbers: [17] }, es)).toBe('PLENO 17')
     expect(describeSelection({ kind: 'corner', numbers: [16, 17, 19, 20] }, en)).toBe(

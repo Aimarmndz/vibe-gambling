@@ -4,22 +4,33 @@
 import type {
   LeaderboardBoard,
   LeaderboardResponse,
+  Locale,
   ServerMessage,
   WebConfig,
 } from '@vibe-gambling/shared'
 
 import { Sfx } from '../audio/sfx.ts'
 import type { WebClientConfig } from '../config.ts'
-import { drawText, printable, wrap } from '../font/bitmap.ts'
+import { drawText, measure, printable, wrap } from '../font/bitmap.ts'
 import { betReadyHint } from '../game/hints.ts'
 import { PhraseMemory, describeOutcome } from '../game/outcome.ts'
 import type { OutcomeView } from '../game/outcome.ts'
 import { pocketAtLocalAngle } from '../game/spin.ts'
-import { INITIAL_STATE, dismissResult, localRevealAt, reduce, reveal } from '../game/state.ts'
+import { SpinAllLoop } from '../game/spinAll.ts'
+import type { SpinAllEnd, SpinAllStatus } from '../game/spinAll.ts'
+import {
+  INITIAL_STATE,
+  canSpinPending,
+  dismissResult,
+  localRevealAt,
+  pendingSpins,
+  reduce,
+  reveal,
+} from '../game/state.ts'
 import type { Effect, GameState } from '../game/state.ts'
 import { WheelMotion } from '../game/wheelMotion.ts'
-import { CATALOGS, createTranslator, detectLocale } from '../i18n/index.ts'
-import type { MessageKey, Translator } from '../i18n/index.ts'
+import { applyDocumentLanguage, loadTranslator } from '../i18n/index.ts'
+import type { Translator } from '../i18n/index.ts'
 import { fetchLeaderboard, fetchMe } from '../net/api.ts'
 import { withVersion } from '../net/link.ts'
 import { webUrl } from '../net/urls.ts'
@@ -29,9 +40,11 @@ import { SHOTS, World, layoutToWorld } from '../render/world.ts'
 import type { Shot } from '../render/world.ts'
 import { Hits, drawMemoryCardIcon, drawWindow } from '../ui/draw.ts'
 import { PALETTE } from '../ui/palette.ts'
+import { STATUS_BOX, STATUS_LOOKS, statusColor } from '../ui/status.ts'
 import { BootScreen } from '../ui/screens/boot.ts'
 import { LoanScreen } from '../ui/screens/loan.ts'
 import { MessageScreen } from '../ui/screens/message.ts'
+import { PendingNoticeScreen, PendingScreen } from '../ui/screens/pending.ts'
 import { ResultScreen } from '../ui/screens/result.ts'
 import { TableScreen } from '../ui/screens/table.ts'
 import { TipScreen } from '../ui/screens/tip.ts'
@@ -39,6 +52,7 @@ import type { AppContext, ButtonLabels, Screen, ToastKind } from './context.ts'
 import { Input } from './input.ts'
 import type { ActionEvent } from './input.ts'
 import { bootSeen, markBootSeen, markTipSeen, tipSeen } from './onboarding.ts'
+import { isVisible, watchPresence } from './presence.ts'
 import { loadPrefs, safeStorage, savePrefs } from './prefs.ts'
 import type { Prefs } from './prefs.ts'
 import { demoLeaderboard } from './demoBoard.ts'
@@ -71,6 +85,8 @@ export interface GameOptions {
   skipBoot?: boolean
   /** El código de un solo uso de la URL no se pudo canjear (caducado o ya usado). */
   linkExpired?: boolean
+  /** Traducción del idioma inicial, ya cargada (preferencia guardada → navegador → inglés). */
+  translator: Translator
 }
 
 /** Curva barril del CRT (la misma que el shader), para que el ratón apunte bien con el filtro. */
@@ -113,6 +129,17 @@ export class Game implements AppContext {
   private loanOfferedFor = ''
   private ended = false
   private readonly linkExpired: boolean
+  /** Para quedarse solo con el último cambio de idioma pedido. */
+  private localeRequest = 0
+  /** Se cumple cuando el último cambio de idioma pedido ya está aplicado (o ha fallado). */
+  private localeReady: Promise<void> = Promise.resolve()
+  /** GIRAR TODAS. */
+  private readonly spinLoop: SpinAllLoop
+  /**
+   * Aviso de tiradas pendientes al abrir la ventana: `due` en cuanto el primer `hello` trae
+   * alguna; sale cuando la mesa queda libre (tras el arranque y "cómo se juega").
+   */
+  private pendingNotice: { due: boolean; readyAt: number | null } = { due: false, readyAt: null }
 
   constructor(opts: GameOptions) {
     this.web = opts.web
@@ -123,9 +150,11 @@ export class Game implements AppContext {
     this.live = opts.live
     this.link = opts.link
     this.linkExpired = opts.linkExpired ?? false
+    // Si el servidor dice que la bola anterior aún rueda, se reintenta pasado un giro rápido.
+    this.spinLoop = new SpinAllLoop(opts.web.game, opts.web.game.pendingSpins.quickSpinMs)
     this.prefs = loadPrefs(safeStorage('local'))
-    this.tr = createTranslator(this.prefs.locale ?? detectLocale(navigator.languages))
-    document.documentElement.lang = this.tr.locale
+    this.tr = opts.translator
+    applyDocumentLanguage(this.tr)
     this.sfx.setMuted(!this.prefs.sound)
 
     this.pipeline = new PsxPipeline(this.canvas)
@@ -163,6 +192,8 @@ export class Game implements AppContext {
     )
     this.link.onMessage(msg => this.onMessage(msg))
     this.link.onStatus(status => this.onStatus(status))
+    // Con todas las ventanas ocultas, los prompts se guardan como tiradas pendientes.
+    watchPresence(document, visible => this.sendPresence(visible))
     new ResizeObserver(() => this.resize()).observe(this.canvas)
     this.resize()
     this.canvas.setAttribute('aria-label', this.tr.t('a11y.canvas'))
@@ -171,6 +202,7 @@ export class Game implements AppContext {
       __vg: {
         state: () => this.game,
         screens: () => this.screens.map(s => s.id),
+        spinAll: () => this.spinLoop.status(),
         layoutToClient: (x: number, y: number) => this.layoutToClient(x, y),
         render: () => ({
           crt: this.pipeline.options.crt,
@@ -214,12 +246,25 @@ export class Game implements AppContext {
   setPrefs(patch: Partial<Prefs>): void {
     this.prefs = { ...this.prefs, ...patch }
     savePrefs(safeStorage('local'), this.prefs)
-    if (patch.locale && patch.locale !== this.tr.locale) {
-      this.tr = createTranslator(patch.locale)
-      document.documentElement.lang = this.tr.locale
-      this.canvas.setAttribute('aria-label', this.tr.t('a11y.canvas'))
-    }
+    if (patch.locale && patch.locale !== this.tr.locale) this.switchLocale(patch.locale)
     this.applyPrefs()
+  }
+
+  /** Cambia de idioma en cuanto llega su chunk de textos (el último pedido gana). */
+  private switchLocale(locale: Locale): void {
+    const request = ++this.localeRequest
+    this.localeReady = loadTranslator(locale).then(
+      tr => {
+        if (request !== this.localeRequest) return
+        this.tr = tr
+        applyDocumentLanguage(tr)
+        this.canvas.setAttribute('aria-label', tr.t('a11y.canvas'))
+      },
+      (error: unknown) => {
+        console.error('[i18n] no se pudo cargar el idioma', locale, error)
+        this.toast(this.tr.t('error.generic', { message: String(error) }), 'error')
+      },
+    )
   }
 
   state(): GameState {
@@ -261,8 +306,8 @@ export class Game implements AppContext {
 
   buttons(): ButtonLabels {
     return this.input?.usingPad
-      ? { x: '✕', o: '○', tri: '△', sq: '□', start: 'START' }
-      : { x: 'X', o: 'O', tri: 'C', sq: 'Z', start: 'P' }
+      ? { x: '✕', o: '○', tri: '△', sq: '□', start: 'START', sel: 'SELECT' }
+      : { x: 'X', o: 'O', tri: 'C', sq: 'Z', start: 'P', sel: 'G' }
   }
 
   hoverId(): string | null {
@@ -309,11 +354,116 @@ export class Game implements AppContext {
     return me.brokeRank
   }
 
+  // ------------------------------------------------------------------ tiradas pendientes
+
+  spinPending(): boolean {
+    return this.requestPendingSpin(false)
+  }
+
+  spinAllPending(): boolean {
+    if (this.demo || !canSpinPending(this.game)) {
+      this.refusePendingSpin()
+      return false
+    }
+    if (!this.spinLoop.start(this.game)) return false
+    this.sfx.play('accept')
+    this.announce(this.tr.t('status.spinAll', { n: pendingSpins(this.game), ...this.buttons() }))
+    // La primera sale ya; las siguientes, cuando la mesa vuelve a estar quieta.
+    this.tickSpinAll()
+    return true
+  }
+
+  spinAll(): SpinAllStatus {
+    return this.spinLoop.status()
+  }
+
+  showPending(): void {
+    if (this.demo) return
+    if (this.screens.some(s => s instanceof PendingScreen)) return
+    this.push(new PendingScreen(this))
+    const count = pendingSpins(this.game)
+    this.announce(
+      count > 0
+        ? this.tr.t('status.pending', { n: this.tr.n(count), ...this.buttons() })
+        : this.tr.t('pending.none'),
+    )
+  }
+
+  /** Pide gastar una tirada pendiente. El servidor la tira y llega como cualquier ronda. */
+  private requestPendingSpin(quick: boolean): boolean {
+    if (this.demo || !canSpinPending(this.game)) {
+      this.refusePendingSpin()
+      return false
+    }
+    const ok = this.send({ type: 'spin.pending', quick, requestId: crypto.randomUUID() })
+    if (ok && !quick) this.sfx.play('accept')
+    return ok
+  }
+
+  private refusePendingSpin(): void {
+    this.sfx.play('error')
+    if (pendingSpins(this.game) > 0) this.toast(this.tr.t('pending.busy'), 'error')
+  }
+
+  /** Un paso de GIRAR TODAS (cada fotograma): pide la siguiente cuando toca. */
+  private tickSpinAll(): void {
+    const step = this.spinLoop.next(this.game, Date.now())
+    if (step.ended) this.onSpinAllEnd(step.ended)
+    if (!step.spin) return
+    if (!this.requestPendingSpin(true)) this.onSpinAllEnd(this.spinLoop.stop('error'))
+  }
+
+  private onSpinAllEnd(reason: SpinAllEnd | null): void {
+    if (!reason) return
+    const kind = reason === 'error' ? 'error' : reason === 'user' ? 'info' : 'money'
+    this.toast(
+      this.tr.t(`toast.spinAll.${reason}`, { n: this.tr.n(pendingSpins(this.game)) }),
+      kind,
+    )
+  }
+
+  private sendPresence(visible: boolean): void {
+    // Sin conexión no se manda: al reconectar se manda el estado de ese momento.
+    if (this.conn !== 'open') return
+    this.link.send(withVersion({ type: 'presence', visible }))
+  }
+
+  /** El aviso "tienes N tiradas pendientes" al abrir, cuando la mesa queda libre. */
+  private checkPendingNotice(): void {
+    const notice = this.pendingNotice
+    if (!notice.due) return
+    const free =
+      !this.boot && this.top() === this.table && this.game.phase === 'idle' && !this.spinLoop.active
+    if (!free) {
+      notice.readyAt = null
+      return
+    }
+    const now = performance.now()
+    notice.readyAt ??= now + this.client.ui.pendingNoticeDelayMs
+    if (now < notice.readyAt) return
+    notice.due = false
+    const count = pendingSpins(this.game)
+    if (count > 0) {
+      this.sfx.play('accept')
+      this.push(new PendingNoticeScreen(this))
+      this.announce(
+        [
+          this.tr.t('pending.noticeLine1'),
+          this.tr.t('pending.noticeLine2', { n: this.tr.n(count) }),
+          this.tr.t('pending.noticeLine3'),
+        ].join(' '),
+      )
+    }
+  }
+
   // ------------------------------------------------------------------ red
 
   private onStatus(status: LinkStatus): void {
     const was = this.conn
     this.conn = status
+    // Nada más conectar (y al reconectar): ¿se ve esta ventana?
+    if (status === 'open') this.sendPresence(isVisible(document))
+    else this.onSpinAllEnd(this.spinLoop.stop('error'))
     if (status === 'unauthorized') {
       this.showMessage({
         title: this.tr.t('login.title'),
@@ -335,6 +485,7 @@ export class Game implements AppContext {
     const before = this.game.slip.total
     const step = reduce(this.game, msg, Date.now())
     this.game = step.state
+    if (msg.type === 'round.resolved') this.spinLoop.resolved()
     // Primera ficha sin ronda abierta: se explica que se jugará con el próximo prompt.
     if (msg.type === 'slip' && betReadyHint(before, this.game.slip.total, this.game.phase)) {
       this.toast(this.tr.t(this.demo ? 'toast.betReadyDemo' : 'toast.betReady'))
@@ -354,6 +505,7 @@ export class Game implements AppContext {
             this.world.setWinner(last.result)
           }
           if (user?.locale && !this.prefs.locale) this.setPrefs({ locale: user.locale })
+          if (!this.demo && pendingSpins(this.game) > 0) this.pendingNotice.due = true
         }
         if (this.game.phase === 'spinning') this.motion.orbit()
         return
@@ -364,18 +516,29 @@ export class Game implements AppContext {
         this.announce(tr.t('status.thinking'))
         return
       case 'land': {
-        const minMs = this.reducedMotion
+        // En GIRAR TODAS la caída es corta: el ritmo lo marca el `revealAt` del servidor.
+        const quick = this.spinLoop.active
+        const normalMs = this.reducedMotion
           ? this.client.spin.reducedLandingMs
           : this.client.spin.landingMs
+        const minMs = quick ? Math.min(normalMs, this.client.spin.quickLandingMs) : normalMs
         const untilReveal = localRevealAt(this.game, effect.round) - Date.now()
         this.motion.land(effect.round.result, Math.max(minMs, untilReveal) / 1000)
         this.world.setWinner(null)
         // Si había un resultado en pantalla, se cierra para ver caer la bola.
         this.screens.filter(s => s instanceof ResultScreen).forEach(s => this.pop(s))
-        this.moveCamera(SHOTS.wheel, 0.9)
+        this.moveCamera(SHOTS.wheel, quick ? 0.4 : 0.9)
         this.announce(tr.t('status.landing'))
         return
       }
+      case 'pending':
+        this.toast(
+          tr.t(effect.event === 'queued' ? 'toast.pendingQueued' : 'toast.pendingDropped', {
+            n: tr.n(effect.count),
+          }),
+          effect.event === 'queued' ? 'money' : 'error',
+        )
+        return
       case 'expired': {
         const rel = this.motion.ballAngle - this.motion.wheelAngle
         this.motion.restOn(pocketAtLocalAngle(rel))
@@ -392,16 +555,27 @@ export class Game implements AppContext {
       case 'rejected':
       case 'error': {
         if (this.loanScreen) this.pop(this.loanScreen)
+        if (effect.type === 'error' && this.spinLoop.active) {
+          // Un `rate_limited` en GIRAR TODAS solo retrasa la siguiente: no merece un aviso.
+          const end = this.spinLoop.failed(effect.error, Date.now())
+          if (!end) return
+          if (end === 'empty') {
+            this.onSpinAllEnd(end)
+            return
+          }
+        }
         const text = this.errorText(effect.error, effect.message)
         this.sfx.play('error')
         this.toast(text, 'error')
         return
       }
       case 'season':
+        this.spinLoop.stop('error')
         this.toast(tr.t('toast.seasonChanged', { season: effect.seasonId }), 'money')
         return
       case 'settings':
-        this.toast(tr.t('settings.saved'))
+        // Si se acaba de cambiar de idioma, el aviso sale ya en el nuevo (cuando llegue su chunk).
+        void this.localeReady.then(() => this.toast(this.tr.t('settings.saved')))
         return
       case 'bye':
         this.ended = effect.reason !== 'shutdown'
@@ -417,7 +591,7 @@ export class Game implements AppContext {
   /** Texto del error en el idioma de la ventana (o el mensaje del servidor si no lo conocemos). */
   private errorText(code: string, message: string): string {
     const key = `error.${code}`
-    if (key in CATALOGS[this.tr.locale]) return this.tr.t(key as MessageKey)
+    if (this.tr.has(key)) return this.tr.t(key)
     return this.tr.t('error.generic', { message })
   }
 
@@ -443,21 +617,33 @@ export class Game implements AppContext {
       tr: this.tr,
       memory: this.phrases,
     })
+    // GIRAR TODAS se para sola en un premio gordo, en el verde o en bancarrota.
+    const stopped = this.spinLoop.revealed(round, this.game.wallet ?? wallet)
+    if (stopped) this.onSpinAllEnd(stopped)
+    const quick = this.spinLoop.active
     this.sfx.play('settle')
     const straightWin = round.bets.some(b => b.won && b.selection.kind === 'straight')
     if (view.jackpot) this.sfx.play('jackpot')
     else if (view.net > 0) this.sfx.play(straightWin ? 'bigWin' : 'win')
     else if (view.net < 0) this.sfx.play('lose')
     this.push(
-      new ResultScreen(this, view, () => {
-        this.game = dismissResult(this.game)
-        this.moveCamera(SHOTS.table, 0.7)
-        if (this.game.phase === 'spinning') this.motion.orbit()
-      }),
+      new ResultScreen(
+        this,
+        view,
+        () => {
+          this.game = dismissResult(this.game)
+          this.moveCamera(SHOTS.table, quick ? 0.3 : 0.7)
+          if (this.game.phase === 'spinning') this.motion.orbit()
+        },
+        quick ? this.client.ui.quickResultHoldMs : this.client.ui.resultHoldMs,
+      ),
     )
-    // "Guardando en MEMORY CARD…" tras cada tirada.
-    this.toast(`${this.tr.t('mc.saving')}\n${this.tr.t('mc.noPowerOff')}`, 'save')
-    this.sfx.play('save')
+    // "Guardando en MEMORY CARD…" tras cada tirada (en GIRAR TODAS, solo al final: si no, el
+    // aviso taparía la ruleta en cada vuelta).
+    if (!quick) {
+      this.toast(`${this.tr.t('mc.saving')}\n${this.tr.t('mc.noPowerOff')}`, 'save')
+      this.sfx.play('save')
+    }
     this.announce(
       this.tr.t('a11y.result', {
         number: round.result,
@@ -470,7 +656,7 @@ export class Game implements AppContext {
   /** Ofrece el préstamo cuando el saldo no llega ni para la ficha mínima (una vez por situación). */
   private checkLoanOffer(): void {
     const w = this.game.shown
-    if (!w || this.loanScreen || this.boot) return
+    if (!w || this.loanScreen || this.boot || this.spinLoop.active) return
     if (this.game.phase === 'landing' || this.game.phase === 'result') return
     if (this.top() !== this.table) return
     if (w.balance >= this.minChip() || this.game.slip.total > 0) return
@@ -494,6 +680,12 @@ export class Game implements AppContext {
           ? `♪ ${this.tr.t('settings.sound')} ${this.tr.t('settings.on')}`
           : this.tr.t('hud.muted'),
       )
+      return
+    }
+    // ○ para GIRAR TODAS (esté la pantalla que esté).
+    if (e.action === 'back' && this.spinLoop.active) {
+      this.sfx.play('back')
+      this.onSpinAllEnd(this.spinLoop.stop('user'))
       return
     }
     this.top().action(e)
@@ -606,7 +798,9 @@ export class Game implements AppContext {
 
     // Pantallas.
     for (const s of [...this.screens]) s.update?.(dt, t)
+    this.tickSpinAll()
     this.checkLoanOffer()
+    this.checkPendingNotice()
     const top = this.top()
     this.world.felt.update(
       {
@@ -645,11 +839,33 @@ export class Game implements AppContext {
       s.draw(g, t)
     })
     if (!toastsUnderTop) this.drawToasts(g, t)
+    // En la mesa ya lo dice su rótulo; en el plano de la ruleta, el HUD está escondido.
+    const tableHidden = this.shot !== SHOTS.table || this.camera !== null
+    if (this.spinLoop.active && tableHidden) this.drawSpinAllBanner(g, t)
 
     const view = this.boot
       ? this.boot.view()
       : { scene: this.world.scene, camera: this.world.camera }
     this.pipeline.render(view.scene, view.camera)
+  }
+
+  /** Rótulo de GIRAR TODAS, visible también en el plano de la ruleta (el HUD se esconde). */
+  private drawSpinAllBanner(g: CanvasRenderingContext2D, t: number): void {
+    const text = this.tr.t('status.spinAll', {
+      n: this.tr.n(pendingSpins(this.game)),
+      ...this.buttons(),
+    })
+    const look = STATUS_LOOKS.pending
+    const w = measure(text) + 16
+    drawWindow(g, 160 - w / 2, 4, w, STATUS_BOX.height, {
+      top: look.top,
+      bottom: look.bottom,
+    })
+    drawText(g, text, 160, 4 + STATUS_BOX.textTop, {
+      color: statusColor(look, t),
+      align: 'center',
+      shadow: PALETTE.ink,
+    })
   }
 
   private drawToasts(g: CanvasRenderingContext2D, t: number): void {

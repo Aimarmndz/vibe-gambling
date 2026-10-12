@@ -5,6 +5,7 @@ import type { LeaderboardBoard, LeaderboardResponse, WebConfig } from '@vibe-gam
 
 import type { Sfx } from '../audio/sfx.ts'
 import type { WebClientConfig } from '../config.ts'
+import type { SpinAllStatus } from '../game/spinAll.ts'
 import type { GameState } from '../game/state.ts'
 import type { Translator } from '../i18n/index.ts'
 import type { LinkStatus, Outgoing } from '../net/link.ts'
@@ -38,6 +39,8 @@ export interface ButtonLabels {
   tri: string
   sq: string
   start: string
+  /** SELECT: GIRAR una tirada pendiente. */
+  sel: string
 }
 
 export type ToastKind = 'info' | 'error' | 'save' | 'money'
@@ -75,4 +78,12 @@ export interface AppContext {
   leaderboard(board: LeaderboardBoard, limit: number): Promise<LeaderboardResponse>
   /** Puesto propio en el ranking de arruinados (null si no se sabe). */
   brokeRank(): Promise<number | null>
+  /** GIRAR: gasta una tirada pendiente con el giro normal. Devuelve si se ha pedido. */
+  spinPending(): boolean
+  /** GIRAR TODAS: empieza el bucle de tiradas rápidas. Devuelve si ha empezado. */
+  spinAllPending(): boolean
+  /** Estado del bucle de GIRAR TODAS. */
+  spinAll(): SpinAllStatus
+  /** Abre la pantalla de tiradas pendientes. */
+  showPending(): void
 }

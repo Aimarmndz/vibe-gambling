@@ -1,9 +1,21 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Entrada como un mando: flechas + ✕ (aceptar) / ○ (atrás) / △ (retirar) / □ (ficha) / START.
+// Entrada como un mando: flechas + ✕ (aceptar) / ○ (atrás) / △ (retirar) / □ (ficha) / START /
+// SELECT (girar una tirada pendiente).
 // Funciona con teclado, con un gamepad de verdad (API Gamepad, mapeo estándar) y con el ratón.
 
 export type Action =
-  'up' | 'down' | 'left' | 'right' | 'accept' | 'back' | 'clear' | 'chip' | 'start' | 'mute'
+  | 'up'
+  | 'down'
+  | 'left'
+  | 'right'
+  | 'accept'
+  | 'back'
+  | 'clear'
+  | 'chip'
+  | 'start'
+  | 'mute'
+  /** GIRAR: gasta una tirada pendiente. */
+  | 'spin'
 
 export interface ActionEvent {
   action: Action
@@ -29,6 +41,7 @@ const KEYS: Readonly<Record<string, Action>> = Object.freeze({
   z: 'chip',
   p: 'start',
   m: 'mute',
+  g: 'spin',
 })
 
 /** Traduce una tecla a una acción del mando (o null si no es nuestra). */
@@ -44,6 +57,7 @@ const PAD_BUTTONS: readonly [number, Action][] = [
   [1, 'back'],
   [2, 'chip'],
   [3, 'clear'],
+  [8, 'spin'],
   [9, 'start'],
   [12, 'up'],
   [13, 'down'],

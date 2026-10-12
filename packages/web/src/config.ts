@@ -47,6 +47,12 @@ export const webClientConfigSchema = z
         titleHoldMs: ms,
         /** Periodo de la ayuda de la barra inferior (controles ↔ cómo se gira). */
         helpCycleMs: ms.min(1000),
+        /** Cuánto se queda el resultado de cada tirada de GIRAR TODAS (modo rápido). */
+        quickResultHoldMs: ms.min(300),
+        /** Espera desde que la mesa queda libre hasta el aviso de tiradas pendientes al abrir. */
+        pendingNoticeDelayMs: ms,
+        /** Duración del salto del contador de tiradas pendientes cuando cambia. */
+        counterBumpMs: ms.min(50),
       })
       .strict(),
     spin: z
@@ -55,6 +61,11 @@ export const webClientConfigSchema = z
         landingMs: ms.min(500),
         /** Igual, con `prefers-reduced-motion`. */
         reducedLandingMs: ms.min(100),
+        /**
+         * Caída mínima en GIRAR TODAS. El servidor marca el ritmo con `pendingSpins.quickSpinMs`
+         * (la bola cae hasta su `revealAt`); esto es solo el suelo de la animación.
+         */
+        quickLandingMs: ms.min(100),
       })
       .strict(),
     leaderboard: z

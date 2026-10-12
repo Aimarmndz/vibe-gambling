@@ -58,6 +58,8 @@ export type Effect =
   | { type: 'season'; seasonId: string }
   | { type: 'settings' }
   | { type: 'bye'; reason: 'logout' | 'account_deleted' | 'shutdown' | 'replaced' }
+  /** Un prompt sin ventana visible: tirada guardada (o descartada por el tope). */
+  | { type: 'pending'; event: 'queued' | 'dropped'; count: number }
 
 export interface Step {
   state: GameState
@@ -187,6 +189,15 @@ export function reduce(state: GameState, msg: ServerMessage, nowMs: number): Ste
       }
     case 'wallet':
       return { state: withWallet(state, msg.wallet), effects: [] }
+    case 'pending': {
+      // El turno terminó sin tirar: la ronda que se viera girar ya no existe (solo hay una
+      // abierta por usuario y es la de ese turno). Si la bola está cayendo, se deja caer.
+      const phase: Phase = state.phase === 'spinning' ? 'idle' : state.phase
+      return {
+        state: { ...withWallet(state, msg.wallet), round: null, phase },
+        effects: [{ type: 'pending', event: msg.event, count: msg.wallet.pendingSpins }],
+      }
+    }
     case 'loan.granted':
       return {
         state: withWallet(state, msg.wallet),
@@ -203,7 +214,12 @@ export function reduce(state: GameState, msg: ServerMessage, nowMs: number): Ste
       return { state, effects: [{ type: 'rejected', error: msg.error, message: msg.message }] }
     case 'error':
       return { state, effects: [{ type: 'error', error: msg.error, message: msg.message }] }
+    // Logros, estadísticas y banco (fase 8): los pintan las pantallas de la v2; aquí no cambian
+    // el estado de la mesa.
     case 'pong':
+    case 'achievement.unlocked':
+    case 'stats':
+    case 'bank':
       return { state, effects: [] }
     case 'bye':
       return { state, effects: [{ type: 'bye', reason: msg.reason }] }
@@ -226,6 +242,21 @@ export function reveal(state: GameState): GameState {
 export function dismissResult(state: GameState): GameState {
   if (state.phase !== 'result') return state
   return { ...state, phase: state.round ? 'spinning' : 'idle' }
+}
+
+/**
+ * Tiradas pendientes que quedan. Sale de la última cartera del servidor, no de la congelada: el
+ * contador no destripa nada y debe bajar en cuanto se pulsa GIRAR.
+ */
+export function pendingSpins(state: GameState): number {
+  return state.wallet?.pendingSpins ?? 0
+}
+
+/** ¿Se puede gastar ahora una tirada pendiente? (Mesa quieta, sin ronda girando.) */
+export function canSpinPending(state: GameState): boolean {
+  return (
+    state.user !== null && state.phase === 'idle' && state.round === null && pendingSpins(state) > 0
+  )
 }
 
 /** Instante local (ms) a partir del cual se puede enseñar el resultado de una ronda. */

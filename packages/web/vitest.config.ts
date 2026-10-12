@@ -15,6 +15,8 @@ export default defineConfig({
         'src/config.ts',
         'src/app/prefs.ts',
         'src/app/onboarding.ts',
+        'src/app/presence.ts',
+        'src/ui/counter.ts',
         'src/legal/**/*.ts',
         'src/ui/status.ts',
         'src/pages/privacy.ts',

@@ -7,7 +7,7 @@ import type { AppContext } from '../src/app/context.ts'
 import { clientConfig } from '../src/config.ts'
 import { INITIAL_STATE } from '../src/game/state.ts'
 import type { GameState, Phase } from '../src/game/state.ts'
-import { createTranslator } from '../src/i18n/index.ts'
+import { translator } from './translators.ts'
 import { LeaderboardScreen } from '../src/ui/screens/leaderboard.ts'
 import { testWebConfig } from './fixtures.ts'
 
@@ -18,7 +18,7 @@ function context(phase: { value: Phase }) {
     web: testWebConfig,
     client: clientConfig,
     demo: false,
-    tr: createTranslator('es'),
+    tr: translator('es'),
     state: (): GameState => ({ ...INITIAL_STATE, phase: phase.value }),
     leaderboard,
     brokeRank,
