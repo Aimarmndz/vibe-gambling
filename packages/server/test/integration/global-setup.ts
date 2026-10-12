@@ -55,8 +55,12 @@ export default async function setup(project: TestProject) {
     }
     // Postgres compartido (CI): se borran las bases de datos de esta ejecución.
     const cleanup = postgres(adminUrl, { max: 1, onnotice: () => {} })
+    // En LIKE el `_` es un comodín: se escapa para no llevarse por delante bases como
+    // `vibe_test` (la del propio CI), y nunca se toca la base a la que estamos conectados.
     const dbs = await cleanup<{ datname: string }[]>`
-      select datname from pg_database where datname like ${'vibe_t%'}`
+      select datname from pg_database
+      where datname <> current_database()
+        and (datname = ${template} or datname like ${'vibe\\_t\\_%'})`
     for (const { datname } of dbs) {
       await cleanup.unsafe(`drop database if exists "${datname}" with (force)`)
     }
