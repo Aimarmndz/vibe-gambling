@@ -1,0 +1,88 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+/* Tokens y fuente comunes a todas las páginas (paleta de la consola POLYGONE). */
+@font-face {
+  font-family: 'Polygone 12';
+  src: url('/fonts/polygone12.woff2') format('woff2');
+  font-display: block;
+}
+
+:root {
+  color-scheme: dark;
+  --ink: #08070d;
+  --night: #0d1240;
+  --menu-top: #2b3fae;
+  --menu-bottom: #0d1240;
+  --frame: #c9c3d8;
+  --frame-inner: #5a5f8a;
+  --line: #3a3d60;
+  --felt: #136b45;
+  --red: #c1272d;
+  --green: #17a05d;
+  --gold: #f2c14e;
+  --gold-dark: #a8761e;
+  --cream: #f3ead6;
+  --muted: #9aa0c8;
+  --win: #6ee08a;
+  --loss: #ff5a6a;
+  --pixel: 'Polygone 12', ui-monospace, monospace;
+  /* La fuente es de 12 px por "píxel": solo múltiplos enteros. */
+  --t1: 24px;
+  --t2: 36px;
+  --t3: 48px;
+  --t4: 72px;
+  --t5: 96px;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--ink);
+  color: var(--cream);
+  font-family: var(--pixel);
+  font-size: var(--t1);
+  line-height: 1.5;
+  -webkit-font-smoothing: none;
+  font-smooth: never;
+  text-rendering: optimizeSpeed;
+}
+
+::selection {
+  background: var(--gold);
+  color: var(--ink);
+}
+
+a {
+  color: var(--gold);
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
+}
+
+a:hover {
+  color: #ffe08a;
+}
+
+:focus-visible {
+  outline: 4px solid var(--gold);
+  outline-offset: 4px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+[hidden] {
+  display: none !important;
+}

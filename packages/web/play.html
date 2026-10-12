@@ -1,0 +1,30 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="robots" content="noindex" />
+    <meta name="referrer" content="no-referrer" />
+    <title>vibe-gambling</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="preload" href="/fonts/polygone12.woff2" as="font" type="font/woff2" crossorigin />
+    <script type="module" src="/src/play.ts"></script>
+  </head>
+  <body class="play">
+    <canvas id="screen" role="application" tabindex="0"></canvas>
+    <div id="live" class="sr-only" aria-live="polite"></div>
+    <main id="fallback" class="fallback" hidden>
+      <h1 id="fallback-title"></h1>
+      <p id="fallback-body"></p>
+      <p><a id="fallback-home" href="/"></a></p>
+    </main>
+    <noscript>
+      <main class="fallback">
+        <h1>vibe-gambling</h1>
+        <p>This window needs JavaScript. / Esta ventana necesita JavaScript.</p>
+      </main>
+    </noscript>
+  </body>
+</html>
