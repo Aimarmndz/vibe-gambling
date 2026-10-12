@@ -1,0 +1,211 @@
+# Publica una versión al empujar una etiqueta `vX.Y.Z` (la crea `pnpm release`; ver
+# docs/RELEASING.md). Tres jobs, en este orden:
+#
+#   1. artifacts: comprueba que la etiqueta es la versión de todos los manifiestos y genera con
+#      `pnpm package` los mismos artefactos que en local (zip del mod, tar.gz del servidor, SBOM
+#      SPDX y SHA256SUMS), con atestación de procedencia si el repo es público.
+#   2. image: imagen multi-arquitectura (amd64 + arm64) en ghcr.io con etiquetas `X.Y.Z`, `X.Y`,
+#      `X` (desde la 1.0) y `latest` solo en estables; SBOM, procedencia y atestación.
+#   3. release: crea (o actualiza, si se relanza) la GitHub Release con las notas del CHANGELOG,
+#      marcada como pre-release si la versión lleva sufijo (`-rc.1`), y le adjunta los artefactos.
+#
+# Ningún dato de la etiqueta pasa por `${{ }}` dentro de `run:`: llega por variables de entorno.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+# Una release a medias nunca se cancela: si se relanza, cada paso es idempotente.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  artifacts:
+    name: Artefactos (mod, servidor, SBOM)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      # Atestación de procedencia (SLSA) firmada con el OIDC de GitHub.
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+
+      - name: La etiqueta coincide con la versión del proyecto
+        run: node scripts/check-versions.ts --tag "${GITHUB_REF_NAME}"
+
+      - name: Empaquetar (pnpm package)
+        # Fecha de los archivos = la del commit etiquetado: los artefactos son reproducibles.
+        run: pnpm package
+
+      - name: Comprobar las sumas
+        working-directory: dist-release
+        run: sha256sum --check --strict SHA256SUMS
+
+      - name: ¿Repo público? (las atestaciones solo existen en repos públicos)
+        id: visibility
+        # Se pregunta a la API y no a `github.event.repository.private`: al relanzar un workflow se
+        # reutiliza el evento original, y así un relanzamiento tras hacer público el repo atesta.
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          visibility="$(gh api "repos/${GITHUB_REPOSITORY}" --jq .visibility)"
+          echo "Visibilidad del repo: ${visibility}"
+          if [ "${visibility}" = public ]; then public=true; else public=false; fi
+          echo "public=${public}" >> "$GITHUB_OUTPUT"
+
+      - name: Atestación de procedencia de los artefactos
+        if: steps.visibility.outputs.public == 'true'
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: |
+            dist-release/*.zip
+            dist-release/*.tar.gz
+            dist-release/*.spdx.json
+
+      - name: Guardar los artefactos para la release
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dist-release
+          path: dist-release/
+          if-no-files-found: error
+          retention-days: 7
+
+  image:
+    name: Imagen multi-arch en ghcr.io
+    # Solo si la etiqueta y las versiones cuadran (lo comprueba `artifacts`).
+    needs: artifacts
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    outputs:
+      image: ${{ steps.image.outputs.name }}
+      digest: ${{ steps.push.outputs.digest }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: QEMU (emulación de arm64)
+        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+
+      - name: Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Login en ghcr.io
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Nombre de la imagen en minúsculas
+        id: image
+        # Los nombres de imagen del registro van en minúsculas (Aimarmndz → aimarmndz).
+        env:
+          REPOSITORY: ${{ github.repository }}
+        run: echo "name=ghcr.io/${REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+
+      - name: Etiquetas y metadatos
+        id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          # ghcr.io/aimarmndz/vibe-gambling en el repo oficial.
+          images: ${{ steps.image.outputs.name }}
+          # `latest` solo en estables: metadata-action no lo pone en versiones con sufijo.
+          flavor: |
+            latest=auto
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}},enable=${{ !startsWith(github.ref, 'refs/tags/v0.') }}
+          labels: |
+            org.opencontainers.image.title=vibe-gambling
+            org.opencontainers.image.licenses=AGPL-3.0-or-later
+
+      - name: Build y push
+        id: push
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          annotations: ${{ steps.meta.outputs.annotations }}
+          provenance: mode=max
+          sbom: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: ¿Repo público? (las atestaciones solo existen en repos públicos)
+        id: visibility
+        # Se pregunta a la API y no a `github.event.repository.private`: al relanzar un workflow se
+        # reutiliza el evento original, y así un relanzamiento tras hacer público el repo atesta.
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          visibility="$(gh api "repos/${GITHUB_REPOSITORY}" --jq .visibility)"
+          echo "Visibilidad del repo: ${visibility}"
+          if [ "${visibility}" = public ]; then public=true; else public=false; fi
+          echo "public=${public}" >> "$GITHUB_OUTPUT"
+
+      - name: Atestación de procedencia de la imagen
+        if: steps.visibility.outputs.public == 'true'
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ steps.image.outputs.name }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
+
+  release:
+    name: GitHub Release
+    needs: [artifacts, image]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      # Crear la release y subirle archivos.
+      contents: write
+    steps:
+      - name: Descargar los artefactos
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: dist-release
+          path: dist-release
+
+      - name: Crear o actualizar la release
+        working-directory: dist-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+          IMAGE: ${{ needs.image.outputs.image }}
+          DIGEST: ${{ needs.image.outputs.digest }}
+        run: |
+          # Las notas son las de `pnpm package` más el digest de la imagen recién publicada.
+          printf '\nImage digest: `%s@%s`\n' "${IMAGE}" "${DIGEST}" >> RELEASE_NOTES.md
+          assets=(*.zip *.tar.gz *.spdx.json SHA256SUMS)
+          # SemVer: un guion tras X.Y.Z marca una pre-release (v1.2.0-rc.1).
+          prerelease=()
+          if [[ "${TAG}" == *-* ]]; then prerelease=(--prerelease); fi
+          if gh release view "${TAG}" > /dev/null 2>&1; then
+            # Relanzamiento: mismas notas y artefactos (los artefactos son reproducibles).
+            gh release edit "${TAG}" --title "${TAG}" --notes-file RELEASE_NOTES.md "${prerelease[@]}"
+            gh release upload "${TAG}" "${assets[@]}" --clobber
+          else
+            gh release create "${TAG}" "${assets[@]}" --verify-tag --title "${TAG}" \
+              --notes-file RELEASE_NOTES.md "${prerelease[@]}"
+          fi
