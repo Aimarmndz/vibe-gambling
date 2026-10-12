@@ -60,32 +60,40 @@ git clone https://github.com/Aimarmndz/vibe-gambling.git
 cd vibe-gambling
 pnpm install
 
-# Postgres for development (port and credentials come from deploy/.env, see deploy/.env.example)
-cp deploy/.env.example deploy/.env
-docker compose -f deploy/docker-compose.dev.yml up -d
+# Option A, the whole stack in Docker (server + web build + Postgres + a fake GitHub):
+docker compose -f deploy/docker-compose.dev.yml up -d --build
+# → http://localhost:8787 (Postgres on 127.0.0.1:5436, fake GitHub on 8788)
 
-# Server + web in watch mode (in two terminals)
+# Option B, watch mode: Postgres in Docker, the rest on the host (one terminal each).
+# The server reads deploy/dev.env (committed, no secrets); the web needs packages/web/.env.
+docker compose -f deploy/docker-compose.dev.yml up -d postgres
+pnpm --filter @vibe-gambling/server dev:fake-github
 pnpm --filter @vibe-gambling/server dev
-pnpm --filter @vibe-gambling/web dev
+cp packages/web/.env.example packages/web/.env
+pnpm --filter @vibe-gambling/web dev        # http://localhost:5173, proxies /api and /ws to 8787
 
-# Load the mod in a Claude Code session, pointed at your local server through its plugin options
+# Load the mod in a Claude Code session and point it at your local server
 claude --plugin-dir packages/mod
+# then, inside Claude Code: /vibe-server http://localhost:8787 and /vibe-login
+# (the fake GitHub approves the device code by itself)
 ```
 
-Every value (ports, URLs, the fake GitHub for local logins…) is documented in the `.env.example` files. Never commit a real `.env`.
+Every value (ports, URLs, the fake GitHub for local logins…) is documented in `deploy/dev.env`, `deploy/.env.example` and `packages/web/.env.example`. Never commit a real `.env`. `/play?demo` runs the window against a simulated server in the browser, no account needed.
 
 ### Standard scripts
 
 At the root:
 
-| Command          | What it does                                         |
-| ---------------- | ---------------------------------------------------- |
-| `pnpm lint`      | ESLint + Prettier check + SPDX headers               |
-| `pnpm lint:spdx` | Only the SPDX header check (`scripts/check-spdx.ts`) |
-| `pnpm format`    | Prettier write on the whole repo                     |
-| `pnpm typecheck` | `tsc` in every package                               |
-| `pnpm test`      | Unit tests in every package (`pnpm -r test`)         |
-| `pnpm build`     | Production build of the server and the web           |
+| Command              | What it does                                                                                       |
+| -------------------- | -------------------------------------------------------------------------------------------------- |
+| `pnpm lint`          | ESLint + Prettier check + SPDX headers + protocol docs check                                       |
+| `pnpm lint:spdx`     | Only the SPDX header check (`scripts/check-spdx.ts`)                                               |
+| `pnpm format`        | Prettier write on the whole repo                                                                   |
+| `pnpm typecheck`     | `tsc` in every package                                                                             |
+| `pnpm test`          | Unit tests in every package (`pnpm -r test`)                                                       |
+| `pnpm build`         | Production build of the server and the web                                                         |
+| `pnpm sync:mod`      | Regenerate the mod's copy of `shared` (`packages/mod/hooks/generated`)                             |
+| `pnpm docs:protocol` | Regenerate the schema sections of `docs/PROTOCOLO.md` (`--check` only checks; part of `pnpm lint`) |
 
 Per package (`pnpm --filter @vibe-gambling/<package> <script>`):
 
@@ -106,6 +114,7 @@ Before opening a PR, run at least `pnpm lint`, `pnpm typecheck` and `pnpm test`,
 - **Identifiers and file names in English; code comments in Spanish.** Yes, really: it's the house style. If you don't speak Spanish, write the comment in simple English and a reviewer will translate it.
 - Errors are handled explicitly; never swallowed silently.
 - Every input (HTTP, WebSocket, config) is validated with zod. Protocol messages are defined once in `packages/shared`; reuse them instead of redefining shapes.
+- **Changing the protocol?** After touching a schema or a route in `packages/shared`, run `pnpm sync:mod` (the mod's generated copy) and `pnpm docs:protocol` (the generated sections of [docs/PROTOCOLO.md](docs/PROTOCOLO.md); the examples there are validated against the schemas too). Tests fail if either is stale. A breaking change bumps `PROTOCOL_VERSION`.
 - **Tests**: new behavior comes with tests. When a test fails, fix the cause; never delete or loosen a test to make it pass. `packages/shared` keeps ≥ 95 % coverage.
 
 ### Commit messages
@@ -166,7 +175,7 @@ The PSX pipeline (320×240 render target, vertex snapping, affine textures, 15-b
 
 - **Monedas falsas siempre**, privacidad por encima de todo y **nada hardcodeado** (todo en env o `config/*.json`).
 - Cada commit lleva **`Signed-off-by`** (DCO, [developercertificate.org](https://developercertificate.org/)): usa `git commit -s`. Con eso certificas que tienes derecho a aportar el cambio bajo la licencia del proyecto (AGPL-3.0-or-later con el término 7(b) de atribución).
-- Entorno: Node 26, pnpm 11 (`corepack enable`), Docker; `pnpm install`, `docker compose -f deploy/docker-compose.dev.yml up -d` y los scripts `dev` de `server` y `web`. El mod se carga con `claude --plugin-dir packages/mod`.
+- Entorno: Node 26, pnpm 11 (`corepack enable`), Docker; `pnpm install` y `docker compose -f deploy/docker-compose.dev.yml up -d --build` (pila completa en http://localhost:8787 con un GitHub falso), o solo `postgres` en Docker y los scripts `dev:fake-github` y `dev` del servidor y `dev` de la web en modo watch. El mod se carga con `claude --plugin-dir packages/mod` y se apunta al servidor local con `/vibe-server http://localhost:8787`.
 - Antes del PR: `pnpm lint`, `pnpm typecheck`, `pnpm test` y los tests de integración o E2E de lo que toques.
 - Estilo: Prettier y ESLint limpios; identificadores en inglés y **comentarios en español**; cabecera SPDX en cada archivo fuente; commits con **Conventional Commits en español** e imperativo.
 - **Frases nuevas** en `packages/shared/src/i18n/phrases.en.ts` y `phrases.es.ts`, en los dos idiomas si puedes. Humor sobre la ludopatía de mentira y la cultura dev; **nunca** sobre personas ni colectivos, ni nada que anime a apostar de verdad.
