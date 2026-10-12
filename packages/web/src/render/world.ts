@@ -5,6 +5,8 @@ import { selectionKey } from '@vibe-gambling/shared'
 import type { Bet } from '@vibe-gambling/shared'
 import {
   BoxGeometry,
+  BufferGeometry,
+  Float32BufferAttribute,
   Color,
   CylinderGeometry,
   Group,
@@ -18,12 +20,12 @@ import {
   Vector2,
   Vector3,
 } from 'three'
-import type { ShaderMaterial, BufferGeometry } from 'three'
+import type { ShaderMaterial } from 'three'
 
 import type { Point } from '../game/layout.ts'
 import { anchorOf, cellCenter } from '../game/layout.ts'
 import { CHIP_COLORS, PALETTE } from '../ui/palette.ts'
-import { FeltLayout, TEX_BOUNDS } from './feltLayout.ts'
+import { FeltLayout, feltGrid } from './feltLayout.ts'
 import { createPsxMaterial, createPsxUniforms } from './psxMaterial.ts'
 import type { PsxUniforms } from './psxMaterial.ts'
 import {
@@ -78,7 +80,9 @@ export interface Shot {
 }
 
 export const SHOTS: Readonly<Record<'table' | 'wheel' | 'boot', Shot>> = Object.freeze({
-  table: { position: new Vector3(0, 9.6, 4.6), target: new Vector3(0, 0, 0.2), fov: 42 },
+  // fov 39: la fila de números más lejana mide ≥ 15 px por casilla (un píxel por texel, ver
+  // feltLayout.ts); con más campo de visión los números del tapete pierden trazos.
+  table: { position: new Vector3(0, 9.6, 4.6), target: new Vector3(0, 0, 0.2), fov: 39 },
   wheel: { position: new Vector3(0, 4.6, 0.2), target: new Vector3(0, 0, -3.35), fov: 40 },
   boot: { position: new Vector3(0, 0, 6), target: new Vector3(0, 0, 0), fov: 40 },
 })
@@ -136,17 +140,9 @@ export class World {
     cloth.renderOrder = 1
     ;(cloth.material as ShaderMaterial).depthWrite = false
     cloth.position.set(0, FELT_Y, -1.6)
-    const b = TEX_BOUNDS
-    const decalW = (b.maxX - b.minX) * CELL_W
-    const decalD = (b.maxY - b.minY) * CELL_D
-    const decal = new Mesh(
-      new PlaneGeometry(decalW, decalD, 30, 12),
-      createPsxMaterial(u, { map: this.felt.texture }),
-    )
-    decal.rotation.x = -Math.PI / 2
+    // Tapete: una malla con un vértice en cada esquina de casilla (ver feltGrid).
+    const decal = new Mesh(feltGeometry(), createPsxMaterial(u, { map: this.felt.texture }))
     decal.renderOrder = 2
-    const mid = layoutToWorld({ x: (b.minX + b.maxX) / 2, y: (b.minY + b.maxY) / 2 })
-    decal.position.set(mid.x, FELT_Y + 0.004, mid.z)
     // Barandilla de madera.
     const railMat = createPsxMaterial(u, { map: this.tex.wood, specular: 0.15 })
     const rails: [number, number, number, number][] = [
@@ -306,6 +302,41 @@ export class World {
   setSnap(on: boolean): void {
     this.uniforms.uSnap.value = on ? 1 : 0
   }
+}
+
+/** Malla del tapete sobre el paño, mirando hacia arriba, con las UV de feltGrid. */
+export function feltGeometry(): BufferGeometry {
+  const grid = feltGrid()
+  const positions: number[] = []
+  const uvs: number[] = []
+  const normals: number[] = []
+  for (let j = 0; j < grid.ys.length; j++) {
+    for (let i = 0; i < grid.xs.length; i++) {
+      const v = layoutToWorld({ x: grid.xs[i]!, y: grid.ys[j]! })
+      positions.push(v.x, FELT_Y + 0.004, v.z)
+      // La textura del canvas va volteada (flipY): v = 1 es la fila de arriba.
+      uvs.push(grid.us[i]!, 1 - grid.vs[j]!)
+      normals.push(0, 1, 0)
+    }
+  }
+  const cols = grid.xs.length
+  const index: number[] = []
+  for (let j = 0; j + 1 < grid.ys.length; j++) {
+    for (let i = 0; i + 1 < cols; i++) {
+      const a = j * cols + i
+      const b = a + 1
+      const c = a + cols
+      const d = c + 1
+      // Sentido antihorario visto desde arriba (+y).
+      index.push(a, c, b, b, c, d)
+    }
+  }
+  const geo = new BufferGeometry()
+  geo.setAttribute('position', new Float32BufferAttribute(positions, 3))
+  geo.setAttribute('normal', new Float32BufferAttribute(normals, 3))
+  geo.setAttribute('uv', new Float32BufferAttribute(uvs, 2))
+  geo.setIndex(index)
+  return geo
 }
 
 /** Repite la textura `times` veces (el shader PSX usa las UV tal cual, sin `texture.repeat`). */

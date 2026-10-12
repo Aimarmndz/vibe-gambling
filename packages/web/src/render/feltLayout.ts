@@ -1,36 +1,67 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// El tapete europeo dibujado en una textura de 232×118 con píxeles enteros por casilla, para que
-// en pantalla (320×240) salga casi 1:1 con su texel. Se redibuja al cambiar el cursor o el idioma.
+// El tapete europeo dibujado en una textura con píxeles enteros por casilla. Regla de legibilidad:
+// en la pantalla de 320×240 cada texel debe ocupar **al menos** un píxel (si no, el filtro nearest
+// se salta filas o columnas de texels y los trazos de 1 px de los números desaparecen: el 3 parecía
+// una J). Con el plano de la mesa (ver SHOTS.table en world.ts) la fila de números más lejana mide
+// ~15,7×17 px, así que la casilla es de 15×15 texels. La malla del tapete tiene un vértice en cada
+// esquina de casilla (feltGrid): el tembleque y la UV affine siguen ahí, pero cada casilla se
+// estira entera y sus números no se parten entre triángulos lejanos.
 import { colorOf, coveredNumbers } from '@vibe-gambling/shared'
 import type { BetSelection } from '@vibe-gambling/shared'
 import type { CanvasTexture } from 'three'
 
 import { drawText } from '../font/bitmap.ts'
 import type { Translator } from '../i18n/index.ts'
-import { OUTSIDE_ORDER, numberAt } from '../game/layout.ts'
+import { LAYOUT_BOUNDS, OUTSIDE_ORDER, numberAt } from '../game/layout.ts'
 import { PALETTE, pocketHex } from '../ui/palette.ts'
 import { makeCanvas, seeded, toTexture } from './textures.ts'
 
-export const TEX_W = 232
-export const TEX_H = 118
-/** Píxeles por unidad de casilla y margen de la textura. */
-const SX = 15
-const SY = 20
+/** Texels por unidad de casilla (ancho y fondo). */
+export const SX = 15
+export const SY = 15
+/** Margen de paño alrededor del tapete (texels). */
 const MX = 11
 const MY = 9
+export const TEX_W = MX * 2 + (LAYOUT_BOUNDS.maxX - LAYOUT_BOUNDS.minX) * SX
+export const TEX_H = MY * 2 + (LAYOUT_BOUNDS.maxY - LAYOUT_BOUNDS.minY) * SY
 
 /** De unidades del tapete a píxeles de la textura. */
 export function toTex(x: number, y: number): [number, number] {
-  return [MX + (x + 1) * SX, MY + y * SY]
+  return [MX + (x - LAYOUT_BOUNDS.minX) * SX, MY + (y - LAYOUT_BOUNDS.minY) * SY]
 }
 
 /** Rectángulo del tapete (en unidades) que cubre la textura completa. */
 export const TEX_BOUNDS = Object.freeze({
-  minX: -1 - MX / SX,
-  maxX: -1 + (TEX_W - MX) / SX,
-  minY: -MY / SY,
-  maxY: (TEX_H - MY) / SY,
+  minX: LAYOUT_BOUNDS.minX - MX / SX,
+  maxX: LAYOUT_BOUNDS.maxX + MX / SX,
+  minY: LAYOUT_BOUNDS.minY - MY / SY,
+  maxY: LAYOUT_BOUNDS.maxY + MY / SY,
 })
+
+/** Rejilla de la malla del tapete: un vértice en cada borde de casilla y en los de la textura. */
+export interface FeltGrid {
+  /** Cortes en x y en y, en unidades del tapete (crecientes). */
+  xs: number[]
+  ys: number[]
+  /** Coordenadas de textura de cada corte (u de izquierda a derecha, v de arriba abajo). */
+  us: number[]
+  vs: number[]
+}
+
+export function feltGrid(): FeltGrid {
+  const xs = [TEX_BOUNDS.minX]
+  for (let x = LAYOUT_BOUNDS.minX; x <= LAYOUT_BOUNDS.maxX; x++) xs.push(x)
+  xs.push(TEX_BOUNDS.maxX)
+  const ys = [TEX_BOUNDS.minY]
+  for (let y = LAYOUT_BOUNDS.minY; y <= LAYOUT_BOUNDS.maxY; y++) ys.push(y)
+  ys.push(TEX_BOUNDS.maxY)
+  return {
+    xs,
+    ys,
+    us: xs.map(x => toTex(x, 0)[0] / TEX_W),
+    vs: ys.map(y => toTex(0, y)[1] / TEX_H),
+  }
+}
 
 export interface FeltView {
   /** Selección bajo el cursor (se ilumina). */
@@ -91,7 +122,8 @@ export class FeltLayout {
     const label = (text: string, x: number, y: number, color: string = PALETTE.cream) => {
       const [px, py] = toTex(x, y)
       const shadow = color === PALETTE.ink ? undefined : PALETTE.ink
-      drawText(ctx, text, px, py - 3, { color, align: 'center', shadow })
+      // Centro entero: las mayúsculas (7 filas) quedan centradas sin medio texel de desfase.
+      drawText(ctx, text, px, Math.floor(py) - 3, { color, align: 'center', shadow })
     }
     // Las apuestas interiores (hasta 6 números) se rellenan de oro; las exteriores solo se enmarcan.
     const wide = lit.size > 6
@@ -145,7 +177,7 @@ export class FeltLayout {
       if (kind === 'red' || kind === 'black') {
         const [px, py] = toTex(2 * i + 1, 4.5)
         const color = on ? PALETTE.ink : kind === 'red' ? PALETTE.red : PALETTE.black
-        drawText(ctx, '♦', px, py - 7, {
+        drawText(ctx, '♦', px, Math.floor(py) - 7, {
           color,
           scale: 2,
           align: 'center',
