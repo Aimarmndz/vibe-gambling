@@ -1,0 +1,19 @@
+{
+  "startingBalance": 1000,
+  "chips": [10, 50, 100, 500, 1000],
+  "allIn": true,
+  "maxBetsPerRound": 40,
+  "defaultBet": { "selection": { "kind": "red" }, "amount": 10 },
+  "loan": {
+    "amount": 1000,
+    "displayApr": 4200,
+    "interestPerSpin": 0.02,
+    "maxDebt": 1000000000000000
+  },
+  "jackpot": { "gitPushMultiplier": 2 },
+  "season": { "timeZone": "Europe/Madrid", "startDay": 1 },
+  "hallOfRuinSize": 10,
+  "spin": { "minSpinMs": 4000 },
+  "round": { "staleAfterMs": 1800000 },
+  "streak": { "colorWarningAt": 5, "historySize": 50 }
+}

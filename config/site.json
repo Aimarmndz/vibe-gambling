@@ -1,0 +1,22 @@
+{
+  "author": { "name": "Aimar", "url": "https://github.com/Aimarmndz" },
+  "repoUrl": "https://github.com/Aimarmndz/vibe-gambling",
+  "installCommand": "/plugin install vibe-gambling --marketplace Aimarmndz/vibe-gambling",
+  "helpLinks": {
+    "en": [
+      { "label": "BeGambleAware", "url": "https://www.begambleaware.org/" },
+      { "label": "GamCare", "url": "https://www.gamcare.org.uk/" }
+    ],
+    "es": [
+      { "label": "jugarbien.es", "url": "https://www.jugarbien.es/" },
+      { "label": "FEJAR", "url": "https://www.fejar.org/" }
+    ]
+  },
+  "moreProjects": [
+    {
+      "label": "scan2nas",
+      "url": "https://github.com/Aimarmndz/scan2nas",
+      "description": "Preset-based document scanning for Epson scanners on Linux, straight to your NAS (CLI + Qt app)."
+    }
+  ]
+}
