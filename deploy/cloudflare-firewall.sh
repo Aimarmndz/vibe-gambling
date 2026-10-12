@@ -7,7 +7,12 @@
 #   sudo ./cloudflare-firewall.sh            # aplica (idempotente: vuelve a ejecutarlo para actualizar)
 #   sudo ./cloudflare-firewall.sh --dry-run  # solo enseña lo que haría
 #
-# Cron semanal sugerido (root): 0 5 * * 1 /srv/vibe-gambling/cloudflare-firewall.sh
+# Instálalo como root y fuera de la carpeta del despliegue, para que el usuario de despliegue no pueda
+# cambiar lo que ejecuta root (ver docs/DESPLIEGUE.md):
+#   sudo install -o root -g root -m 0755 cloudflare-firewall.sh /usr/local/sbin/
+# Cron semanal sugerido (root): 0 5 * * 1 /usr/local/sbin/cloudflare-firewall.sh
+# ufw no filtra los puertos que publica Docker: si el reverse proxy corre en un contenedor,
+# usa la cadena DOCKER-USER o el firewall del panel de IONOS.
 # OJO: no cierra el SSH (22); restríngelo tú a tus IPs. NO se ejecuta en local: es para la VPS.
 set -euo pipefail
 
