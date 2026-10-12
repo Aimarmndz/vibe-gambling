@@ -1,0 +1,121 @@
+# Despliegue manual en la VPS: SSH, `docker compose pull && docker compose up -d` y comprobación
+# de /healthz con reintentos. Solo se lanza a mano (Actions → Deploy → Run workflow).
+#
+# Secrets que hay que crear en el repo (Settings → Secrets and variables → Actions), o en el
+# entorno `production` si se quieren reglas de aprobación:
+#
+#   DEPLOY_HOST          Host o IP de la VPS para SSH (no el dominio detrás de Cloudflare).
+#   DEPLOY_USER          Usuario de despliegue en la VPS (sin root; en el grupo `docker`).
+#   DEPLOY_SSH_KEY       Clave privada SSH (ed25519) solo para este fin; la pública va en el
+#                        authorized_keys de DEPLOY_USER.
+#   DEPLOY_PATH          Carpeta de la VPS con el docker-compose.yml y el .env de producción.
+#   DEPLOY_KNOWN_HOSTS   Línea(s) de known_hosts de la VPS: `ssh-keyscan -t ed25519 <host>`,
+#                        comprobada a mano contra la huella real del servidor.
+#   DEPLOY_HEALTH_URL    URL pública de salud, p. ej. https://<dominio>/healthz.
+#   DEPLOY_SSH_PORT      (Opcional) Puerto SSH si no es el 22.
+#
+# La etiqueta de imagen elegida se pasa al compose como variable IMAGE_TAG solo para este
+# despliegue; si se deja vacía, manda la que ponga el .env de la VPS.
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Image tag to deploy (e.g. 0.1.0). Empty = the one set in the server's .env.
+        required: false
+        default: ''
+        type: string
+
+# Nunca dos despliegues a la vez, y nunca se cancela uno a medias.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  deploy:
+    name: Desplegar en la VPS
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    permissions: {}
+    env:
+      IMAGE_TAG: ${{ inputs.image_tag }}
+    steps:
+      - name: Comprobar los secrets y la etiqueta
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          DEPLOY_HEALTH_URL: ${{ secrets.DEPLOY_HEALTH_URL }}
+        run: |
+          missing=0
+          for name in DEPLOY_HOST DEPLOY_USER DEPLOY_SSH_KEY DEPLOY_PATH DEPLOY_KNOWN_HOSTS DEPLOY_HEALTH_URL; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Falta el secret ${name}"
+              missing=1
+            fi
+          done
+          # Gramática de etiquetas de Docker: evita inyectar nada en el comando remoto.
+          if [ -n "${IMAGE_TAG}" ] && ! [[ "${IMAGE_TAG}" =~ ^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$ ]]; then
+            echo "::error::Etiqueta de imagen no válida: ${IMAGE_TAG}"
+            missing=1
+          fi
+          exit "${missing}"
+
+      - name: Preparar SSH
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          (umask 077 && printf '%s\n' "${DEPLOY_SSH_KEY}" > ~/.ssh/deploy_key)
+          printf '%s\n' "${DEPLOY_KNOWN_HOSTS}" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: docker compose pull && up -d
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          DEPLOY_SSH_PORT: ${{ secrets.DEPLOY_SSH_PORT }}
+        run: |
+          # Comando remoto con todo entrecomillado (printf %q); la etiqueta ya está validada.
+          remote="cd -- $(printf '%q' "${DEPLOY_PATH}")"
+          if [ -n "${IMAGE_TAG}" ]; then
+            remote+=" && export IMAGE_TAG=$(printf '%q' "${IMAGE_TAG}")"
+          fi
+          remote+=" && docker compose pull && docker compose up -d --remove-orphans && docker image prune -f"
+          ssh -i ~/.ssh/deploy_key \
+            -p "${DEPLOY_SSH_PORT:-22}" \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="${HOME}/.ssh/known_hosts" \
+            -o IdentitiesOnly=yes \
+            -o BatchMode=yes \
+            -o ConnectTimeout=20 \
+            "${DEPLOY_USER}@${DEPLOY_HOST}" "${remote}"
+
+      - name: Comprobar /healthz
+        env:
+          DEPLOY_HEALTH_URL: ${{ secrets.DEPLOY_HEALTH_URL }}
+        run: |
+          # Hasta ~3 min: migraciones al arrancar + HEALTHCHECK del contenedor.
+          for attempt in $(seq 1 36); do
+            if curl --fail --silent --show-error --max-time 5 "${DEPLOY_HEALTH_URL}"; then
+              echo
+              echo "Salud OK en el intento ${attempt}"
+              exit 0
+            fi
+            echo "Intento ${attempt}: todavía no responde; reintento en 5 s"
+            sleep 5
+          done
+          echo "::error::${DEPLOY_HEALTH_URL} no respondió bien tras el despliegue"
+          exit 1
+
+      - name: Borrar la clave SSH
+        if: always()
+        run: rm -f ~/.ssh/deploy_key

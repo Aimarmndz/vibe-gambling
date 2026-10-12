@@ -1,0 +1,93 @@
+# Publica la imagen del servidor (que también sirve la web) en GitHub Container Registry al
+# empujar una etiqueta `vX.Y.Z`: multi-arquitectura (amd64 + arm64) con Buildx y QEMU.
+#
+# Etiquetas de la imagen: `X.Y.Z`, `X.Y`, `X` (desde la 1.0) y `latest` (solo en versiones
+# estables, no en `-rc`/`-beta`). Se autentica con el GITHUB_TOKEN del propio workflow.
+name: Docker
+
+on:
+  push:
+    tags: ['v*']
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  image:
+    name: Build y push multi-arch
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: write
+      # Atestación de procedencia (SLSA) firmada con el OIDC de GitHub.
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: QEMU (emulación de arm64)
+        uses: docker/setup-qemu-action@v4
+
+      - name: Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Login en ghcr.io
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Nombre de la imagen en minúsculas
+        id: image
+        # Los nombres de imagen del registro van en minúsculas (Aimarmndz → aimarmndz).
+        env:
+          REPOSITORY: ${{ github.repository }}
+        run: echo "name=ghcr.io/${REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+
+      - name: Etiquetas y metadatos
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          # ghcr.io/aimarmndz/vibe-gambling en el repo oficial.
+          images: ${{ steps.image.outputs.name }}
+          flavor: |
+            latest=auto
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}},enable=${{ !startsWith(github.ref, 'refs/tags/v0.') }}
+          labels: |
+            org.opencontainers.image.title=vibe-gambling
+            org.opencontainers.image.licenses=AGPL-3.0-or-later
+
+      - name: Build y push
+        id: push
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          annotations: ${{ steps.meta.outputs.annotations }}
+          provenance: mode=max
+          sbom: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Atestación de procedencia
+        # Las atestaciones de artefactos solo están disponibles en repos públicos (o con Enterprise).
+        if: ${{ !github.event.repository.private }}
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-name: ${{ steps.image.outputs.name }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
