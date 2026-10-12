@@ -100,6 +100,29 @@ describe('cliente WebSocket', () => {
     expect(second.closed?.code).toBe(1000)
   })
 
+  it('con la red muerta (el close no llega), el ping sin respuesta reconecta igual', () => {
+    const { statuses } = connect()
+    const first = FakeSocket.instances[0]!
+    // Un socket "colgado": close() no dispara el evento (como con la red caída).
+    first.close = (code = 1000, reason = '') => {
+      first.closed = { code, reason }
+    }
+    first.open()
+    vi.advanceTimersByTime(1000 + 300)
+    expect(first.closed?.code).toBe(4000)
+    expect(statuses.at(-1)).toBe('reconnecting')
+    vi.advanceTimersByTime(100)
+    const second = FakeSocket.instances[1]!
+    second.open()
+    expect(second.sent[0]).toEqual({ v: 1, type: 'sync' })
+    // El close tardío del socket viejo no rompe la conexión nueva (ni sus pings).
+    first.emit('close', { code: 1006 })
+    expect(statuses.at(-1)).toBe('open')
+    vi.advanceTimersByTime(1000)
+    expect(second.sent).toContainEqual(expect.objectContaining({ type: 'ping' }))
+    expect(FakeSocket.instances).toHaveLength(2)
+  })
+
   it('sin sesión, origen prohibido o sesión terminada: no reintenta', () => {
     for (const [code, expected] of [
       [WS_CLOSE_CODES.unauthorized, 'unauthorized'],

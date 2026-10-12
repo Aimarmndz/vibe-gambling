@@ -171,6 +171,76 @@ describe('estado de la ventana', () => {
     expect(step.effects).toEqual([{ type: 'connected', first: false }])
   })
 
+  it('servidor reiniciado a mitad de ronda: la ronda resuelta sin conexión no se destripa', () => {
+    // Se estaba girando; se cae la conexión; el turno termina; al volver, hello trae la ronda ya
+    // resuelta con revealAt en el futuro (resolved() lo pone 4 s después de NOW).
+    const before = hello({ round: open })
+    const step = reduce(
+      before,
+      msg({
+        type: 'hello',
+        user,
+        wallet: wallet({ balance: 1400 }),
+        slip: EMPTY_SLIP,
+        round: null,
+        lastRound: resolved(),
+        serverTime: '2026-10-12T10:00:00.000Z',
+      }),
+      NOW,
+    )
+    expect(step.state.phase).toBe('landing')
+    expect(step.state.pending?.roundId).toBe(ROUND_ID)
+    expect(step.state.lastRound).toBeNull()
+    // Ni el saldo nuevo ni el número se enseñan antes de que caiga la bola.
+    expect(step.state.shown?.balance).toBe(500)
+    expect(step.effects).toEqual([
+      { type: 'connected', first: false },
+      { type: 'land', round: resolved() },
+    ])
+    const shown = reveal(step.state)
+    expect(shown.phase).toBe('result')
+    expect(shown.shown?.balance).toBe(1400)
+    expect(shown.lastRound?.result).toBe(17)
+  })
+
+  it('ventana abierta a mitad de la caída: primera conexión sin saldo destripado', () => {
+    const step = reduce(
+      INITIAL_STATE,
+      msg({
+        type: 'hello',
+        user,
+        wallet: wallet({ balance: 1400 }),
+        slip: EMPTY_SLIP,
+        round: null,
+        lastRound: resolved(),
+        serverTime: '2026-10-12T10:00:00.000Z',
+      }),
+      NOW,
+    )
+    expect(step.state.phase).toBe('landing')
+    expect(step.state.shown).toBeNull()
+    expect(step.effects.map(e => e.type)).toEqual(['connected', 'land'])
+  })
+
+  it('si el revealAt de la ronda ya pasó, hello la da por vista (sin repetir la caída)', () => {
+    const step = reduce(
+      hello(),
+      msg({
+        type: 'hello',
+        user,
+        wallet: wallet({ balance: 1400 }),
+        slip: EMPTY_SLIP,
+        round: null,
+        lastRound: resolved({ revealAt: '2026-10-12T09:59:00.000Z' }),
+        serverTime: '2026-10-12T10:00:00.000Z',
+      }),
+      NOW,
+    )
+    expect(step.state.phase).toBe('idle')
+    expect(step.state.lastRound?.roundId).toBe(ROUND_ID)
+    expect(step.effects).toEqual([{ type: 'connected', first: false }])
+  })
+
   it('ronda caducada, préstamo, temporada, ajustes, errores y despedida', () => {
     let s = hello({ round: open })
     expect(reduce(s, msg({ type: 'round.expired', roundId: ROUND_ID_2 }), NOW).effects).toEqual([])

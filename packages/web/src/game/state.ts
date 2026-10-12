@@ -93,6 +93,37 @@ export function reduce(state: GameState, msg: ServerMessage, nowMs: number): Ste
           effects: [{ type: 'connected', first }],
         }
       }
+      // Ronda resuelta mientras no había conexión (servidor reiniciado, red caída o ventana
+      // abierta a mitad de turno) cuyo revealAt aún no ha llegado: se anima su caída como si
+      // llegara por `round.resolved`, sin destripar el número ni el saldo antes de tiempo. Si ya
+      // hay otra ronda abierta, manda la nueva (se empieza a girar, como siempre).
+      const unseen =
+        msg.round === null &&
+        msg.lastRound !== null &&
+        msg.lastRound.roundId !== state.lastRound?.roundId &&
+        msg.lastRound.roundId !== state.pending?.roundId &&
+        Date.parse(msg.lastRound.revealAt) - offset > nowMs
+      if (unseen && msg.lastRound) {
+        const pending = msg.lastRound
+        return {
+          state: {
+            ...state,
+            user: msg.user,
+            wallet: msg.wallet,
+            // El saldo que se enseña sigue congelado (null si es la primera conexión).
+            shown: state.shown,
+            slip: msg.slip,
+            round: null,
+            pending,
+            phase: 'landing',
+            clockOffsetMs: offset,
+          },
+          effects: [
+            { type: 'connected', first },
+            { type: 'land', round: pending },
+          ],
+        }
+      }
       const phase: Phase = msg.round ? 'spinning' : state.phase === 'result' ? 'result' : 'idle'
       const effects: Effect[] = [{ type: 'connected', first }]
       if (msg.round && state.phase !== 'spinning') effects.push({ type: 'spin' })

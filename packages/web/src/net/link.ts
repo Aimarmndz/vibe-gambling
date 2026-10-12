@@ -164,8 +164,11 @@ export class WsLink implements Link {
       for (const l of this.messageListeners) l(msg)
     })
     socket.addEventListener('close', event => {
+      // Un socket abandonado por no contestar al ping puede cerrarse mucho después (el cierre
+      // espera a la red): para entonces ya hay otro, y sus temporizadores no se tocan.
+      if (this.socket !== socket) return
+      this.socket = null
       this.clearTimers()
-      if (this.socket === socket) this.socket = null
       if (event.code === WS_CLOSE_CODES.unauthorized) {
         this.stopped = true
         this.emitStatus('unauthorized')
@@ -203,14 +206,20 @@ export class WsLink implements Link {
     }, this.cfg.pingIntervalMs)
   }
 
-  /** Tras un ping, si no llega nada en `pongTimeoutMs`, la conexión está muerta: se cierra y se reintenta. */
+  /** Tras un ping, si no llega nada en `pongTimeoutMs`, la conexión está muerta: se abandona y se reintenta. */
   private armPongTimeout(arm: boolean): void {
     if (this.pongTimer) clearTimeout(this.pongTimer)
     this.pongTimer = null
     if (!arm) return
     this.pongTimer = setTimeout(() => {
       console.warn('[ws] sin respuesta al ping: reconectando')
-      this.socket?.close(4000, 'ping timeout')
+      // No se espera al evento `close`: con la red caída el navegador puede tardar minutos en
+      // darlo. Se abandona el socket y se reintenta ya.
+      const dead = this.socket
+      this.socket = null
+      this.clearTimers()
+      dead?.close(4000, 'ping timeout')
+      this.scheduleRetry()
     }, this.cfg.pongTimeoutMs)
   }
 
