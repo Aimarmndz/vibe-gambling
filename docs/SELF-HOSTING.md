@@ -134,7 +134,7 @@ En `site.json`, el bloque `instance` (obligatorio: sin él el servidor no arranc
 
 `backupRetentionDays` tiene que coincidir con `BACKUP_KEEP_DAYS` del `.env` (lo que de verdad borra [`backup.sh`](../deploy/backup.sh)) y con la retención de las copias que saques fuera de la máquina. Si usas el Caddy propio sin Cloudflare, pon `networkProxy: null`.
 
-El resto lo pone el servidor desde su `.env`, así que no puede desincronizarse: de dónde carga el navegador los avatares (`CSP_IMG_ORIGINS`) y cuánto duran las sesiones y el enlace de la ventana (`MOD_SESSION_TTL_SECONDS`, `WEB_SESSION_TTL_SECONDS`, `LINK_CODE_TTL_SECONDS`). Todas las URLs de `site.json` tienen que ser `http` o `https`.
+El resto lo pone el servidor desde su `.env`, así que no puede desincronizarse: de dónde carga el navegador los avatares (`CSP_IMG_ORIGINS`) cuánto duran las sesiones y el enlace de la ventana (`MOD_SESSION_TTL_SECONDS`, `WEB_SESSION_TTL_SECONDS`, `LINK_CODE_TTL_SECONDS`) y cuánto se queda la IP en memoria para el límite de peticiones (`RATE_LIMIT_IP_WINDOW_MS`). Todas las URLs de `site.json` tienen que ser `http` o `https`.
 
 Si tu instancia es pública y la tratas de otra forma (más proveedores, analíticas, otra retención), publica también tu propia política: la página solo describe lo que hace este código.
 

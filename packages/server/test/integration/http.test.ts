@@ -80,6 +80,8 @@ describe('rutas públicas', () => {
       modSessionTtlSeconds: 31_536_000,
       webSessionTtlSeconds: 3600,
       linkCodeTtlSeconds: 60,
+      // La ventana del límite por IP (RATE_LIMIT_IP_WINDOW_MS de test), en segundos.
+      ipMemorySeconds: 60,
     })
   })
 

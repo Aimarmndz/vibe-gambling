@@ -37,6 +37,7 @@ const serverDevEnvSchema = z.object({
   MOD_SESSION_TTL_SECONDS: z.coerce.number().int().positive(),
   WEB_SESSION_TTL_SECONDS: z.coerce.number().int().positive(),
   LINK_CODE_TTL_SECONDS: z.coerce.number().int().positive(),
+  RATE_LIMIT_IP_WINDOW_MS: z.coerce.number().int().positive(),
 })
 
 function serverDevPrivacy() {
@@ -53,6 +54,7 @@ function serverDevPrivacy() {
     modSessionTtlSeconds: env.MOD_SESSION_TTL_SECONDS,
     webSessionTtlSeconds: env.WEB_SESSION_TTL_SECONDS,
     linkCodeTtlSeconds: env.LINK_CODE_TTL_SECONDS,
+    ipMemorySeconds: Math.ceil(env.RATE_LIMIT_IP_WINDOW_MS / 1000),
   }
 }
 

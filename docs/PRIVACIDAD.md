@@ -33,12 +33,12 @@ Los dos sí/no se calculan **en tu ordenador** mirando las órdenes de Bash, que
 
 ### Qué se guarda y para qué
 
-| Dato                                                                                                                                        | Para qué                                |
-| ------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
-| De GitHub: id numérico, login y URL del avatar                                                                                              | Identificarte y mostrarte en el ranking |
-| Tus ajustes: oculto o no en el ranking, idioma                                                                                              | Respetar tus preferencias               |
-| El juego: cartera de cada temporada, rondas (resultado, apuestas, duración del turno y los dos sí/no), préstamos, rachas, Salón de la Ruina | Que el juego funcione y el ranking      |
-| Sesiones: el **hash** de cada token, su tipo (plugin o ventana) y fechas de uso y caducidad                                                 | Mantenerte con la sesión iniciada       |
+| Dato                                                                                                                                                                                   | Para qué                                |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
+| De GitHub: id numérico, login y URL del avatar                                                                                                                                         | Identificarte y mostrarte en el ranking |
+| Tus ajustes: oculto o no en el ranking, idioma                                                                                                                                         | Respetar tus preferencias               |
+| El juego: cartera de cada temporada, rondas y turnos (cuándo empezó y terminó cada uno, resultado, apuestas, duración del turno y los dos sí/no), préstamos, rachas, Salón de la Ruina | Que el juego funcione y el ranking      |
+| Sesiones: el **hash** de cada token, su tipo (plugin o ventana) y fechas de uso y caducidad                                                                                            | Mantenerte con la sesión iniciada       |
 
 **No se guarda:** el token de GitHub (se descarta nada más leer tu perfil; el login no pide ningún permiso, solo el perfil público), la versión del plugin ni el SO (se comprueban y se tiran), tu IP (solo se usa en memoria durante un minuto para el límite de peticiones), ni ninguna URL, cabecera o token en los logs.
 
@@ -114,12 +114,12 @@ Both yes/no flags are computed **on your computer** by looking at Bash commands,
 
 ### What is stored and why
 
-| Data                                                                                                              | Why                                             |
-| ----------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
-| From GitHub: numeric id, login and avatar URL                                                                     | To identify you and show you on the leaderboard |
-| Your settings: hidden from the leaderboard or not, language                                                       | To respect your preferences                     |
-| The game: wallet per season, rounds (result, bets, turn duration and the two flags), loans, streaks, Hall of Ruin | To run the game and the leaderboard             |
-| Sessions: the **hash** of each token, its kind (plugin or window), usage and expiry dates                         | To keep you logged in                           |
+| Data                                                                                                                                                         | Why                                             |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------- |
+| From GitHub: numeric id, login and avatar URL                                                                                                                | To identify you and show you on the leaderboard |
+| Your settings: hidden from the leaderboard or not, language                                                                                                  | To respect your preferences                     |
+| The game: wallet per season, rounds and turns (when each one started and ended, result, bets, turn duration and the two flags), loans, streaks, Hall of Ruin | To run the game and the leaderboard             |
+| Sessions: the **hash** of each token, its kind (plugin or window), usage and expiry dates                                                                    | To keep you logged in                           |
 
 **Not stored:** the GitHub token (thrown away right after reading your profile; login asks for no permissions, only the public profile), the plugin version or the OS (checked and dropped), your IP (only kept in memory for a minute for rate limiting), and no URLs, headers or tokens in the logs.
 

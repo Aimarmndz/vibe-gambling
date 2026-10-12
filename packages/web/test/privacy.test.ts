@@ -96,11 +96,26 @@ describe('página de privacidad', () => {
     expect(section(withInstance({ backupRetentionDays: 1 }), 'howLong')).toContain('for 1 day,')
   })
 
+  it('cuánto vive la IP en memoria sale de la ventana del límite del servidor', () => {
+    expect(section(testWebConfig, 'howLong')).toContain('Your IP address: 1 minute in memory')
+    const ten = withInstance({}, { ipMemorySeconds: 600 })
+    expect(section(ten, 'howLong')).toContain('Your IP address: 10 minutes in memory')
+    expect(section(ten, 'howLong', es)).toContain('Tu IP: 10 minutos en memoria')
+    // Lo que se guarda ya no promete un plazo escrito a mano.
+    expect(section(ten, 'stored')).not.toMatch(/minute/)
+    expect(section(ten, 'stored', es)).not.toMatch(/minuto/)
+  })
+
   it('el contacto enlaza al de la instancia', () => {
     const [p] = sectionParagraphs('contact', testWebConfig, en)
     const links = [...p!.querySelectorAll('a')].map(a => a.getAttribute('href'))
     expect(links).toEqual(['https://example.invalid/operator', 'https://example.invalid/contact'])
     expect(p!.textContent).toContain('example.invalid/contact')
+  })
+
+  it('cuenta que se guarda cuándo empezó y terminó cada turno', () => {
+    expect(section(testWebConfig, 'stored')).toMatch(/turns \(when each one started and ended/)
+    expect(section(testWebConfig, 'stored', es)).toMatch(/turnos \(cuándo empezó y terminó/)
   })
 
   it('cuenta el SO "other" y que no se guarda la IP', () => {
@@ -126,6 +141,15 @@ describe('fillParts', () => {
     const a = document.createElement('a')
     const parts = fillParts('{x} and {y}.', { x: a, y: 'text' })
     expect(parts).toEqual([a, ' and ', 'text', '.'])
+  })
+
+  it('un nodo repetido sale en todos sus marcadores (no se mueve de uno a otro)', () => {
+    const a = document.createElement('a')
+    a.textContent = 'link'
+    const p = document.createElement('p')
+    p.append(...fillParts('{x} and {x}', { x: a }))
+    expect(p.textContent).toBe('link and link')
+    expect(p.querySelectorAll('a')).toHaveLength(2)
   })
 
   it('deja a la vista los marcadores sin valor', () => {

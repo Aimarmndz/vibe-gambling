@@ -2,7 +2,7 @@
 // Contenido de la página /privacy. Lo que depende de la instancia (quién la opera, dónde está,
 // el proxy de red, el contacto, la retención de las copias) sale de `site.instance` de
 // /config.json, y lo que solo sabe el servidor (de dónde se cargan los avatares, cuánto duran las
-// sesiones y los enlaces) de `privacy`. Así una instancia autoalojada nunca dice que es la oficial.
+// sesiones y los enlaces, cuánto vive la IP en memoria) de `privacy`. Así una instancia autoalojada nunca dice que es la oficial.
 import type { WebConfig } from '@vibe-gambling/shared'
 
 import type { MessageKey, Translator } from '../i18n/index.ts'
@@ -30,12 +30,18 @@ type Part = string | Node
  */
 export function fillParts(template: string, parts: Readonly<Record<string, Part>>): Part[] {
   const out: Part[] = []
+  const used = new Set<Node>()
   let last = 0
   for (const match of template.matchAll(/\{(\w+)\}/g)) {
     const value = parts[match[1]!]
     if (value === undefined) continue
     if (match.index > last) out.push(template.slice(last, match.index))
-    out.push(value)
+    // Un nodo solo puede estar en un sitio del DOM: si el marcador se repite, va una copia.
+    if (typeof value !== 'string' && used.has(value)) out.push(value.cloneNode(true))
+    else {
+      if (typeof value !== 'string') used.add(value)
+      out.push(value)
+    }
     last = match.index + match[0].length
   }
   if (last < template.length) out.push(template.slice(last))
@@ -124,6 +130,7 @@ export function sectionParagraphs(
           web: formatDuration(web.privacy.webSessionTtlSeconds, tr),
         }),
         text('privacy.howLong.link', { link: formatDuration(web.privacy.linkCodeTtlSeconds, tr) }),
+        text('privacy.howLong.ip', { ip: formatDuration(web.privacy.ipMemorySeconds, tr) }),
         instance.backupRetentionDays === null
           ? text('privacy.howLong.noBackups')
           : text('privacy.howLong.backups', {

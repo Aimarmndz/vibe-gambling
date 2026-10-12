@@ -291,9 +291,9 @@ export const es: Messages = {
     'Cuando usas un comando se envía lo que escribes en él: la cantidad y la casilla de /bet, tu usuario al confirmar /vibe-delete-account.',
   'privacy.stored.title': 'Qué guarda el servidor',
   'privacy.stored.body':
-    'De tu perfil de GitHub: el id numérico, el usuario y la URL del avatar. Tus ajustes: oculto o no en la clasificación, idioma. El juego: tu cartera de cada temporada, las rondas (resultado, apuestas, duración del turno y los dos sí/no), los préstamos, las rachas y el Salón de la Ruina. Las sesiones: el hash de cada token (nunca el token), su tipo (plugin o ventana) y cuándo se usó y caduca.',
+    'De tu perfil de GitHub: el id numérico, el usuario y la URL del avatar. Tus ajustes: oculto o no en la clasificación, idioma. El juego: tu cartera de cada temporada, las rondas y los turnos (cuándo empezó y terminó cada uno, resultado, apuestas, duración del turno y los dos sí/no), los préstamos, las rachas y el Salón de la Ruina. Las sesiones: el hash de cada token (nunca el token), su tipo (plugin o ventana) y cuándo se usó y caduca.',
   'privacy.stored.not':
-    'No se guarda: el token de GitHub (se descarta nada más leer tu perfil público; el login no pide ningún permiso), la versión del plugin ni el sistema operativo (se comprueban y se tiran), tu IP (se usa en memoria un minuto para el límite de peticiones y no se apunta en ningún sitio), ni URLs, cabeceras o tokens en los logs.',
+    'No se guarda: el token de GitHub (se descarta nada más leer tu perfil público; el login no pide ningún permiso), la versión del plugin ni el sistema operativo (se comprueban y se tiran), tu IP (solo se usa en memoria para el límite de peticiones y no se apunta en ningún sitio), ni URLs, cabeceras o tokens en los logs.',
   'privacy.why.title': 'Para qué',
   'privacy.why.body':
     'Para que el juego funcione: guardar tu saldo de mentira, resolver las tiradas y mostrar la clasificación pública. Nada más. Sin anuncios, sin analíticas, sin cookies de seguimiento y sin vender ni compartir datos.',
@@ -314,6 +314,8 @@ export const es: Messages = {
   'privacy.howLong.sessions':
     'Las sesiones: {mod} la del plugin y {web} la de la ventana, desde el login o hasta que cierras sesión; luego se borran. Un login de GitHub a medias: hasta que termina o caduca.',
   'privacy.howLong.link': 'El enlace que abre la ventana: {link} y un solo uso; luego se borra.',
+  'privacy.howLong.ip':
+    'Tu IP: {ip} en memoria para el límite de peticiones, desde tu primera petición; luego se olvida.',
   'privacy.howLong.backups':
     'Las copias de seguridad se guardan {backups}: una cuenta borrada puede seguir en ellas hasta entonces.',
   'privacy.howLong.noBackups': 'Esta instancia no hace copias de seguridad.',

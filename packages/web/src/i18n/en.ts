@@ -288,9 +288,9 @@ export const en = {
     'When you use a command, what you type in it is sent too: the amount and square of /bet, your login when confirming /vibe-delete-account.',
   'privacy.stored.title': 'What the server stores',
   'privacy.stored.body':
-    'From your GitHub profile: numeric id, login and avatar URL. Your settings: hidden from the leaderboard or not, language. The game: your wallet per season, rounds (result, bets, turn duration and the two flags), loans, streaks and the Hall of Ruin. Sessions: the hash of each token (never the token itself), its kind (plugin or window) and when it was used and expires.',
+    'From your GitHub profile: numeric id, login and avatar URL. Your settings: hidden from the leaderboard or not, language. The game: your wallet per season, rounds and turns (when each one started and ended, result, bets, turn duration and the two flags), loans, streaks and the Hall of Ruin. Sessions: the hash of each token (never the token itself), its kind (plugin or window) and when it was used and expires.',
   'privacy.stored.not':
-    'Not stored: the GitHub token (thrown away right after reading your public profile; login asks for no permissions), the plugin version or the OS (checked and dropped), your IP address (kept in memory for a minute for rate limiting, never written down), and no URLs, headers or tokens in the logs.',
+    'Not stored: the GitHub token (thrown away right after reading your public profile; login asks for no permissions), the plugin version or the OS (checked and dropped), your IP address (only held in memory for rate limiting, never written down), and no URLs, headers or tokens in the logs.',
   'privacy.why.title': 'Why',
   'privacy.why.body':
     'To run the game: keep your fake balance, resolve spins and show the public leaderboard. Nothing else. No ads, no analytics, no tracking cookies, no data sold or shared.',
@@ -311,6 +311,8 @@ export const en = {
   'privacy.howLong.sessions':
     'Sessions: {mod} for the plugin and {web} for the window, from login or until you log out; then they are deleted. An unfinished GitHub login: until it finishes or expires.',
   'privacy.howLong.link': 'The link that opens the window: {link}, single use; then it is deleted.',
+  'privacy.howLong.ip':
+    'Your IP address: {ip} in memory for rate limiting, counted from your first request; then it is forgotten.',
   'privacy.howLong.backups':
     'Backups are kept for {backups}, so a deleted account may remain in them until then.',
   'privacy.howLong.noBackups': 'This instance keeps no backups.',

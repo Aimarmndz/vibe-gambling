@@ -61,6 +61,8 @@ export async function publicRoutes(parent: FastifyInstance, options: PublicOptio
       modSessionTtlSeconds: env.MOD_SESSION_TTL_SECONDS,
       webSessionTtlSeconds: env.WEB_SESSION_TTL_SECONDS,
       linkCodeTtlSeconds: env.LINK_CODE_TTL_SECONDS,
+      // El almacén del rate limit borra cada IP al vencer su ventana (lib/rate-limit-store.ts).
+      ipMemorySeconds: Math.ceil(env.RATE_LIMIT_IP_WINDOW_MS / 1000),
     },
     site: config.site,
   })

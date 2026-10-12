@@ -47,6 +47,7 @@ const webConfig = {
     modSessionTtlSeconds: 31_536_000,
     webSessionTtlSeconds: 2_592_000,
     linkCodeTtlSeconds: 60,
+    ipMemorySeconds: 60,
   },
   site: {
     author: { name: 'Author', url: 'https://example.test/author' },
@@ -201,5 +202,10 @@ describe('datos de la instancia (/privacy)', () => {
     expect(webConfigSchema.safeParse(withValue(['privacy', 'linkCodeTtlSeconds'], 0)).success).toBe(
       false,
     )
+    expect(webConfigSchema.safeParse(withValue(['privacy', 'ipMemorySeconds'], 0)).success).toBe(
+      false,
+    )
+    const { ipMemorySeconds: _ip, ...withoutIp } = webConfig.privacy
+    expect(webConfigSchema.safeParse({ ...webConfig, privacy: withoutIp }).success).toBe(false)
   })
 })

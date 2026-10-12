@@ -326,7 +326,8 @@ export type InstanceInfo = z.output<typeof instanceInfoSchema>
 
 /**
  * Lo que la página `/privacy` cuenta y solo sabe el servidor (sale de su entorno): de dónde carga
- * imágenes el navegador (los avatares) y cuánto duran las sesiones y los enlaces.
+ * imágenes el navegador (los avatares), cuánto duran las sesiones y los enlaces, y cuánto vive la
+ * IP en memoria.
  */
 export const privacyFactsSchema = z
   .object({
@@ -335,6 +336,8 @@ export const privacyFactsSchema = z
     modSessionTtlSeconds: z.number().int().positive(),
     webSessionTtlSeconds: z.number().int().positive(),
     linkCodeTtlSeconds: z.number().int().positive(),
+    /** Cuánto se queda la IP en memoria para el límite de peticiones (su ventana), en segundos. */
+    ipMemorySeconds: z.number().int().positive(),
   })
   .strict()
 export type PrivacyFacts = z.output<typeof privacyFactsSchema>

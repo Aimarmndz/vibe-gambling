@@ -39,6 +39,7 @@ export const testWebConfig: WebConfig = webConfigSchema.parse({
     modSessionTtlSeconds: 31_536_000,
     webSessionTtlSeconds: 2_592_000,
     linkCodeTtlSeconds: 60,
+    ipMemorySeconds: 60,
   },
   site: {
     author: { name: 'Tester', url: 'https://example.invalid/tester' },

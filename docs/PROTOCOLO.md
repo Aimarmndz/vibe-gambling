@@ -2210,13 +2210,15 @@ Dirección: servidor → cliente.
           "type": "integer",
           "exclusiveMinimum": 0,
           "maximum": 9007199254740991
-        }
+        },
+        "ipMemorySeconds": { "type": "integer", "exclusiveMinimum": 0, "maximum": 9007199254740991 }
       },
       "required": [
         "imageOrigins",
         "modSessionTtlSeconds",
         "webSessionTtlSeconds",
-        "linkCodeTtlSeconds"
+        "linkCodeTtlSeconds",
+        "ipMemorySeconds"
       ],
       "additionalProperties": false
     },
