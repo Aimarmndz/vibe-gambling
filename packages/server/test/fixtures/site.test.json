@@ -1,0 +1,10 @@
+{
+  "author": { "name": "Test Author", "url": "https://example.test/author" },
+  "repoUrl": "https://example.test/repo",
+  "installCommand": "/plugin install test",
+  "helpLinks": {
+    "en": [{ "label": "Help EN", "url": "https://example.test/help-en" }],
+    "es": [{ "label": "Ayuda ES", "url": "https://example.test/help-es" }]
+  },
+  "moreProjects": []
+}
