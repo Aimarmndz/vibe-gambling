@@ -51,6 +51,7 @@ export function testEnv(overrides: Record<string, string> = {}): NodeJS.ProcessE
     RATE_LIMIT_IPV6_PREFIX: '64',
     RATE_LIMIT_TOKEN_MAX: '100000',
     RATE_LIMIT_TOKEN_WINDOW_MS: '60000',
+    RATE_LIMIT_MAX_KEYS: '5000',
     WS_PING_INTERVAL_MS: '60000',
     WS_MAX_CONNECTIONS_PER_USER: '3',
     WS_MAX_MESSAGE_BYTES: '1024',

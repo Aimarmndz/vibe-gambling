@@ -20,6 +20,7 @@ import { helmetOptions } from './http/security.ts'
 import './http/types.ts'
 import type { Clock } from './lib/clock.ts'
 import { systemClock } from './lib/clock.ts'
+import { expiringStore } from './lib/rate-limit-store.ts'
 import { createRealIpResolver } from './lib/real-ip.ts'
 import type { Rng } from './lib/rng.ts'
 import { cryptoRng } from './lib/rng.ts'
@@ -88,6 +89,8 @@ export async function buildApp(deps: AppDeps): Promise<App> {
   await app.register(fastifyCookie)
   await app.register(fastifyRateLimit, {
     global: false,
+    // Cada clave (la IP) se borra al vencer su ventana: ver lib/rate-limit-store.ts.
+    store: expiringStore(env.RATE_LIMIT_MAX_KEYS),
     errorResponseBuilder: () => errorBody('rate_limited', 'Too many requests.'),
   })
   await app.register(fastifyWebsocket, {
