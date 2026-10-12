@@ -1,0 +1,40 @@
+{
+  "name": "@vibe-gambling/web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "La ventana PSX de vibe-gambling: ruleta 3D con Three.js, landing y ranking.",
+  "license": "AGPL-3.0-or-later",
+  "author": "Aimar (https://github.com/Aimarmndz)",
+  "homepage": "https://vibe.aimar.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aimarmndz/vibe-gambling.git",
+    "directory": "packages/web"
+  },
+  "bugs": {
+    "url": "https://github.com/Aimarmndz/vibe-gambling/issues"
+  },
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "font:build": "python3 -I scripts/build_font.py"
+  },
+  "dependencies": {
+    "@vibe-gambling/shared": "workspace:*",
+    "three": "~0.186.1",
+    "zod": "^4.6.6"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.0",
+    "@types/three": "~0.186.0",
+    "@vitest/coverage-v8": "^5.0.3",
+    "happy-dom": "^20.14.6",
+    "vite": "^8.3.4",
+    "vitest": "^5.0.3"
+  }
+}
