@@ -101,7 +101,7 @@ En Claude Code: `/vibe-server http://localhost:8787`, `/vibe-login` (el GitHub f
 
 ## Cambiar el juego o los textos
 
-`config/game.json` (saldo inicial, fichas, préstamo y su TAE, jackpot, temporadas…) y `config/site.json` (repo, enlaces de ayuda, otros proyectos) van **dentro de la imagen**. Para usar los tuyos sin construir nada, móntalos encima con un `docker-compose.override.yml` (Compose lo lee solo; con el de Caddy, añádelo como tercer `-f`):
+`config/game.json` (saldo inicial, fichas, préstamo y su TAE, jackpot, temporadas…) y `config/site.json` (repo, enlaces de ayuda, otros proyectos, los datos de tu instancia para `/privacy`) van **dentro de la imagen**. Para usar los tuyos sin construir nada, móntalos encima con un `docker-compose.override.yml` (Compose lo lee solo; con el de Caddy, añádelo como tercer `-f`):
 
 ```yaml
 services:
@@ -120,7 +120,23 @@ Se validan con zod al arrancar; un valor fuera de rango impide arrancar con un m
 
 ## Privacidad de tu instancia
 
-Tú eres el responsable de los datos de tu instancia (logins y avatares de GitHub de tus usuarios, sus partidas y sus sesiones; ver [PRIVACIDAD.md](PRIVACIDAD.md) para el detalle de qué se guarda). La página `/privacy` que sirve la web describe la instancia oficial (servidor de IONOS en la UE); si tu instancia es pública, publica tu propia política o adapta la de la web.
+Tú eres el responsable de los datos de tu instancia (logins y avatares de GitHub de tus usuarios, sus partidas y sus sesiones; ver [PRIVACIDAD.md](PRIVACIDAD.md) para el detalle de qué se guarda). La página `/privacy` que sirve la web cuenta lo que hace **tu** instancia, no la oficial: lo que cambia de una a otra sale de la configuración.
+
+En `site.json`, el bloque `instance` (obligatorio: sin él el servidor no arranca):
+
+| Campo                 | Qué es                                                                                  | Instancia oficial                                                             |
+| --------------------- | --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `operator`            | Quién la opera, el responsable de los datos (`name` y `url`)                            | `Aimar`, `https://github.com/Aimarmndz`                                       |
+| `hosting`             | Dónde está alojada, en cada idioma (`en`, `es`); se lee tras "hosted on" / "alojada en" | `an IONOS VPS in the European Union` / `una VPS de IONOS en la Unión Europea` |
+| `networkProxy`        | El proxy o CDN que hay delante (ve la IP de quien entra), o `null` si no hay ninguno    | `Cloudflare`                                                                  |
+| `contact`             | Dónde escribir sobre privacidad (`label` y `url`)                                       | Las issues del repositorio                                                    |
+| `backupRetentionDays` | Días que guardas las copias de seguridad, o `null` si no haces copias                   | `14`                                                                          |
+
+`backupRetentionDays` tiene que coincidir con `BACKUP_KEEP_DAYS` del `.env` (lo que de verdad borra [`backup.sh`](../deploy/backup.sh)) y con la retención de las copias que saques fuera de la máquina. Si usas el Caddy propio sin Cloudflare, pon `networkProxy: null`.
+
+El resto lo pone el servidor desde su `.env`, así que no puede desincronizarse: de dónde carga el navegador los avatares (`CSP_IMG_ORIGINS`) y cuánto duran las sesiones y el enlace de la ventana (`MOD_SESSION_TTL_SECONDS`, `WEB_SESSION_TTL_SECONDS`, `LINK_CODE_TTL_SECONDS`). Todas las URLs de `site.json` tienen que ser `http` o `https`.
+
+Si tu instancia es pública y la tratas de otra forma (más proveedores, analíticas, otra retención), publica también tu propia política: la página solo describe lo que hace este código.
 
 ## Copias de seguridad y actualizaciones
 

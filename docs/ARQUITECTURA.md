@@ -317,12 +317,12 @@ Las carteras de la temporada nueva se crean de forma perezosa con la primera ope
 
 Nada configurable está escrito en el código:
 
-| Dónde                                                     | Qué                                                                                   | Lo valida                                  |
-| --------------------------------------------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------ |
-| Variables de entorno (`deploy/.env.example`)              | URLs, puertos, base de datos, GitHub, sesiones, rate limits, WebSocket, cachés, proxy | `packages/server/src/config.ts` (zod)      |
-| `config/game.json`                                        | Saldo inicial, fichas, préstamo y TAE, jackpot, temporada, giro mínimo, rachas        | `gameConfigSchema` (shared)                |
-| `config/site.json`                                        | Autor, repo, comando de instalación, enlaces de ayuda, otros proyectos                | `siteConfigSchema` (server)                |
-| `config/web.json`                                         | Ping y reconexión del WebSocket, tiempos de la interfaz, ranking, demo                | `webClientConfigSchema` (web, en la build) |
-| `userConfig` de `packages/mod/.claude-plugin/plugin.json` | URL del servidor, apertura automática, idioma, timeouts del mod                       | el engine (rangos `min`/`max`) y el mod    |
+| Dónde                                                     | Qué                                                                                                           | Lo valida                                  |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| Variables de entorno (`deploy/.env.example`)              | URLs, puertos, base de datos, GitHub, sesiones, rate limits, WebSocket, cachés, proxy                         | `packages/server/src/config.ts` (zod)      |
+| `config/game.json`                                        | Saldo inicial, fichas, préstamo y TAE, jackpot, temporada, giro mínimo, rachas                                | `gameConfigSchema` (shared)                |
+| `config/site.json`                                        | Autor, repo, comando de instalación, enlaces de ayuda, otros proyectos, datos de la instancia para `/privacy` | `siteConfigSchema` (server)                |
+| `config/web.json`                                         | Ping y reconexión del WebSocket, tiempos de la interfaz, ranking, demo                                        | `webClientConfigSchema` (web, en la build) |
+| `userConfig` de `packages/mod/.claude-plugin/plugin.json` | URL del servidor, apertura automática, idioma, timeouts del mod                                               | el engine (rangos `min`/`max`) y el mod    |
 
 Si falta algo o no cuadra, el proceso no arranca y dice qué. Las únicas constantes del código son las reglas de la ruleta europea (casillas, colores, orden del cilindro, pagos).

@@ -4,6 +4,8 @@
 
 Esta política describe la instancia oficial, **https://vibe.aimar.dev**. Es la versión larga de la página [`/privacy`](https://vibe.aimar.dev/privacy) de la web. Las instancias autoalojadas las gestiona quien las aloja ([SELF-HOSTING.md](SELF-HOSTING.md#privacidad-de-tu-instancia)).
 
+La página `/privacy` de cada instancia no da por hecho que sea la oficial: quién la opera, dónde está alojada, el proxy de red que tiene delante, el contacto y los días que se guardan las copias salen del bloque `instance` de `config/site.json`, y de dónde se cargan los avatares y cuánto duran las sesiones, del `.env` del servidor (`CSP_IMG_ORIGINS`, `*_TTL_SECONDS`). En la oficial son los valores de este documento.
+
 ---
 
 ## Español
