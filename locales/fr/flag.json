@@ -1,0 +1,23 @@
+{
+  "description": "Flag of France for French, drawn for vibe-gambling at 16×11: blue, white and red vertical bands of 5, 6 and 5 columns.",
+  "width": 16,
+  "height": 11,
+  "palette": {
+    "b": "#0055A4",
+    "w": "#FFFFFF",
+    "r": "#EF4135"
+  },
+  "pixels": [
+    "bbbbbwwwwwwrrrrr",
+    "bbbbbwwwwwwrrrrr",
+    "bbbbbwwwwwwrrrrr",
+    "bbbbbwwwwwwrrrrr",
+    "bbbbbwwwwwwrrrrr",
+    "bbbbbwwwwwwrrrrr",
+    "bbbbbwwwwwwrrrrr",
+    "bbbbbwwwwwwrrrrr",
+    "bbbbbwwwwwwrrrrr",
+    "bbbbbwwwwwwrrrrr",
+    "bbbbbwwwwwwrrrrr"
+  ]
+}

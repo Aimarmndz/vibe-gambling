@@ -1,0 +1,22 @@
+{
+  "description": "Flag of Spain (civil flag, without the coat of arms) for Spanish, drawn for vibe-gambling at 16×11: red, yellow and red bands in 3:5:3 rows (1:2:1).",
+  "width": 16,
+  "height": 11,
+  "palette": {
+    "r": "#AA151B",
+    "y": "#F1BF00"
+  },
+  "pixels": [
+    "rrrrrrrrrrrrrrrr",
+    "rrrrrrrrrrrrrrrr",
+    "rrrrrrrrrrrrrrrr",
+    "yyyyyyyyyyyyyyyy",
+    "yyyyyyyyyyyyyyyy",
+    "yyyyyyyyyyyyyyyy",
+    "yyyyyyyyyyyyyyyy",
+    "yyyyyyyyyyyyyyyy",
+    "rrrrrrrrrrrrrrrr",
+    "rrrrrrrrrrrrrrrr",
+    "rrrrrrrrrrrrrrrr"
+  ]
+}

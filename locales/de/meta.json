@@ -1,0 +1,9 @@
+{
+  "code": "de",
+  "bcp47": "de-DE",
+  "nativeName": "Deutsch",
+  "englishName": "German",
+  "dir": "ltr",
+  "order": 3,
+  "groupSeparator": "."
+}

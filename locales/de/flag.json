@@ -1,0 +1,23 @@
+{
+  "description": "Flag of Germany for German, drawn for vibe-gambling at 16×11: black, red and gold horizontal bands of 4, 3 and 4 rows.",
+  "width": 16,
+  "height": 11,
+  "palette": {
+    "k": "#000000",
+    "r": "#DD0000",
+    "g": "#FFCE00"
+  },
+  "pixels": [
+    "kkkkkkkkkkkkkkkk",
+    "kkkkkkkkkkkkkkkk",
+    "kkkkkkkkkkkkkkkk",
+    "kkkkkkkkkkkkkkkk",
+    "rrrrrrrrrrrrrrrr",
+    "rrrrrrrrrrrrrrrr",
+    "rrrrrrrrrrrrrrrr",
+    "gggggggggggggggg",
+    "gggggggggggggggg",
+    "gggggggggggggggg",
+    "gggggggggggggggg"
+  ]
+}
