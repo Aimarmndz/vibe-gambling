@@ -1,0 +1,45 @@
+name: 💡 Idea
+description: Suggest a feature or an improvement.
+title: 'idea: '
+labels: ['enhancement', 'triage']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Ideas are welcome, with two hard limits: **fake coins only** (no real money, purchases or betting links, ever) and **privacy** (the mod never sends prompts, code or commands).
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem or itch does it solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Your proposal
+      description: What should happen? Mockups, sketches or PS1 references are very welcome.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you considered
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      multiple: true
+      options:
+        - Gameplay (bets, loans, seasons)
+        - PS1 look / shaders / sound
+        - Mod (commands, status line, hooks)
+        - Leaderboard
+        - Self-hosting
+        - Accessibility
+        - Other
+  - type: checkboxes
+    id: contribute
+    attributes:
+      label: Contribution
+      options:
+        - label: I'd like to implement this myself (with DCO sign-off).

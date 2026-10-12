@@ -1,0 +1,101 @@
+name: 🐛 Bug report
+description: Something is broken (and not just your luck).
+title: 'bug: '
+labels: ['bug', 'triage']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! Before you start:
+        - **Security problems go through [private reporting](https://github.com/Aimarmndz/vibe-gambling/security/advisories/new)**, not here (see SECURITY.md).
+        - Losing all your fake coins is a feature, not a bug.
+        - **Do not paste prompts, code, tokens, cookies or `.env` values.** Redact anything personal from logs.
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - Mod (Claude Code plugin)
+        - Game window (web, PS1 renderer)
+        - Landing page / leaderboard
+        - Server / API
+        - Self-hosting / Docker / deploy files
+        - Docs
+        - Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the bug.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect to happen?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Run `/roulette`
+        2. Bet 100 on red
+        3. ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: vibe-gambling version
+      description: Plugin version (`/plugin` in Claude Code) or the commit / image tag you run.
+      placeholder: v0.1.0
+    validations:
+      required: true
+  - type: input
+    id: claude-code-version
+    attributes:
+      label: Claude Code version
+      description: Output of `claude --version` (only for mod bugs).
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      multiple: true
+      options:
+        - Linux
+        - macOS
+        - Windows
+        - Other
+  - type: input
+    id: browser
+    attributes:
+      label: Browser
+      description: Only for window or landing bugs (name and version).
+      placeholder: Firefox 150
+  - type: dropdown
+    id: server
+    attributes:
+      label: Which server?
+      options:
+        - Official instance
+        - Self-hosted
+        - Local development
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or screenshots
+      description: Browser console, `claude --debug` lines from the plugin, server logs… **redacted**.
+      render: text
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: I searched the existing issues and this is not a duplicate.
+          required: true
+        - label: I removed any personal data, tokens or prompt text from this report.
+          required: true

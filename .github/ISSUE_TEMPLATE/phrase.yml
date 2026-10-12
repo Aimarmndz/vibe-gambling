@@ -1,0 +1,60 @@
+name: 🎰 New funny phrase
+description: Propose a new gambler phrase for the wheel.
+title: 'phrase: '
+labels: ['phrase', 'good first issue']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The wheel needs fresh copium. Tone rules (non-negotiable):
+        - ✅ Humor about **fake gambling addiction** (gambler's fallacy, "I can quit whenever I want", "it's an investment") and **dev culture** (vibe coding, tokens, `git push`, "works on my machine", flaky tests).
+        - ❌ **Never** about real people, groups, nationalities, genders, religions, or anyone's real addiction or illness.
+        - ❌ Nothing that encourages real gambling, names real betting brands or links anywhere.
+        - One short line: it must fit in a toast and on the result screen.
+
+        Prefer a PR? Add it to `packages/shared/src/i18n/phrases.en.ts` and `phrases.es.ts` (see CONTRIBUTING.md).
+  - type: dropdown
+    id: category
+    attributes:
+      label: When should it show up?
+      options:
+        - win — after a win
+        - lose — after a loss
+        - zero — the ball lands on 0
+        - bigWin — a big win
+        - bigLoss — a big loss
+        - jackpot — git push bonus
+        - testFailed — a test failed in the turn
+        - autoDefault — automatic default bet
+        - autoRepeat — repeated last bet
+        - noBet — spin without a bet
+        - streakWarning — color streak (gambler's fallacy)
+        - broke — out of coins
+    validations:
+      required: true
+  - type: input
+    id: phrase-en
+    attributes:
+      label: Phrase in English
+      placeholder: "It's not a loss, it's a learning experience with interest."
+  - type: input
+    id: phrase-es
+    attributes:
+      label: Frase en español
+      placeholder: 'No es una pérdida, es un aprendizaje con intereses.'
+  - type: textarea
+    id: notes
+    attributes:
+      label: Context (optional)
+      description: Placeholders used (`{amount}`, `{color}`…), the joke behind it if it's niche, etc.
+  - type: checkboxes
+    id: tone
+    attributes:
+      label: Tone check
+      options:
+        - label: It jokes about fake gambling or dev culture, not about real people, groups or real addictions.
+          required: true
+        - label: It doesn't promote real gambling or mention real betting brands.
+          required: true
+        - label: I wrote it myself (or it's a common saying) and I'm fine with it being published under the project's license.
+          required: true

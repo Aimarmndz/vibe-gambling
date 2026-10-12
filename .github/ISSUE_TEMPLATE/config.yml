@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 🔒 Report a security vulnerability
+    url: https://github.com/Aimarmndz/vibe-gambling/security/advisories/new
+    about: Please report security problems privately, never in a public issue.
+  - name: 📖 Self-hosting guide
+    url: https://github.com/Aimarmndz/vibe-gambling/blob/main/docs/SELF-HOSTING.md
+    about: Running your own instance? Read the guide before opening an issue.
+  - name: 🆘 Real gambling help
+    url: https://www.begambleaware.org/
+    about: This game uses fake coins only. If real gambling worries you, BeGambleAware (UK) or jugarbien.es / FEJAR (Spain) can help.
