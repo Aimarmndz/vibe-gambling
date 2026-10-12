@@ -4,8 +4,9 @@
 // plano y con timeout ≤ 1,5 s), ningún error escapa y todos llaman a `next(e)`.
 import type { EngineInterface, Register } from 'claude-code'
 
-import { debug } from './lib/api.ts'
+import { debug, withTimeout } from './lib/api.ts'
 import { createAuthState } from './lib/auth.ts'
+import { MAX_TURN_TIMEOUT_MS } from './lib/config.ts'
 import type { EnvName, Io } from './lib/io.ts'
 import { isFailedTestRun, isSuccessfulGitPush, saysNothingPushed } from './lib/bash.ts'
 import * as commands from './lib/commands.ts'
@@ -72,6 +73,18 @@ function ioOf($: EngineInterface): Io {
   }
 }
 
+/**
+ * Espera el registro de un comando sin que un rechazo (p. ej. un nombre que ya usa otro plugin)
+ * deje sin registrar los demás ni sin status line a la sesión.
+ */
+async function registerSafely(io: Io, name: string, registering: Promise<unknown>): Promise<void> {
+  try {
+    await registering
+  } catch (error) {
+    debug(io, `no he podido registrar /${name}: ${String(error)}`)
+  }
+}
+
 /** Argumentos del comando (el engine manda `""` sin argumentos; se toleran también ausentes). */
 function argsOf(e: { readonly args?: string | undefined }): string {
   return typeof e.args === 'string' ? e.args : ''
@@ -109,88 +122,142 @@ export const register: Register = (on, options) => {
       runtime.isInteractive = e.isInteractive
       runtime.locale = await resolveLocale(io, runtime)
       runtime.messages = MESSAGES[runtime.locale]
-      runtime.os = detectOs(io, runtime.config?.launchTimeoutMs ?? 1000)
+      // `uname` va con el timeout del turno: `turn/start` espera al SO y no puede esperar más.
+      runtime.os = detectOs(io, runtime.config?.turnTimeoutMs ?? MAX_TURN_TIMEOUT_MS)
       runtime.pluginVersion = readPluginVersion(io)
 
-      // Nombres literales: así el engine sabe que cada comando lo responde este módulo.
-      await $.command.register({
-        name: 'roulette',
-        description: describe('roulette'),
-        argumentHint: hint('roulette'),
-        immediate: true,
-      })
-      await $.command.register({
-        name: 'ruleta',
-        description: describe('roulette'),
-        argumentHint: hint('roulette'),
-        immediate: true,
-      })
-      await $.command.register({
-        name: 'bet',
-        description: describe('bet'),
-        argumentHint: hint('bet'),
-        immediate: true,
-      })
-      await $.command.register({
-        name: 'apostar',
-        description: describe('bet'),
-        argumentHint: hint('bet'),
-        immediate: true,
-      })
-      await $.command.register({
-        name: 'all-in',
-        description: describe('allIn'),
-        argumentHint: hint('allIn'),
-        immediate: true,
-      })
-      await $.command.register({
-        name: 'balance',
-        description: describe('balance'),
-        argumentHint: hint('balance'),
-        immediate: true,
-      })
-      await $.command.register({
-        name: 'saldo',
-        description: describe('balance'),
-        argumentHint: hint('balance'),
-        immediate: true,
-      })
-      await $.command.register({
-        name: 'vibe-login',
-        description: describe('login'),
-        argumentHint: hint('login'),
-        immediate: true,
-      })
-      await $.command.register({
-        name: 'vibe-logout',
-        description: describe('logout'),
-        argumentHint: hint('logout'),
-        immediate: true,
-      })
-      await $.command.register({
-        name: 'vibe-hide',
-        description: describe('hide'),
-        argumentHint: hint('hide'),
-        immediate: true,
-      })
-      await $.command.register({
-        name: 'vibe-show',
-        description: describe('show'),
-        argumentHint: hint('show'),
-        immediate: true,
-      })
-      await $.command.register({
-        name: 'vibe-server',
-        description: describe('server'),
-        argumentHint: hint('server'),
-        immediate: true,
-      })
-      await $.command.register({
-        name: 'vibe-delete-account',
-        description: describe('deleteAccount'),
-        argumentHint: hint('deleteAccount'),
-        immediate: true,
-      })
+      // Nombres literales: así el engine sabe que cada comando lo responde este módulo. Cada
+      // registro va por separado: si el engine rechaza uno, los demás siguen.
+      await registerSafely(
+        io,
+        'roulette',
+        $.command.register({
+          name: 'roulette',
+          description: describe('roulette'),
+          argumentHint: hint('roulette'),
+          immediate: true,
+        }),
+      )
+      await registerSafely(
+        io,
+        'ruleta',
+        $.command.register({
+          name: 'ruleta',
+          description: describe('roulette'),
+          argumentHint: hint('roulette'),
+          immediate: true,
+        }),
+      )
+      await registerSafely(
+        io,
+        'bet',
+        $.command.register({
+          name: 'bet',
+          description: describe('bet'),
+          argumentHint: hint('bet'),
+          immediate: true,
+        }),
+      )
+      await registerSafely(
+        io,
+        'apostar',
+        $.command.register({
+          name: 'apostar',
+          description: describe('bet'),
+          argumentHint: hint('bet'),
+          immediate: true,
+        }),
+      )
+      await registerSafely(
+        io,
+        'all-in',
+        $.command.register({
+          name: 'all-in',
+          description: describe('allIn'),
+          argumentHint: hint('allIn'),
+          immediate: true,
+        }),
+      )
+      await registerSafely(
+        io,
+        'balance',
+        $.command.register({
+          name: 'balance',
+          description: describe('balance'),
+          argumentHint: hint('balance'),
+          immediate: true,
+        }),
+      )
+      await registerSafely(
+        io,
+        'saldo',
+        $.command.register({
+          name: 'saldo',
+          description: describe('balance'),
+          argumentHint: hint('balance'),
+          immediate: true,
+        }),
+      )
+      await registerSafely(
+        io,
+        'vibe-login',
+        $.command.register({
+          name: 'vibe-login',
+          description: describe('login'),
+          argumentHint: hint('login'),
+          immediate: true,
+        }),
+      )
+      await registerSafely(
+        io,
+        'vibe-logout',
+        $.command.register({
+          name: 'vibe-logout',
+          description: describe('logout'),
+          argumentHint: hint('logout'),
+          immediate: true,
+        }),
+      )
+      await registerSafely(
+        io,
+        'vibe-hide',
+        $.command.register({
+          name: 'vibe-hide',
+          description: describe('hide'),
+          argumentHint: hint('hide'),
+          immediate: true,
+        }),
+      )
+      await registerSafely(
+        io,
+        'vibe-show',
+        $.command.register({
+          name: 'vibe-show',
+          description: describe('show'),
+          argumentHint: hint('show'),
+          immediate: true,
+        }),
+      )
+      await registerSafely(
+        io,
+        'vibe-server',
+        $.command.register({
+          name: 'vibe-server',
+          description: describe('server'),
+          argumentHint: hint('server'),
+          immediate: true,
+        }),
+      )
+      await registerSafely(
+        io,
+        'vibe-delete-account',
+        $.command.register({
+          name: 'vibe-delete-account',
+          description: describe('deleteAccount'),
+          argumentHint: hint('deleteAccount'),
+          immediate: true,
+        }),
+      )
 
       const config = runtime.config
       if (config === null) {
@@ -233,8 +300,15 @@ export const register: Register = (on, options) => {
       if (record !== null && e.tool === 'Bash') {
         // Se mira el comando y su salida aquí mismo y se olvidan: solo quedan dos booleanos.
         const result = ran.isError === true || ran.deny !== undefined ? undefined : ran.result
+        // Una orden que sigue en segundo plano (`run_in_background` o cortada por su timeout)
+        // aún no tiene código de salida: no cuenta ni como push ni como test.
+        const finished = result?.backgroundTaskId === undefined
         const outcome = {
-          succeeded: ran.deny === undefined && ran.isError !== true && result?.interrupted !== true,
+          succeeded:
+            finished &&
+            ran.deny === undefined &&
+            ran.isError !== true &&
+            result?.interrupted !== true,
           failed: ran.isError === true,
           nothingPushed:
             result !== undefined && saysNothingPushed(`${result.stdout}\n${result.stderr}`),
@@ -255,9 +329,11 @@ export const register: Register = (on, options) => {
     if (config !== null && e.agentId === undefined) {
       try {
         const sending = finishTurn(io, runtime, config, turns, e.turnId, e.durationMs)
-        // En `claude -p` el proceso acaba con el turno: se espera el envío (acotado por el
-        // timeout). En una sesión interactiva, no.
-        if (sending !== null && !runtime.isInteractive) await sending
+        // En `claude -p` el proceso acaba con el turno: se espera el envío, pero nunca más de un
+        // timeout de turno en total (aunque `turn/start` siga en vuelo). En sesión interactiva, no.
+        if (sending !== null && !runtime.isInteractive) {
+          await withTimeout(io, sending, config.turnTimeoutMs)
+        }
       } catch (error) {
         debug(io, `turn.complete: ${String(error)}`)
       }

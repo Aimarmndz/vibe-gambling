@@ -51,6 +51,7 @@ export interface Messages {
   readonly loginPublicNotice: string
   readonly loginExpired: string
   readonly loginDenied: string
+  readonly loginFailed: (detail: string) => string
   readonly loggedOut: string
   readonly notLoggedInLogout: string
 
@@ -59,6 +60,7 @@ export interface Messages {
 
   readonly serverCurrent: (url: string, name: string, official: boolean | null) => string
   readonly serverBadUrl: (raw: string) => string
+  readonly serverNeedsHttps: (raw: string) => string
   readonly serverUnreachable: (url: string) => string
   readonly serverIncompatible: (url: string, protocol: number, expected: number) => string
   readonly serverChanged: (url: string, name: string, official: boolean) => string
@@ -148,6 +150,8 @@ const en: Messages = {
     'Heads-up: you appear on the public leaderboard (login and avatar). /vibe-hide to vanish.',
   loginExpired: 'The login code expired. Run /vibe-login to get a new one.',
   loginDenied: 'GitHub login was cancelled. The table will wait.',
+  loginFailed: detail =>
+    `The login stopped: the server said "${detail}". Run /vibe-login to try again.`,
   loggedOut: '🎰 Logged out. The wheel will miss you.',
   notLoggedInLogout: "You weren't logged in. Mission accomplished anyway.",
 
@@ -159,6 +163,8 @@ const en: Messages = {
       official === null ? ' (unreachable)' : official ? ' (official)' : ' (self-hosted)'
     }`,
   serverBadUrl: raw => `"${raw}" is not an http(s) URL.`,
+  serverNeedsHttps: raw =>
+    `"${raw}" uses plain http: your session token would travel in clear text. Use https (http is only for localhost).`,
   serverUnreachable: url => `Couldn't reach ${url}/api/meta. Server not changed.`,
   serverIncompatible: (url, protocol, expected) =>
     `${url} speaks protocol v${protocol}, this mod speaks v${expected}. Server not changed.`,
@@ -240,6 +246,8 @@ const es: Messages = {
     'Ojo: apareces en el ranking público (usuario y avatar). Usa /vibe-hide para desaparecer.',
   loginExpired: 'El código ha caducado. Usa /vibe-login para pedir otro.',
   loginDenied: 'Has cancelado el login en GitHub. La mesa esperará.',
+  loginFailed: detail =>
+    `El login se ha cortado: el servidor dice "${detail}". Usa /vibe-login para volver a intentarlo.`,
   loggedOut: '🎰 Sesión cerrada. La ruleta te echará de menos.',
   notLoggedInLogout: 'No habías entrado. Misión cumplida igualmente.',
 
@@ -251,6 +259,8 @@ const es: Messages = {
       official === null ? ' (no responde)' : official ? ' (oficial)' : ' (self-host)'
     }`,
   serverBadUrl: raw => `"${raw}" no es una URL http(s).`,
+  serverNeedsHttps: raw =>
+    `"${raw}" va por http sin cifrar: tu token de sesión viajaría en claro. Usa https (http solo vale para localhost).`,
   serverUnreachable: url => `No he podido llegar a ${url}/api/meta. No cambio de servidor.`,
   serverIncompatible: (url, protocol, expected) =>
     `${url} habla el protocolo v${protocol} y este mod el v${expected}. No cambio de servidor.`,

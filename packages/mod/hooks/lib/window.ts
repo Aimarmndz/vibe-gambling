@@ -4,6 +4,7 @@
 
 import type { Io } from './io.ts'
 import { callApi, debug } from './api.ts'
+import type { ApiFailure } from './api.ts'
 import { findBrowser, isSafeWindowUrl, launchCommand } from './browser.ts'
 import type { BrowserCandidate } from './browser.ts'
 import { originOf } from './config.ts'
@@ -12,7 +13,10 @@ import { emptyBody } from './payloads.ts'
 import { isLink } from './responses.ts'
 import type { Runtime, StoredSession } from './runtime.ts'
 
-export type OpenResult = 'opened' | 'skipped' | 'failed'
+/** Cómo acabó la apertura; si falló el enlace, con el motivo (para decir "sesión caducada"). */
+export type OpenResult =
+  | { readonly status: 'opened' | 'skipped' | 'failed' }
+  | { readonly status: 'link-failed'; readonly failure: ApiFailure }
 
 /** Estado de la apertura durante esta carga del módulo. */
 export interface WindowState {
@@ -65,7 +69,7 @@ export async function openWindow(
   state: WindowState,
   options: { readonly force: boolean; readonly timeoutMs: number },
 ): Promise<OpenResult> {
-  if (state.opening) return 'skipped'
+  if (state.opening) return { status: 'skipped' }
   state.opening = true
   try {
     const now = await io.now()
@@ -74,7 +78,7 @@ export async function openWindow(
       state.lastOpenAt !== null &&
       now - state.lastOpenAt < config.windowReopenCooldownMs
     ) {
-      return 'skipped'
+      return { status: 'skipped' }
     }
     state.lastOpenAt = now
 
@@ -86,10 +90,10 @@ export async function openWindow(
       token: session.token,
       body: emptyBody(),
     })
-    if (!link.ok) return 'failed'
+    if (!link.ok) return { status: 'link-failed', failure: link }
     if (!isSafeWindowUrl(link.data.url, originOf(config.serverUrl))) {
       debug(io, 'el servidor ha devuelto un enlace que no es de su origen; no lo abro')
-      return 'failed'
+      return { status: 'failed' }
     }
 
     const os = await runtime.os
@@ -97,17 +101,17 @@ export async function openWindow(
     const argv = launchCommand(os, browser, link.data.url, config.windowSize)
     if (argv === null) {
       debug(io, `no sé abrir un navegador en este SO (${os})`)
-      return 'failed'
+      return { status: 'failed' }
     }
     const { exitCode, stderr } = await io.run(argv, config.launchTimeoutMs)
     if (exitCode !== 0) {
       debug(io, `el lanzador del navegador ha salido con ${exitCode}: ${stderr.slice(0, 200)}`)
-      return 'failed'
+      return { status: 'failed' }
     }
-    return 'opened'
+    return { status: 'opened' }
   } catch (error) {
     debug(io, `no he podido abrir la ventana: ${String(error)}`)
-    return 'failed'
+    return { status: 'failed' }
   } finally {
     state.opening = false
   }

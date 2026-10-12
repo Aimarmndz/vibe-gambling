@@ -69,8 +69,10 @@ async function startRound(
   }
   if (result.data.windowConnected) {
     markConnected(state.window)
-  } else if (config.autoOpen) {
-    await openWindow(io, runtime, config, session, state.window, {
+  } else if (config.autoOpen && runtime.isInteractive) {
+    // En segundo plano: el enlace y el lanzador del navegador nunca retrasan `turn/end` (que
+    // espera a esta promesa). En `claude -p` no hay nadie mirando: no se abre ninguna ventana.
+    void openWindow(io, runtime, config, session, state.window, {
       force: false,
       timeoutMs: config.turnTimeoutMs,
     })

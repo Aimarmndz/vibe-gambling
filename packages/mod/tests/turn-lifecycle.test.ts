@@ -133,3 +133,21 @@ test(
     ])
   },
 )
+
+test(
+  'a command the engine refuses to register does not take the others (or the status) down',
+  { options: TEST_OPTIONS },
+  async ($, on) => {
+    const w = world(on, {
+      routes: happyCasino(true),
+      store: LOGGED_IN,
+      registerDeny: ['roulette', 'balance'],
+    })
+    await startSession($, w)
+    expect(w.registered).toHaveLength(11)
+    expect(w.registered).toContain('saldo')
+    expect(w.registered).toContain('vibe-delete-account')
+    expect(w.lastStatus()).toBe('🎰 1,000 🪙')
+    expect(w.logs.some(line => line.includes('/roulette'))).toBe(true)
+  },
+)

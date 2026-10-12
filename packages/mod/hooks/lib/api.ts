@@ -5,7 +5,8 @@
 import type { Io } from './io.ts'
 import { API_ROUTES } from '../generated/protocol.ts'
 import type { ApiRouteName, ErrorCode } from '../generated/protocol.ts'
-import { errorCodeOf } from './responses.ts'
+import { TEXT_LIMITS } from '../generated/protocol.ts'
+import { cleanText, errorCodeOf } from './responses.ts'
 
 export type ApiFailure =
   | { readonly ok: false; readonly reason: 'timeout' | 'offline' | 'invalid' }
@@ -94,7 +95,7 @@ export async function callApi<T>(io: Io, request: ApiRequest<T>): Promise<ApiRes
     if (!response.ok) {
       const message =
         typeof data === 'object' && data !== null && 'message' in data
-          ? String(data.message).slice(0, 200)
+          ? cleanText(String(data.message), TEXT_LIMITS.errorMessage)
           : null
       debug(io, `${route.path}: HTTP ${response.status}`)
       return {

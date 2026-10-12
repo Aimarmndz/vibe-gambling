@@ -2,12 +2,12 @@
 // Comandos del mod: validan la entrada, llaman al servidor y responden corto y con gracia.
 
 import type { Io } from './io.ts'
-import { PROTOCOL_VERSION } from '../generated/protocol.ts'
+import { PROTOCOL_VERSION, TEXT_LIMITS } from '../generated/protocol.ts'
 import { callApi, debug, isUnauthorized } from './api.ts'
 import type { ApiFailure } from './api.ts'
 import { cancelLogin, startLogin } from './auth.ts'
 import type { AuthState } from './auth.ts'
-import { normalizeServerUrl } from './config.ts'
+import { isPlainHttpRemote, normalizeServerUrl } from './config.ts'
 import type { ModConfig } from './config.ts'
 import { formatCoins } from './format.ts'
 import {
@@ -19,7 +19,7 @@ import {
   settingsBody,
 } from './payloads.ts'
 import type { BetAmount } from './payloads.ts'
-import { isBet, isMeta, isOk, isSettings } from './responses.ts'
+import { cleanText, isBet, isMeta, isOk, isSettings } from './responses.ts'
 import {
   clearSession,
   loadSession,
@@ -84,9 +84,16 @@ export async function roulette(ctx: CommandContext): Promise<string> {
     force: true,
     timeoutMs: ctx.config.commandTimeoutMs,
   })
-  return result === 'opened'
-    ? ctx.runtime.messages.openingWindow
-    : ctx.runtime.messages.windowFailed
+  switch (result.status) {
+    case 'link-failed':
+      // Sin enlace no hay ventana: sesión caducada, servidor caído… se dice lo que pasa de verdad.
+      return failureText(ctx, result.failure)
+    case 'opened':
+    case 'skipped': // ya se estaba abriendo una
+      return ctx.runtime.messages.openingWindow
+    case 'failed':
+      return ctx.runtime.messages.windowFailed
+  }
 }
 
 // ------------------------------------------------------------------ /bet, /all-in
@@ -215,15 +222,20 @@ export async function server(ctx: CommandContext, raw: string): Promise<string> 
   const [arg] = argsOf(raw)
   const metaOf = async (baseUrl: string) =>
     callApi(io, { baseUrl, route: 'meta', guard: isMeta, timeoutMs: config.commandTimeoutMs })
+  // El nombre lo elige quien monta el servidor: se limpia antes de enseñarlo.
+  const nameOf = (name: string): string => cleanText(name, TEXT_LIMITS.serverName)
 
   if (arg === undefined) {
     const meta = await metaOf(config.serverUrl)
     return meta.ok
-      ? m.serverCurrent(config.serverUrl, meta.data.name, meta.data.isOfficial)
+      ? m.serverCurrent(config.serverUrl, nameOf(meta.data.name), meta.data.isOfficial)
       : m.serverCurrent(config.serverUrl, '', null)
   }
 
   const wanted = arg === 'default' ? await manifestDefault(io, 'serverUrl') : arg
+  if (typeof wanted === 'string' && isPlainHttpRemote(wanted)) {
+    return m.serverNeedsHttps(arg.slice(0, 200))
+  }
   const url = typeof wanted === 'string' ? normalizeServerUrl(wanted) : null
   if (url === null) return m.serverBadUrl(arg.slice(0, 200))
   const meta = await metaOf(url)
@@ -234,7 +246,7 @@ export async function server(ctx: CommandContext, raw: string): Promise<string> 
   cancelLogin(ctx.auth)
   const saved = await io.configSet(`${io.pluginName}.serverUrl`, url)
   if (saved.deny !== undefined) return m.serverChangeDenied(saved.deny)
-  return m.serverChanged(url, meta.data.name, meta.data.isOfficial)
+  return m.serverChanged(url, nameOf(meta.data.name), meta.data.isOfficial)
 }
 
 // ------------------------------------------------------------------ /vibe-delete-account

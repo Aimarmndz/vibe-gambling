@@ -6,7 +6,7 @@ import type { Engine, MockClock } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
 /** Configuración de test (la de producción vive en el manifiesto). */
-export const SERVER = 'http://casino.test'
+export const SERVER = 'https://casino.test'
 export const TEST_OPTIONS = {
   serverUrl: SERVER,
   autoOpen: true,
@@ -37,6 +37,8 @@ export interface SentRequest {
 export interface Reply {
   readonly status?: number
   readonly json?: unknown
+  /** Cuerpo tal cual (HTML de un proxy, JSON roto…), en vez de `json`. */
+  readonly raw?: string
   /** Tarda este tiempo (en el reloj falso) en contestar. */
   readonly delayMs?: number
   /** No contesta nunca. */
@@ -57,6 +59,12 @@ export interface WorldOptions {
   readonly files?: readonly string[]
   /** Código de salida del lanzador del navegador. */
   readonly launchExit?: number
+  /** El lanzador del navegador (cualquier orden que no sea `uname`) se cuelga hasta su timeout. */
+  readonly launchHang?: boolean
+  /** `uname -s` se cuelga hasta su timeout. */
+  readonly unameHang?: boolean
+  /** Comandos cuyo `$.command.register` rechaza el engine (p. ej. un nombre ya ocupado). */
+  readonly registerDeny?: readonly string[]
   /** Respuesta a `$.config.set` (deny si se da). */
   readonly configDeny?: string
 }
@@ -139,7 +147,7 @@ export function world(on: On, options: WorldOptions = {}): World {
         status,
         ok: status >= 200 && status < 300,
         headers: { 'content-type': 'application/json' },
-        text: reply.json === undefined ? '' : JSON.stringify(reply.json),
+        text: reply.raw ?? (reply.json === undefined ? '' : JSON.stringify(reply.json)),
       },
     }
   })
@@ -156,11 +164,18 @@ export function world(on: On, options: WorldOptions = {}): World {
     return { value: undefined }
   })
   on('command.register', (_$, e) => {
+    if (options.registerDeny?.includes(e.name) === true) return { deny: `/${e.name} is taken` }
     registered.push(e.name)
     return { value: { command: e.name } }
   })
-  on('process.run', (_$, e) => {
+  on('process.run', async (_$, e) => {
     runs.push([...e.argv])
+    const isUname = e.argv[0] === 'uname'
+    if ((isUname && options.unameHang === true) || (!isUname && options.launchHang === true)) {
+      // Como el engine: la orden colgada se corta al vencer su `timeoutMs` y la llamada falla.
+      await clock.sleep(e.init?.timeoutMs ?? 30_000)
+      return { deny: `${e.argv[0]} timed out` }
+    }
     const stdout = e.argv[0] === 'uname' ? `${options.uname ?? 'Linux'}\n` : ''
     const exitCode = e.argv[0] === 'uname' ? 0 : (options.launchExit ?? 0)
     return {
@@ -219,6 +234,8 @@ export interface BashCall {
   readonly exitCode?: number
   readonly stdout?: string
   readonly stderr?: string
+  /** La orden sigue en segundo plano (`run_in_background` o cortada por su timeout). */
+  readonly backgroundTaskId?: string
 }
 
 /** Cómo deben terminar las próximas llamadas a Bash (en orden). */
@@ -233,7 +250,14 @@ export function bashTool(on: On): void {
       const text = `Exit code ${call.exitCode}`
       return { isError: true, result: text, text }
     }
-    return { result: { stdout: call.stdout ?? '', stderr: call.stderr ?? '', interrupted: false } }
+    return {
+      result: {
+        stdout: call.stdout ?? '',
+        stderr: call.stderr ?? '',
+        interrupted: false,
+        ...(call.backgroundTaskId === undefined ? {} : { backgroundTaskId: call.backgroundTaskId }),
+      },
+    }
   })
 }
 

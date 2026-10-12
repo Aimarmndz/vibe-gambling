@@ -96,3 +96,57 @@ test(
     expect(w.store.get(SESSION_KEY)).toEqual({ token: TOKEN, login: LOGIN })
   },
 )
+
+const UNAUTHORIZED = { status: 401, json: { v: 1, error: 'unauthorized', message: 'nope' } }
+
+for (const [name, args] of [
+  ['roulette', ''],
+  ['bet', '50 red'],
+  ['all-in', ''],
+  ['balance', ''],
+  ['vibe-hide', ''],
+  ['vibe-show', ''],
+  ['vibe-delete-account', LOGIN],
+] as const) {
+  test(
+    `/${name} with a revoked session says so clearly and forgets the token`,
+    { options: TEST_OPTIONS },
+    async ($, on) => {
+      const w = world(on, {
+        routes: {
+          '/api/auth/link': UNAUTHORIZED,
+          '/api/bet': UNAUTHORIZED,
+          '/api/me': UNAUTHORIZED,
+          '/api/me/settings': UNAUTHORIZED,
+          '/api/me/delete': UNAUTHORIZED,
+          '/api/turn/start': UNAUTHORIZED,
+        },
+        store: LOGGED_IN,
+        files: ['/usr/bin/chromium'],
+      })
+      // La sesión arranca sin pedir `/api/me` válido: el 401 llega con el comando.
+      await startSession($, w)
+      w.store.set(SESSION_KEY, { token: TOKEN, login: LOGIN })
+      const { text } = await command($, name, args)
+      expect(text).toBe('Your session expired. Run /vibe-login again.')
+      expect(w.store.has(SESSION_KEY)).toBe(false)
+      expect(w.lastStatus()).toBe('🎰 /vibe-login')
+    },
+  )
+}
+
+test(
+  '/roulette with the server down says the casino is unreachable, not "no browser"',
+  { options: TEST_OPTIONS },
+  async ($, on) => {
+    const w = world(on, {
+      routes: { '/api/auth/link': { fail: true } },
+      store: LOGGED_IN,
+      files: ['/usr/bin/chromium'],
+    })
+    await startSession($, w)
+    const { text } = await command($, 'roulette')
+    expect(text).toContain('casino is unreachable')
+    expect(w.runs.filter(argv => argv[0] !== 'uname')).toEqual([])
+  },
+)

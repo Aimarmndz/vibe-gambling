@@ -16,6 +16,34 @@ const isStr = (value: unknown): value is string => typeof value === 'string'
 const isBool = (value: unknown): value is boolean => typeof value === 'boolean'
 const isIso = (value: unknown): value is string => isStr(value) && !Number.isNaN(Date.parse(value))
 
+/**
+ * Texto que llega del servidor, listo para enseñarlo en el terminal: sin caracteres de control
+ * (ni secuencias de escape ANSI/OSC, que podrían borrar la pantalla, disfrazar enlaces o escribir
+ * en el portapapeles), sin marcas de dirección bidi y cortado a `max` caracteres. Un servidor
+ * self-host puede estar comprometido: su texto nunca manda en el terminal de nadie.
+ */
+export function cleanText(value: string, max: number): string {
+  const text = value
+    // Secuencias completas: OSC (`ESC ] … BEL` o `ESC ] … ESC \`), CSI (`ESC [ … letra`) y el
+    // resto. Buscar caracteres de control es justo lo que hace esta función.
+    // eslint-disable-next-line no-control-regex
+    .replace(/\u001b\][^\u0007\u001b]*(?:\u0007|\u001b\\)?/g, '')
+    // eslint-disable-next-line no-control-regex
+    .replace(/\u001b\[[0-?]*[ -/]*[@-~]/g, '')
+    // eslint-disable-next-line no-control-regex
+    .replace(/\u001b[@-_]/g, '')
+    // Y cualquier carácter de control o marca bidi que quede suelto.
+    .replace(/[\p{Cc}\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/gu, '')
+  return [...text].slice(0, max).join('')
+}
+
+/** ¿Es una URL http(s) absoluta? */
+export function isHttpUrl(value: string): boolean {
+  if (!URL.canParse(value)) return false
+  const { protocol } = new URL(value)
+  return protocol === 'https:' || protocol === 'http:'
+}
+
 export interface WalletView {
   readonly balance: number
   readonly debt: number
@@ -108,6 +136,7 @@ export const isDeviceStart: Guard<DeviceStartView> = (v): v is DeviceStartView =
   isStr(v.pollId) &&
   isStr(v.userCode) &&
   isStr(v.verificationUri) &&
+  isHttpUrl(v.verificationUri) &&
   isInt(v.expiresIn) &&
   v.expiresIn > 0 &&
   isInt(v.interval) &&

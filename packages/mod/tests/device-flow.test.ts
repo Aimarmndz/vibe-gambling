@@ -172,3 +172,20 @@ test('/vibe-login with the server down says so', { options: TEST_OPTIONS }, asyn
   await startSession($, w)
   expect((await command($, 'vibe-login')).text).toContain('casino is unreachable')
 })
+
+test(
+  'two /vibe-login at once ask for a single code (the one being polled)',
+  { options: TEST_OPTIONS },
+  async ($, on) => {
+    const w = world(on, {
+      routes: { '/api/auth/device/start': { ...deviceStart, delayMs: 200 } },
+    })
+    await startSession($, w)
+    const first = command($, 'vibe-login')
+    const second = command($, 'vibe-login')
+    await w.clock.advance(200)
+    const texts = [(await first).text, (await second).text]
+    expect(w.to('/api/auth/device/start')).toHaveLength(1)
+    for (const text of texts) expect(text).toContain('WDJB-MJHT')
+  },
+)

@@ -31,10 +31,10 @@ test(
   async ($, on) => {
     const w = world(on, { routes: { '/api/meta': meta(1, false, 'My Basement') } })
     await startSession($, w)
-    const { text } = await command($, 'vibe-server', 'http://casino.test/')
-    expect(text).toContain('Now playing at http://casino.test — My Basement (self-hosted)')
-    expect(w.configSets).toEqual([{ key: 'vibe-gambling.serverUrl', value: 'http://casino.test' }])
-    expect(w.to('/api/meta')[0]?.url).toBe('http://casino.test/api/meta')
+    const { text } = await command($, 'vibe-server', 'https://casino.test/')
+    expect(text).toContain('Now playing at https://casino.test — My Basement (self-hosted)')
+    expect(w.configSets).toEqual([{ key: 'vibe-gambling.serverUrl', value: 'https://casino.test' }])
+    expect(w.to('/api/meta')[0]?.url).toBe('https://casino.test/api/meta')
   },
 )
 
@@ -87,3 +87,49 @@ test('an unreachable new server is not saved', { options: TEST_OPTIONS }, async 
   )
   expect(w.configSets).toEqual([])
 })
+
+test(
+  'plain http is only for this machine: the token would travel in clear text',
+  { options: TEST_OPTIONS },
+  async ($, on) => {
+    const w = world(on, { routes: { '/api/meta': meta(1, false, 'Local') } })
+    await startSession($, w)
+    for (const url of ['http://casino.example', 'http://192.168.1.20:8787', 'http://10.0.0.1']) {
+      const { text } = await command($, 'vibe-server', url)
+      expect(text, url).toContain('https')
+      expect(text, url).not.toContain('Now playing')
+    }
+    expect(w.to('/api/meta')).toHaveLength(0)
+    expect(w.configSets).toEqual([])
+    for (const url of [
+      'http://localhost:8787',
+      'http://127.0.0.1:8787',
+      'http://[::1]:8787',
+      'http://vibe.localhost:8787',
+    ]) {
+      expect((await command($, 'vibe-server', url)).text, url).toContain('Now playing')
+    }
+  },
+)
+
+test(
+  'weird URLs are refused before anything is fetched or saved',
+  { options: TEST_OPTIONS },
+  async ($, on) => {
+    const w = world(on, { routes: { '/api/meta': meta(1, false) } })
+    await startSession($, w)
+    for (const url of [
+      'javascript:alert(1)',
+      'file:///etc/passwd',
+      'data:text/html,hi',
+      'https://user:pw@casino.test',
+      'https://casino.test/#x',
+      '"https://casino.test"',
+      'https://casino.test&calc',
+    ]) {
+      const { text } = await command($, 'vibe-server', url)
+      expect(text, url).not.toContain('Now playing')
+    }
+    expect(w.configSets).toEqual([])
+  },
+)
