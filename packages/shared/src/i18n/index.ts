@@ -1,13 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-import type { Locale } from '../protocol/common.ts'
-import { phrasesEn } from './phrases.en.ts'
-import { phrasesEs } from './phrases.es.ts'
-import type { PhraseCatalog } from './phrases.ts'
-
+// i18n compartido: lógica de las frases, esquemas de los archivos de `locales/` y comprobaciones
+// de paridad. Los textos de cada idioma viven en `locales/<idioma>/` (ver locales/README.md).
 export * from './phrases.ts'
-export { phrasesEn, phrasesEs }
-
-export const PHRASES: Readonly<Record<Locale, PhraseCatalog>> = Object.freeze({
-  en: phrasesEn,
-  es: phrasesEs,
-})
+export * from './schemas.ts'
+export * from './parity.ts'
+export { LOCALES } from './locales.generated.ts'
