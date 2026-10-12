@@ -94,10 +94,13 @@ export const phraseCatalogSchema = z
   )
   .strict()
 
-/** Catálogo de textos: claves planas con puntos (`menu.title`) → texto. */
+/**
+ * Catálogo de textos: claves planas con puntos (`menu.title`) → texto. Un texto vacío o solo con
+ * espacios es una traducción a medias (la paridad de claves no lo vería): no vale.
+ */
 export const textCatalogSchema = z.record(
   z.string().regex(/^[A-Za-z0-9]+(?:\.[A-Za-z0-9_]+)*$/),
-  z.string(),
+  z.string().refine(text => text.trim() !== '', { message: 'texto vacío (falta traducirlo)' }),
 )
 export type TextCatalog = z.output<typeof textCatalogSchema>
 

@@ -139,6 +139,17 @@ describe('validación de las carpetas', () => {
     expect(message).toContain('"bet.straight": marcadores {} en vez de {numbers}')
   })
 
+  it('falla si un texto está vacío o solo tiene espacios (traducción a medias)', async () => {
+    const message = await withLocales(async dir => {
+      const path = join(dir, 'es', 'mod.json')
+      const mod = await readJson(path)
+      mod['coin'] = '   '
+      await writeFile(path, JSON.stringify(mod))
+    })
+    expect(message).toContain('locales/es/mod.json')
+    expect(message).toContain('texto vacío')
+  })
+
   it('falla si las frases cambian de marcadores', async () => {
     const message = await withLocales(async dir => {
       const path = join(dir, 'es', 'phrases.json')
