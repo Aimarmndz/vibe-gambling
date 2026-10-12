@@ -1,0 +1,272 @@
+# CI de vibe-gambling: lint, cabeceras SPDX, tipos, tests unitarios, integración con Postgres,
+# build, Playwright contra la pila, el mod en Linux/macOS/Windows y auditoría de dependencias.
+#
+# Base de datos de los tests: cada job que la necesita levanta un *service* de Postgres 17 y
+# exporta su URL en `TEST_DATABASE_URL` (y en `DATABASE_URL` para la pila del E2E). Las
+# credenciales son de usar y tirar: solo existen dentro del runner durante el job.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Un PR nuevo (o un push nuevo a main) cancela la ejecución anterior de la misma rama.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Sin permisos por defecto; cada job pide solo lo que necesita.
+permissions: {}
+
+env:
+  # Versión de Claude Code con la que se valida y se prueba el mod. Se fija para que un
+  # cambio del engine no rompa el CI sin avisar; se sube a mano junto con el mod.
+  CLAUDE_CODE_VERSION: 2.1.296
+  # Postgres de usar y tirar para los tests (solo existe dentro del runner).
+  PG_USER: vibe
+  PG_PASSWORD: vibe-ci-only
+  PG_DB: vibe_test
+
+jobs:
+  lint:
+    name: Lint, SPDX y tipos
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - name: ESLint
+        run: pnpm exec eslint .
+      - name: Prettier
+        run: pnpm exec prettier --check .
+      - name: Cabeceras SPDX
+        run: pnpm lint:spdx
+      - name: Typecheck
+        # El mod se comprueba en su propio job (necesita Claude Code instalado).
+        run: |
+          pnpm -r --parallel --filter '!@vibe-gambling/mod' typecheck
+          pnpm typecheck:scripts
+
+  unit:
+    name: Tests unitarios
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - name: Tests unitarios
+        # Los tests del mod van con `claude plugin test` en el job del mod.
+        run: pnpm -r --filter '!@vibe-gambling/mod' test
+      - name: Subir cobertura
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage
+          path: packages/*/coverage/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  integration:
+    name: Integración del servidor (Postgres 17)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: ${{ env.PG_USER }}
+          POSTGRES_PASSWORD: ${{ env.PG_PASSWORD }}
+          POSTGRES_DB: ${{ env.PG_DB }}
+        ports:
+          - 5432/tcp
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - name: Exportar la URL de Postgres
+        # El puerto del host lo asigna Docker y solo se conoce dentro del job. Si el servidor no
+        # usa TEST_DATABASE_URL, testcontainers levanta su propio Postgres (Docker está en el runner).
+        env:
+          PG_PORT: ${{ job.services.postgres.ports['5432'] }}
+        run: echo "TEST_DATABASE_URL=postgres://${PG_USER}:${PG_PASSWORD}@localhost:${PG_PORT}/${PG_DB}" >> "$GITHUB_ENV"
+      - name: Tests de integración
+        run: pnpm --filter @vibe-gambling/server test:integration
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - name: Build de producción
+        run: pnpm build
+      - name: Subir dist/
+        uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: packages/*/dist/
+          if-no-files-found: error
+          retention-days: 7
+
+  docker-build:
+    name: Imagen Docker (sin publicar)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Comprueba en cada PR que el Dockerfile sigue construyendo; publicar es cosa de docker.yml.
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@v4
+      - name: Build de la imagen (amd64)
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: Dockerfile
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  e2e:
+    name: E2E con Playwright
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: ${{ env.PG_USER }}
+          POSTGRES_PASSWORD: ${{ env.PG_PASSWORD }}
+          POSTGRES_DB: ${{ env.PG_DB }}
+        ports:
+          - 5432/tcp
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - name: Exportar la URL de Postgres
+        env:
+          PG_PORT: ${{ job.services.postgres.ports['5432'] }}
+        run: |
+          url="postgres://${PG_USER}:${PG_PASSWORD}@localhost:${PG_PORT}/${PG_DB}"
+          echo "DATABASE_URL=${url}" >> "$GITHUB_ENV"
+          echo "TEST_DATABASE_URL=${url}" >> "$GITHUB_ENV"
+      - name: Build de la pila
+        run: pnpm build
+      - name: Versión de Playwright
+        id: playwright
+        shell: bash
+        run: echo "version=$(pnpm --filter @vibe-gambling/web exec playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+      - name: Caché de navegadores de Playwright
+        id: playwright-cache
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+      - name: Instalar navegadores de Playwright
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: pnpm --filter @vibe-gambling/web exec playwright install --with-deps
+      - name: Instalar dependencias del sistema de Playwright
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: pnpm --filter @vibe-gambling/web exec playwright install-deps
+      - name: Playwright contra la pila
+        # La configuración de Playwright de la web levanta el servidor (con su GitHub falso) contra
+        # la base de datos del service y sirve los estáticos recién construidos.
+        run: pnpm --filter @vibe-gambling/web test:e2e
+      - name: Subir capturas
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: screenshots
+          path: docs/screenshots/
+          if-no-files-found: ignore
+          retention-days: 14
+      - name: Subir informe y trazas de Playwright
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: |
+            packages/web/playwright-report/
+            packages/web/test-results/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  mod:
+    name: Mod (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - name: Instalar Claude Code ${{ env.CLAUDE_CODE_VERSION }}
+        # `claude plugin validate` y `claude plugin test` no necesitan iniciar sesión.
+        shell: bash
+        run: |
+          npm install --global "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}"
+          claude --version
+      - name: Validar el plugin
+        run: pnpm --filter @vibe-gambling/mod validate
+      - name: Tests del plugin
+        run: pnpm --filter @vibe-gambling/mod test
+      - name: Typecheck del plugin
+        run: pnpm --filter @vibe-gambling/mod typecheck
+
+  audit:
+    name: Auditoría de dependencias
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+        with:
+          install: 'false'
+      - name: pnpm audit (producción, high o más)
+        # Solo dependencias de producción y avisos `high`/`critical`: lo que llega a la imagen.
+        # Las de desarrollo y los avisos menores los gestiona Dependabot sin bloquear PRs.
+        run: pnpm audit --prod --audit-level high

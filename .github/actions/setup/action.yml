@@ -1,0 +1,25 @@
+# Acción compuesta común a todos los jobs: pnpm (versión de `packageManager`), Node (versión de
+# `.nvmrc`), caché del almacén de pnpm e instalación reproducible del workspace.
+name: Setup workspace
+description: Install pnpm and Node.js, restore the pnpm store cache and install the workspace.
+inputs:
+  install:
+    description: Run `pnpm install --frozen-lockfile` after setting up the tools.
+    required: false
+    default: 'true'
+runs:
+  using: composite
+  steps:
+    - name: Instalar pnpm
+      uses: pnpm/action-setup@v6
+
+    - name: Instalar Node.js con caché de pnpm
+      uses: actions/setup-node@v7
+      with:
+        node-version-file: .nvmrc
+        cache: pnpm
+
+    - name: Instalar dependencias
+      if: inputs.install == 'true'
+      shell: bash
+      run: pnpm install --frozen-lockfile
