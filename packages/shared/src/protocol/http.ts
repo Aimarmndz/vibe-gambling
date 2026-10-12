@@ -10,6 +10,7 @@ import {
   coinsSchema,
   httpUrlSchema,
   localeSchema,
+  perLocaleSchema,
   opaqueTokenSchema,
   openRoundSchema,
   osSchema,
@@ -23,6 +24,7 @@ import {
   versionSchema,
   walletSchema,
 } from './common.ts'
+import { achievementSchema } from './progress.ts'
 
 // ---------------------------------------------------------------- /api/meta
 
@@ -173,6 +175,20 @@ export const turnEndResponseSchema = z.discriminatedUnion('status', [
       wallet: walletSchema,
     })
     .strict(),
+  z
+    .object({
+      v: versionSchema,
+      /**
+       * No había ninguna ventana visible: la tirada no se juega ahora, se guarda como pendiente
+       * (con el `git push` y los tests de este turno) para gastarla luego con GIRAR. El contador
+       * está en `wallet.pendingSpins`.
+       */
+      status: z.literal('queued'),
+      /** true si ya estaba en el tope (`pendingSpins.max`): este prompt se ha descartado. */
+      dropped: z.boolean(),
+      wallet: walletSchema,
+    })
+    .strict(),
 ])
 export type TurnEndResponse = z.output<typeof turnEndResponseSchema>
 
@@ -215,6 +231,8 @@ export const meResponseSchema = z
     round: openRoundSchema.nullable(),
     /** Puesto en el ranking de arruinados (null si está oculto o aún no ha jugado). */
     brokeRank: z.number().int().positive().nullable(),
+    /** Logros (como en el `hello`). Opcional en el esquema por compatibilidad (`v: 1`). */
+    achievements: z.array(achievementSchema).optional(),
   })
   .strict()
 export type MeResponse = z.output<typeof meResponseSchema>
@@ -310,7 +328,7 @@ export const instanceInfoSchema = z
     /** Quién opera la instancia (el responsable de los datos). */
     operator: z.object({ name: z.string().min(1).max(80), url: httpUrlSchema }).strict(),
     /** Dónde está alojada, en cada idioma (p. ej. "una VPS de IONOS en la Unión Europea"). */
-    hosting: z.record(localeSchema, z.string().min(1).max(200)),
+    hosting: perLocaleSchema(z.string().min(1).max(200)),
     /** Proxy o CDN delante de la instancia, que ve la IP de quien entra; null si no hay. */
     networkProxy: z.string().min(1).max(80).nullable(),
     /** Dónde escribir sobre privacidad o pedir una copia de tus datos. */
@@ -356,7 +374,7 @@ export const webConfigSchema = z
         author: z.object({ name: z.string().min(1), url: httpUrlSchema }).strict(),
         repoUrl: httpUrlSchema,
         installCommand: z.string().min(1).max(200),
-        helpLinks: z.record(localeSchema, z.array(linkItemSchema)),
+        helpLinks: perLocaleSchema(z.array(linkItemSchema)),
         moreProjects: z.array(linkItemSchema.extend({ description: z.string().max(200) }).strict()),
         instance: instanceInfoSchema,
       })

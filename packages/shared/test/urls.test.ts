@@ -176,8 +176,13 @@ describe('datos de la instancia (/privacy)', () => {
     ).toBe(true)
   })
 
-  it('exige el alojamiento en todos los idiomas', () => {
-    expect(instanceInfoSchema.safeParse({ ...instance, hosting: { en: 'EU' } }).success).toBe(false)
+  it('exige el alojamiento en el idioma de referencia; los demás caen en él si faltan', () => {
+    // Un idioma nuevo (carpeta en locales/) no obliga a tocar la configuración de la instancia.
+    expect(instanceInfoSchema.safeParse({ ...instance, hosting: { es: 'UE' } }).success).toBe(false)
+    expect(instanceInfoSchema.safeParse({ ...instance, hosting: { en: 'EU' } }).success).toBe(true)
+    expect(
+      instanceInfoSchema.safeParse({ ...instance, hosting: { en: 'EU', xx: 'nope' } }).success,
+    ).toBe(false)
   })
 
   it('la retención de las copias es un número entero de días razonable', () => {

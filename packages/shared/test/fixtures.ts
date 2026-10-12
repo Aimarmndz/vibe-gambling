@@ -24,7 +24,17 @@ export function testGameConfig(overrides: Partial<GameConfig> = {}): GameConfig 
     hallOfRuinSize: 10,
     spin: { minSpinMs: 4000 },
     round: { staleAfterMs: 1_800_000 },
-    streak: { colorWarningAt: 5, historySize: 50 },
+    streak: { colorWarningAt: 5, historySize: 50, onFireAt: 5 },
+    pendingSpins: { max: 100, quickSpinMs: 1200 },
+    bigWin: { minNetMultiple: 5, megaNetMultiple: 15 },
+    achievements: {
+      proDebtorLoans: 5,
+      compoundInterestDebt: 100_000,
+      zeroCollectorZeros: 5,
+      addictSpins: 500,
+      nightOwl: { fromHour: 3, toHour: 6 },
+    },
+    stats: { recentRounds: 18, seriesPoints: 280, loanMarks: 100, bankHistory: 50 },
     ...overrides,
   })
 }

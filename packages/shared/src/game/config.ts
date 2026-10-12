@@ -81,10 +81,86 @@ export const gameConfigSchema = z
         colorWarningAt: z.number().int().min(2).max(50),
         /** Cuántas tiradas recientes se miran para calcular la racha de color. */
         historySize: z.number().int().min(2).max(500),
+        /** A partir de cuántas rondas ganadas seguidas el jugador está "ON FIRE". */
+        onFireAt: z.number().int().min(2).max(1000),
+      })
+      .strict(),
+    pendingSpins: z
+      .object({
+        /**
+         * Tope de tiradas pendientes por usuario y temporada (prompts hechos sin ninguna ventana
+         * visible). Los que pasan del tope se descartan.
+         */
+        max: z.number().int().min(1).max(10_000),
+        /**
+         * Giro mínimo (ms) de una tirada pendiente gastada en modo rápido (GIRAR TODAS). Marca
+         * también el ritmo: no se puede gastar otra hasta que se haya enseñado la anterior.
+         */
+        quickSpinMs: z.number().int().min(0).max(60_000),
+      })
+      .strict(),
+    bigWin: z
+      .object({
+        /**
+         * Premio gordo: ganancia neta de al menos este múltiplo de lo apostado (o un pleno
+         * acertado, o el jackpot del `git push`). GIRAR TODAS se para en él.
+         */
+        minNetMultiple: z.number().min(1).max(1000),
+        /** MEGA WIN: ganancia neta de al menos este múltiplo de lo apostado. */
+        megaNetMultiple: z.number().min(1).max(1000),
+      })
+      .strict()
+      .refine(b => b.megaNetMultiple > b.minNetMultiple, {
+        message: 'el MEGA WIN tiene que pedir más que el BIG WIN',
+        path: ['megaNetMultiple'],
+      }),
+    /**
+     * Umbrales de los logros de broma (`game/achievements.ts`). Los que dependen de otro valor
+     * del juego (tope de pendientes, ON FIRE, tope de deuda) usan ese valor y no se repiten aquí.
+     */
+    achievements: z
+      .object({
+        /** "Deudor profesional": préstamos pedidos en una misma temporada. */
+        proDebtorLoans: z.number().int().min(1).max(100_000),
+        /** "Interés compuesto": deuda mínima. */
+        compoundInterestDebt: coins,
+        /** "Coleccionista de ceros": veces que te ha salido el 0 (sumando todas las temporadas). */
+        zeroCollectorZeros: z.number().int().min(1).max(100_000),
+        /** "Lo dejo cuando quiera": tiradas en una misma temporada. */
+        addictSpins: z.number().int().min(1).max(10_000_000),
+        /**
+         * "Deploy de madrugada": tirar entre estas horas (de pared, en la zona horaria de la
+         * temporada). `fromHour` incluida y `toHour` excluida; si `fromHour > toHour`, cruza la
+         * medianoche.
+         */
+        nightOwl: z
+          .object({
+            fromHour: z.number().int().min(0).max(23),
+            toHour: z.number().int().min(0).max(23),
+          })
+          .strict()
+          .refine(h => h.fromHour !== h.toHour, { message: 'el intervalo no puede estar vacío' }),
+      })
+      .strict(),
+    /** Límites de las pantallas de Estadísticas y Banco (cuánto se lee y se manda). */
+    stats: z
+      .object({
+        /** Tiradas de la lista "ÚLTIMAS". */
+        recentRounds: z.number().int().min(1).max(200),
+        /** Puntos como mucho de la gráfica del patrimonio (se muestrea si hay más tiradas). */
+        seriesPoints: z.number().int().min(2).max(2000),
+        /** Marcas de préstamo como mucho en la gráfica (las más recientes). */
+        loanMarks: z.number().int().min(0).max(2000),
+        /** Movimientos como mucho del historial del banco (los más recientes). */
+        bankHistory: z.number().int().min(1).max(1000),
       })
       .strict(),
   })
   .strict()
+  .refine(cfg => cfg.pendingSpins.quickSpinMs <= cfg.spin.minSpinMs, {
+    message: 'el giro rápido no puede durar más que el normal',
+    path: ['pendingSpins', 'quickSpinMs'],
+  })
   .refine(cfg => cfg.defaultBet.amount >= Math.min(...cfg.chips), {
     message: 'la apuesta por defecto no puede ser menor que la ficha mínima',
     path: ['defaultBet', 'amount'],
@@ -111,6 +187,14 @@ export const publicGameConfigSchema = z
     seasonTimeZone: z.string(),
     /** Día del mes en que empieza cada temporada (para calcular cuánto le queda). */
     seasonStartDay: z.number().int().min(1).max(28),
+    pendingSpins: z
+      .object({ max: z.number().int().positive(), quickSpinMs: z.number().int().min(0) })
+      .strict(),
+    bigWin: z
+      .object({ minNetMultiple: z.number().min(1), megaNetMultiple: z.number().min(1) })
+      .strict(),
+    /** Victorias seguidas para el "ON FIRE". */
+    onFireAt: z.number().int().min(2),
   })
   .strict()
 export type PublicGameConfig = z.output<typeof publicGameConfigSchema>
@@ -131,5 +215,11 @@ export function toPublicGameConfig(cfg: GameConfig): PublicGameConfig {
     colorWarningAt: cfg.streak.colorWarningAt,
     seasonTimeZone: cfg.season.timeZone,
     seasonStartDay: cfg.season.startDay,
+    pendingSpins: { max: cfg.pendingSpins.max, quickSpinMs: cfg.pendingSpins.quickSpinMs },
+    bigWin: {
+      minNetMultiple: cfg.bigWin.minNetMultiple,
+      megaNetMultiple: cfg.bigWin.megaNetMultiple,
+    },
+    onFireAt: cfg.streak.onFireAt,
   }
 }

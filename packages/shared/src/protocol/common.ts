@@ -3,8 +3,11 @@
 import { z } from 'zod'
 
 import { AUTO_BET_SOURCES } from '../game/constants.ts'
+import { FIRE_STATES, WIN_TIERS } from '../game/spectacle.ts'
 import { betSchema, betSelectionSchema } from '../roulette/bets.ts'
 import { seasonIdSchema } from '../game/season.ts'
+import { LOCALES } from '../i18n/locales.generated.ts'
+import { REFERENCE_LOCALE } from '../i18n/schemas.ts'
 
 /** Versión del protocolo. Va en cada mensaje (`v`). */
 export const PROTOCOL_VERSION = 1
@@ -25,9 +28,28 @@ export const OS_VALUES = ['linux', 'darwin', 'win32', 'other'] as const
 export const osSchema = z.enum(OS_VALUES)
 export type Os = z.output<typeof osSchema>
 
-export const LOCALES = ['en', 'es'] as const
+/** Idiomas registrados: la lista la genera `scripts/gen-locales.ts` a partir de `locales/`. */
+export { LOCALES }
 export const localeSchema = z.enum(LOCALES)
 export type Locale = z.output<typeof localeSchema>
+
+/**
+ * Un valor por idioma (p. ej. los enlaces de ayuda de `config/site.json`). El del idioma de
+ * referencia es obligatorio y hace de respaldo: un idioma nuevo funciona aunque la configuración
+ * aún no tenga el suyo.
+ */
+export function perLocaleSchema<T extends z.ZodType>(value: T) {
+  return z
+    .partialRecord(localeSchema, value)
+    .refine(record => record[REFERENCE_LOCALE] !== undefined, {
+      message: `falta el valor del idioma de referencia (${REFERENCE_LOCALE})`,
+    })
+}
+
+/** Valor de un idioma en un registro por idioma, o el del idioma de referencia si no lo tiene. */
+export function forLocale<T>(record: Partial<Record<Locale, T>>, locale: Locale): T {
+  return (record[locale] ?? record[REFERENCE_LOCALE])!
+}
 
 /**
  * URL que se puede enseñar o enlazar: solo `http` y `https`. `z.url()` a secas acepta también
@@ -55,6 +77,9 @@ export const TEXT_LIMITS = {
 
 /** Identificador de turno generado por el mod (idempotencia de los reintentos). */
 export const turnIdSchema = z.string().regex(/^[A-Za-z0-9_-]{8,64}$/)
+
+/** Identificador de una petición de GIRAR generado por la ventana (idempotencia). */
+export const spinRequestIdSchema = z.string().regex(/^[A-Za-z0-9_-]{8,64}$/)
 
 /** Versión del plugin (semver sencillo). */
 export const pluginVersionSchema = z
@@ -103,6 +128,11 @@ export const walletSchema = z
     loans: z.number().int().min(0),
     currentStreak: z.number().int(),
     bestStreak: z.number().int().min(0),
+    /**
+     * Tiradas pendientes de la temporada: prompts que terminaron sin ninguna ventana visible y
+     * esperan a que el jugador las gaste con GIRAR. Cuentan en `spins` cuando se gastan.
+     */
+    pendingSpins: z.number().int().min(0),
   })
   .strict()
 export type Wallet = z.output<typeof walletSchema>
@@ -130,6 +160,26 @@ export const autoBetSourceSchema = z.enum(AUTO_BET_SOURCES)
 export const colorStreakSchema = z
   .object({ color: pocketColorSchema, count: z.number().int().min(1) })
   .strict()
+
+/**
+ * Espectáculo de una ronda (`spectacleOf` de `game/spectacle.ts`): qué animaciones le tocan. Lo
+ * calcula el servidor con sus umbrales para que la web y el mod no lo recalculen distinto.
+ */
+export const spectacleSchema = z
+  .object({
+    tier: z.enum(WIN_TIERS),
+    netMultiple: z.number().int().min(0),
+    bigWin: z.boolean(),
+    green: z.boolean(),
+    greenWin: z.boolean(),
+    jackpot: z.boolean(),
+    streak: z.number().int(),
+    fire: z.enum(FIRE_STATES),
+    fallacy: z.boolean(),
+    bankrupt: z.boolean(),
+  })
+  .strict()
+export type SpectacleView = z.output<typeof spectacleSchema>
 
 /** Ronda abierta (la ruleta gira mientras Claude piensa). */
 export const openRoundSchema = z
@@ -160,6 +210,11 @@ export const resolvedRoundSchema = z
     colorStreak: colorStreakSchema.nullable(),
     /** Instante a partir del cual la web puede enseñar el resultado (giro mínimo). */
     revealAt: z.iso.datetime(),
+    /**
+     * Nivel de espectáculo. Este servidor lo manda siempre; es opcional en el esquema solo para
+     * que sigan valiendo las rondas de clientes y demos anteriores a la v2 (mismo `v: 1`).
+     */
+    spectacle: spectacleSchema.optional(),
   })
   .strict()
 export type ResolvedRound = z.output<typeof resolvedRoundSchema>

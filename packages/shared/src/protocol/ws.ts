@@ -11,10 +11,12 @@ import {
   resolvedRoundSchema,
   selfUserSchema,
   slipSchema,
+  spinRequestIdSchema,
   versionSchema,
   walletSchema,
 } from './common.ts'
 import { betAmountSchema } from './http.ts'
+import { achievementSchema, bankStatementSchema, seasonStatsSchema } from './progress.ts'
 
 /** Tamaño máximo de un mensaje del cliente (bytes). */
 export const WS_CLIENT_MESSAGE_MAX_BYTES = 4096
@@ -40,6 +42,42 @@ export const clientMessageSchema = z.discriminatedUnion('type', [
       locale: localeSchema.nullable().optional(),
     })
     .strict(),
+  /**
+   * Si la ventana se ve (`document.visibilityState`). Se manda al conectar y en cada cambio: con
+   * todas las ventanas ocultas, los prompts se guardan como tiradas pendientes.
+   */
+  z.object({ v: versionSchema, type: z.literal('presence'), visible: z.boolean() }).strict(),
+  /**
+   * Gasta la tirada pendiente más antigua (GIRAR). `quick` = giro rápido (parte de GIRAR TODAS).
+   * `requestId` lo genera la ventana: un reintento con el mismo id no tira dos veces.
+   */
+  z
+    .object({
+      v: versionSchema,
+      type: z.literal('spin.pending'),
+      quick: z.boolean(),
+      requestId: spinRequestIdSchema,
+    })
+    .strict(),
+  /**
+   * Pide las estadísticas de una temporada (por defecto, la en curso) para la pantalla
+   * ESTADÍSTICAS. Responde `stats` solo a esta ventana.
+   */
+  z
+    .object({
+      v: versionSchema,
+      type: z.literal('stats.request'),
+      seasonId: seasonIdSchema.optional(),
+    })
+    .strict(),
+  /** Pide el extracto del banco de una temporada (por defecto, la en curso). Responde `bank`. */
+  z
+    .object({
+      v: versionSchema,
+      type: z.literal('bank.request'),
+      seasonId: seasonIdSchema.optional(),
+    })
+    .strict(),
   /** Pide el estado completo (tras reconectar). */
   z.object({ v: versionSchema, type: z.literal('sync') }).strict(),
   z.object({ v: versionSchema, type: z.literal('ping'), t: z.number().int().min(0) }).strict(),
@@ -61,6 +99,11 @@ export const serverMessageSchema = z.discriminatedUnion('type', [
       round: openRoundSchema.nullable(),
       lastRound: resolvedRoundSchema.nullable(),
       serverTime: z.iso.datetime(),
+      /**
+       * Catálogo de logros con los conseguidos y su progreso. Este servidor lo manda siempre;
+       * opcional en el esquema por compatibilidad con clientes de antes de la v2 (`v: 1`).
+       */
+      achievements: z.array(achievementSchema).optional(),
     })
     .strict(),
   z.object({ v: versionSchema, type: z.literal('round.started'), round: openRoundSchema }).strict(),
@@ -93,6 +136,33 @@ export const serverMessageSchema = z.discriminatedUnion('type', [
     })
     .strict(),
   z.object({ v: versionSchema, type: z.literal('wallet'), wallet: walletSchema }).strict(),
+  /**
+   * Un prompt terminó sin ninguna ventana visible: se ha guardado como tirada pendiente
+   * (`queued`) o se ha descartado por el tope (`dropped`). El contador va en la cartera.
+   */
+  z
+    .object({
+      v: versionSchema,
+      type: z.literal('pending'),
+      event: z.enum(['queued', 'dropped']),
+      wallet: walletSchema,
+    })
+    .strict(),
+  /**
+   * Logro conseguido. Llega siempre **después** del mensaje del evento que lo desbloqueó
+   * (`round.resolved`, `loan.granted` o `pending`), uno por logro y en el orden del catálogo.
+   */
+  z
+    .object({
+      v: versionSchema,
+      type: z.literal('achievement.unlocked'),
+      achievement: achievementSchema,
+    })
+    .strict(),
+  /** Respuesta a `stats.request`. */
+  z.object({ v: versionSchema, type: z.literal('stats'), stats: seasonStatsSchema }).strict(),
+  /** Respuesta a `bank.request`. */
+  z.object({ v: versionSchema, type: z.literal('bank'), bank: bankStatementSchema }).strict(),
   z.object({ v: versionSchema, type: z.literal('settings'), user: selfUserSchema }).strict(),
   z
     .object({

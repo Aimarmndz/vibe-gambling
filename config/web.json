@@ -13,11 +13,15 @@
     "memoryCardToastMs": 2600,
     "toastMs": 3200,
     "titleHoldMs": 2200,
-    "helpCycleMs": 4000
+    "helpCycleMs": 4000,
+    "quickResultHoldMs": 1400,
+    "pendingNoticeDelayMs": 600,
+    "counterBumpMs": 450
   },
   "spin": {
     "landingMs": 4200,
-    "reducedLandingMs": 1200
+    "reducedLandingMs": 1200,
+    "quickLandingMs": 900
   },
   "leaderboard": {
     "pageLimit": 25,
