@@ -215,10 +215,17 @@ jobs:
       - name: Instalar dependencias del sistema de Playwright
         if: steps.playwright-cache.outputs.cache-hit == 'true'
         run: pnpm --filter @vibe-gambling/web exec playwright install-deps chromium firefox webkit
+      - name: GL por software para Firefox
+        # Los runners no tienen GPU ni Mesa: sin el driver por software Firefox no crea el
+        # contexto WebGL2 (la imagen oficial de Playwright sí lo trae).
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libgl1-mesa-dri libegl1 xvfb
       - name: Playwright contra la pila
         # La configuración de Playwright de la web levanta el servidor (con su GitHub falso) contra
         # la base de datos del service y sirve los estáticos recién construidos.
-        run: pnpm --filter @vibe-gambling/web test:e2e
+        # Firefox va con ventana bajo Xvfb: en headless y sin GPU no crea el contexto WebGL2.
+        env:
+          E2E_FIREFOX_HEADED: '1'
+        run: xvfb-run -a pnpm --filter @vibe-gambling/web test:e2e
       - name: Subir capturas
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

@@ -54,11 +54,19 @@ test('la ventana juega una ronda de verdad contra el servidor', async ({
   await shot(page, 'boot-licensed')
   await page.waitForTimeout(1500)
   await shot(page, 'boot-title')
-  await page.keyboard.press('x')
   // Primera apertura: "cómo se juega" (el giro lo lanza un prompt en Claude Code).
-  await page.waitForFunction(() =>
-    (window as unknown as { __vg?: Hooks }).__vg?.screens().includes('tip'),
-  )
+  // En un runner lento el arranque puede ir por detrás de las esperas fijas: se pulsa ✕ solo
+  // mientras el consejo no haya salido, comprobándolo antes de cada pulsación.
+  await expect
+    .poll(
+      async () => {
+        if ((await screens(page)).includes('tip')) return true
+        await page.keyboard.press('x')
+        return false
+      },
+      { timeout: 60_000, intervals: [1000] },
+    )
+    .toBe(true)
   await page.waitForTimeout(300)
   await shot(page, 'tip')
   await page.keyboard.press('x')

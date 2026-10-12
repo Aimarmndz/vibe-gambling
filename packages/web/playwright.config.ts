@@ -29,6 +29,11 @@ const e2eSchema = z.object({
    */
   E2E_WEBKIT_WS_ENDPOINT: z.url().optional(),
   E2E_FIREFOX_WS_ENDPOINT: z.url().optional(),
+  /**
+   * `1` para lanzar Firefox con ventana (bajo Xvfb en el CI): en modo headless y sin GPU Firefox
+   * no crea el contexto WebGL2; con ventana usa el GL por software de Mesa.
+   */
+  E2E_FIREFOX_HEADED: z.enum(['0', '1']).optional(),
 })
 
 function readEnvFile(path: string): Record<string, string> {
@@ -106,6 +111,7 @@ export default defineConfig({
         viewport: { width: 960, height: 720 },
         // Los runners del CI no tienen GPU: sin esto Firefox no crea el contexto WebGL2
         // ("WebGL creation failed") y la ventana enseña el aviso de navegador sin WebGL.
+        headless: e2e.E2E_FIREFOX_HEADED !== '1',
         launchOptions: {
           firefoxUserPrefs: {
             'webgl.force-enabled': true,
