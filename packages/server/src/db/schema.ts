@@ -47,7 +47,12 @@ export const users = pgTable(
   },
   t => [
     uniqueIndex('users_github_id_key').on(t.githubId),
-    check('users_locale_check', sql`${t.locale} is null or ${t.locale} in ('en', 'es')`),
+    // Solo el formato del código: la lista de idiomas válidos sale de `locales/` (localeSchema) y
+    // un idioma nuevo no necesita migración.
+    check(
+      'users_locale_check',
+      sql`${t.locale} is null or ${t.locale} ~ '^[a-z]{2,3}(-[A-Z]{2})?$'`,
+    ),
   ],
 )
 
@@ -147,6 +152,11 @@ export const wallets = pgTable(
       .$type<Bet[]>()
       .notNull()
       .default(sql`'[]'::jsonb`),
+    /**
+     * Primera vez en la temporada que el patrimonio cayó a 0 o menos (BANCARROTA — CONTINUE?).
+     * Solo se enseña una vez por temporada; null si aún no ha pasado.
+     */
+    brokeAt: ts('broke_at'),
     createdAt: ts('created_at').notNull().defaultNow(),
     updatedAt: ts('updated_at').notNull().defaultNow(),
   },
@@ -174,6 +184,8 @@ export const loans = pgTable(
     amount: coins('amount').notNull(),
     /** Interés por tirada vigente al conceder el préstamo (0,02 = 2 %). */
     interestPerSpin: doublePrecision('interest_per_spin').notNull(),
+    /** Tiradas de la temporada que llevaba al pedirlo (marca ▼ de la gráfica de ESTADÍSTICAS). */
+    afterSpin: integer('after_spin'),
     createdAt: ts('created_at').notNull().defaultNow(),
   },
   t => [index('loans_user_season_idx').on(t.userId, t.seasonId)],
@@ -191,13 +203,26 @@ export const rounds = pgTable(
     seasonId: text('season_id')
       .notNull()
       .references(() => seasons.id),
-    status: text('status').$type<'open' | 'resolved' | 'expired'>().notNull(),
+    /**
+     * `open`: gira mientras Claude piensa. `resolved`: ya tiene número. `expired`: se cerró sin
+     * tirada. `deferred`: tirada pendiente (el turno acabó sin ventana visible) que espera a que
+     * el jugador la gaste con GIRAR.
+     */
+    status: text('status').$type<'open' | 'resolved' | 'expired' | 'deferred'>().notNull(),
+    /** Cuándo empezó a girar (en una tirada pendiente, cuándo se gastó). */
     openedAt: ts('opened_at').notNull(),
     resolvedAt: ts('resolved_at'),
     expiredAt: ts('expired_at'),
     revealAt: ts('reveal_at'),
-    /** Turno que resolvió la ronda (para responder igual a sus reintentos). */
+    /** Cuándo se guardó como tirada pendiente (null si se jugó en directo). */
+    deferredAt: ts('deferred_at'),
+    /**
+     * Turno que cerró la ronda: la resolvió, la guardó como pendiente o la descartó por el tope
+     * (para responder igual a sus reintentos).
+     */
     resolvedByTurnId: text('resolved_by_turn_id'),
+    /** `requestId` del GIRAR que gastó esta tirada pendiente (idempotencia de los reintentos). */
+    spendRequestId: text('spend_request_id'),
     result: smallint('result'),
     source: text('source').$type<'slip' | 'repeat' | 'default' | 'none'>(),
     staked: coins('staked'),
@@ -210,6 +235,14 @@ export const rounds = pgTable(
     interestCharged: coins('interest_charged'),
     colorStreakColor: text('color_streak_color').$type<'red' | 'black' | 'green'>(),
     colorStreakCount: integer('color_streak_count'),
+    /** Número de tirada dentro de la temporada (1, 2, 3…): orden estable de las estadísticas. */
+    spinNumber: integer('spin_number'),
+    /** Racha del jugador justo después de esta tirada (para el ON FIRE del espectáculo). */
+    streakAfter: integer('streak_after'),
+    /** Patrimonio justo después de esta tirada (gráfica de ESTADÍSTICAS). */
+    netWorthAfter: coins('net_worth_after'),
+    /** Si en esta tirada el patrimonio cayó a 0 o menos por primera vez en la temporada. */
+    wentBroke: boolean('went_broke'),
   },
   t => [
     // Una sola ronda abierta por usuario, garantizado por la base de datos.
@@ -218,7 +251,28 @@ export const rounds = pgTable(
       .where(sql`${t.status} = 'open'`),
     index('rounds_user_resolved_idx').on(t.userId, t.resolvedAt),
     index('rounds_season_status_idx').on(t.seasonId, t.status),
-    check('rounds_status_check', sql`${t.status} in ('open', 'resolved', 'expired')`),
+    // Cola de tiradas pendientes de cada usuario y temporada, de la más antigua a la última.
+    index('rounds_user_deferred_idx')
+      .on(t.userId, t.seasonId, t.deferredAt)
+      .where(sql`${t.status} = 'deferred'`),
+    // Estadísticas de la temporada: tiradas resueltas de un usuario en orden.
+    index('rounds_user_season_resolved_idx')
+      .on(t.userId, t.seasonId, t.resolvedAt)
+      .where(sql`${t.status} = 'resolved'`),
+    // "Coleccionista de ceros": cuántas veces le ha salido el 0 (todas las temporadas).
+    index('rounds_user_zero_idx')
+      .on(t.userId)
+      .where(sql`${t.status} = 'resolved' and ${t.result} = 0`),
+    // Último `revealAt` del usuario: el ritmo de GIRAR lo marca la animación.
+    index('rounds_user_reveal_idx').on(t.userId, t.revealAt),
+    uniqueIndex('rounds_spend_request_key')
+      .on(t.userId, t.spendRequestId)
+      .where(sql`${t.spendRequestId} is not null`),
+    check('rounds_status_check', sql`${t.status} in ('open', 'resolved', 'expired', 'deferred')`),
+    check(
+      'rounds_deferred_check',
+      sql`${t.status} <> 'deferred' or (${t.deferredAt} is not null and ${t.resolvedByTurnId} is not null)`,
+    ),
     check('rounds_result_check', sql`${t.result} is null or (${t.result} between 0 and 36)`),
   ],
 )
@@ -260,6 +314,27 @@ export const bets = pgTable(
   ],
 )
 
+// ---------------------------------------------------------------- logros
+
+/**
+ * Logros de broma conseguidos (`ACHIEVEMENTS` de shared). Son para siempre: uno por usuario y
+ * logro, con la temporada en la que se consiguió. No guarda nada del usuario aparte del id.
+ */
+export const achievements = pgTable(
+  'achievements',
+  {
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    achievementId: text('achievement_id').notNull(),
+    seasonId: text('season_id')
+      .notNull()
+      .references(() => seasons.id),
+    unlockedAt: ts('unlocked_at').notNull(),
+  },
+  t => [primaryKey({ columns: [t.userId, t.achievementId] })],
+)
+
 // ---------------------------------------------------------------- Salón de la Ruina
 
 export const hallOfRuin = pgTable(
@@ -286,3 +361,4 @@ export type SessionRow = typeof sessions.$inferSelect
 export type WalletRow = typeof wallets.$inferSelect
 export type RoundRow = typeof rounds.$inferSelect
 export type TurnRow = typeof turns.$inferSelect
+export type AchievementRow = typeof achievements.$inferSelect

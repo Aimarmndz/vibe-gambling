@@ -1,0 +1,2 @@
+ALTER TABLE "users" DROP CONSTRAINT "users_locale_check";--> statement-breakpoint
+ALTER TABLE "users" ADD CONSTRAINT "users_locale_check" CHECK ("users"."locale" is null or "users"."locale" ~ '^[a-z]{2,3}(-[A-Z]{2})?$');

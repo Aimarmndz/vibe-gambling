@@ -8,6 +8,27 @@
       "when": 1791833574010,
       "tag": "0000_init",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791842107139,
+      "tag": "0001_pending_spins",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791844256564,
+      "tag": "0002_spectacle",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1791844396975,
+      "tag": "0003_locales",
+      "breakpoints": true
     }
   ]
 }
