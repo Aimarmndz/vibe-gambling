@@ -108,6 +108,9 @@ export const redeemResponseSchema = z.object({ v: versionSchema, user: selfUserS
 
 export const okResponseSchema = z.object({ v: versionSchema, ok: z.literal(true) }).strict()
 
+/** Cierra la sesión con la que se hace la petición (la del mod o la de la web). */
+export const logoutRequestSchema = z.object({ v: versionSchema }).strict()
+
 // ---------------------------------------------------------------- turnos
 
 /** Lo que el mod manda al empezar un turno. Ni prompts, ni rutas, ni código: nada más. */

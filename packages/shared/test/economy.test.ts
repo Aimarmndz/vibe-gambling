@@ -13,6 +13,7 @@ import {
   minBet,
   netWorth,
   resolveBets,
+  publicGameConfigSchema,
   toPublicGameConfig,
   totalStake,
 } from '../src/index.ts'
@@ -58,6 +59,8 @@ describe('configuración del juego', () => {
     expect(pub.chips).toEqual([10, 50, 100])
     expect(pub).not.toHaveProperty('loan.maxDebt')
     expect(pub.minSpinMs).toBe(4000)
+    expect(pub.seasonStartDay).toBe(cfg.season.startDay)
+    expect(publicGameConfigSchema.parse(pub)).toEqual(pub)
   })
 })
 

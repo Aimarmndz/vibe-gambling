@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import {
   clientMessageSchema,
   leaderboardQuerySchema,
+  logoutRequestSchema,
   PROTOCOL_VERSION,
   serverMessageSchema,
   settingsRequestSchema,
@@ -26,6 +27,11 @@ describe('protocolo', () => {
     expect(turnEndRequestSchema.parse(end)).toEqual(end)
     expect(turnEndRequestSchema.safeParse({ ...end, command: 'git push' }).success).toBe(false)
     expect(turnEndRequestSchema.safeParse({ ...end, durationMs: -1 }).success).toBe(false)
+  })
+
+  it('logout: solo la versión, nada más', () => {
+    expect(logoutRequestSchema.parse({ v: 1 })).toEqual({ v: 1 })
+    expect(logoutRequestSchema.safeParse({ v: 1, all: true }).success).toBe(false)
   })
 
   it('rechaza versiones de protocolo desconocidas', () => {

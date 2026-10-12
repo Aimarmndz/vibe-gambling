@@ -109,6 +109,8 @@ export const publicGameConfigSchema = z
     minSpinMs: z.number().int(),
     colorWarningAt: z.number().int(),
     seasonTimeZone: z.string(),
+    /** Día del mes en que empieza cada temporada (para calcular cuánto le queda). */
+    seasonStartDay: z.number().int().min(1).max(28),
   })
   .strict()
 export type PublicGameConfig = z.output<typeof publicGameConfigSchema>
@@ -128,5 +130,6 @@ export function toPublicGameConfig(cfg: GameConfig): PublicGameConfig {
     minSpinMs: cfg.spin.minSpinMs,
     colorWarningAt: cfg.streak.colorWarningAt,
     seasonTimeZone: cfg.season.timeZone,
+    seasonStartDay: cfg.season.startDay,
   }
 }
