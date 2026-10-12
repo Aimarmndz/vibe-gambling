@@ -212,6 +212,7 @@ export async function apiRoutes(parent: FastifyInstance, options: ApiOptions): P
         slip: state.slip,
         round: state.round,
         brokeRank,
+        achievements: state.achievements,
       }
     },
   })

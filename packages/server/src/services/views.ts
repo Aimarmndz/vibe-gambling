@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Traduce filas de la base de datos a los objetos del protocolo de `shared`.
-import { colorOf, netWorth, totalStake } from '@vibe-gambling/shared'
+import { colorOf, localeSchema, netWorth, spectacleOf, totalStake } from '@vibe-gambling/shared'
 import type {
   Bet,
   GameConfig,
@@ -9,6 +9,7 @@ import type {
   ResolvedRound,
   SelfUser,
   Slip,
+  SpectacleRules,
   Wallet,
 } from '@vibe-gambling/shared'
 
@@ -24,10 +25,16 @@ export interface BetResultRow {
 export class Views {
   readonly #githubWebBaseUrl: string
   readonly #game: GameConfig
+  readonly #spectacle: SpectacleRules
 
   constructor(githubWebBaseUrl: string, game: GameConfig) {
     this.#githubWebBaseUrl = githubWebBaseUrl
     this.#game = game
+    this.#spectacle = {
+      bigWin: game.bigWin,
+      onFireAt: game.streak.onFireAt,
+      colorWarningAt: game.streak.colorWarningAt,
+    }
   }
 
   profileUrl(login: string): string {
@@ -42,13 +49,17 @@ export class Views {
     return {
       ...this.publicUser(user),
       hidden: user.hidden,
-      locale: user.locale === 'en' || user.locale === 'es' ? user.locale : null,
+      // Un idioma que ya no está registrado (se quitó su carpeta de locales/) se trata como sin elegir.
+      locale: localeSchema.safeParse(user.locale).data ?? null,
       createdAt: user.createdAt.toISOString(),
     }
   }
 
-  /** Cartera; si aún no existe la fila (cartera perezosa), la de una temporada recién empezada. */
-  wallet(row: WalletRow | undefined, seasonId: string): Wallet {
+  /**
+   * Cartera; si aún no existe la fila (cartera perezosa), la de una temporada recién empezada.
+   * `pendingSpins` es el número de rondas `deferred` del usuario en esa temporada.
+   */
+  wallet(row: WalletRow | undefined, seasonId: string, pendingSpins: number): Wallet {
     if (!row) {
       const balance = this.#game.startingBalance
       return {
@@ -60,6 +71,7 @@ export class Views {
         loans: 0,
         currentStreak: 0,
         bestStreak: 0,
+        pendingSpins,
       }
     }
     return {
@@ -71,6 +83,7 @@ export class Views {
       loans: row.loans,
       currentStreak: row.currentStreak,
       bestStreak: row.bestStreak,
+      pendingSpins,
     }
   }
 
@@ -114,18 +127,23 @@ export class Views {
     ) {
       throw new Error(`la ronda ${round.id} no está resuelta del todo`)
     }
+    const betViews = bets.map(b => ({
+      selection: b.selection,
+      amount: b.amount,
+      won: b.won,
+      payout: b.payout,
+    }))
+    const colorStreak =
+      round.colorStreakColor !== null && round.colorStreakCount !== null
+        ? { color: round.colorStreakColor, count: round.colorStreakCount }
+        : null
     return {
       roundId: round.id,
       openedAt: round.openedAt.toISOString(),
       resolvedAt: resolvedAt.toISOString(),
       result,
       color: colorOf(result),
-      bets: bets.map(b => ({
-        selection: b.selection,
-        amount: b.amount,
-        won: b.won,
-        payout: b.payout,
-      })),
+      bets: betViews,
       source,
       staked,
       returned,
@@ -134,11 +152,14 @@ export class Views {
       gitPushOk,
       testFailed,
       interestCharged,
-      colorStreak:
-        round.colorStreakColor !== null && round.colorStreakCount !== null
-          ? { color: round.colorStreakColor, count: round.colorStreakCount }
-          : null,
+      colorStreak,
       revealAt: revealAt.toISOString(),
+      // Las rondas anteriores a la v2 no guardaron la racha ni la bancarrota: sin fuego ni aviso.
+      spectacle: spectacleOf(
+        { result, net, staked, jackpot, colorStreak, bets: betViews },
+        { streak: round.streakAfter ?? 0, bankrupt: round.wentBroke ?? false },
+        this.#spectacle,
+      ),
     }
   }
 }

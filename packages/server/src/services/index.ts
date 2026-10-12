@@ -4,6 +4,7 @@ import type { Config } from '../config.ts'
 import type { Database } from '../db/client.ts'
 import type { Clock } from '../lib/clock.ts'
 import type { Rng } from '../lib/rng.ts'
+import { AchievementService } from './achievements.ts'
 import { AuthService } from './auth.ts'
 import { GameService } from './game.ts'
 import { GitHubClient } from './github.ts'
@@ -11,6 +12,7 @@ import { LeaderboardService } from './leaderboard.ts'
 import type { Notifier } from './notifier.ts'
 import { SeasonService } from './seasons.ts'
 import type { SeasonJobLogger } from './seasons.ts'
+import { StatsService } from './stats.ts'
 import { Views } from './views.ts'
 
 export interface Services {
@@ -19,6 +21,7 @@ export interface Services {
   auth: AuthService
   leaderboard: LeaderboardService
   seasons: SeasonService
+  stats: StatsService
 }
 
 export interface ServiceDeps {
@@ -42,7 +45,9 @@ export function createServices(deps: ServiceDeps): Services {
     timeoutMs: env.GITHUB_TIMEOUT_MS,
     userAgent: deps.userAgent,
   })
-  const gameService = new GameService({ db, game, clock, rng, views, notifier })
+  const achievements = new AchievementService(game)
+  const gameService = new GameService({ db, game, clock, rng, views, notifier, achievements })
+  const stats = new StatsService({ db, game, currentSeason: () => gameService.currentSeason().id })
   const auth = new AuthService({
     db,
     clock,
@@ -69,5 +74,5 @@ export function createServices(deps: ServiceDeps): Services {
     logger: deps.logger,
     intervalMs: env.SEASON_CHECK_INTERVAL_MS,
   })
-  return { views, game: gameService, auth, leaderboard, seasons }
+  return { views, game: gameService, auth, leaderboard, seasons, stats }
 }

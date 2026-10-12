@@ -1,7 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Sesiones propias, enlaces de un solo uso y login con GitHub (Device Flow).
 // Nunca se guarda un token en claro: solo su SHA-256. El token de GitHub ni siquiera se guarda.
-import type { DevicePollResponse, DeviceStartResponse, SelfUser } from '@vibe-gambling/shared'
+import type {
+  DevicePollResponse,
+  DeviceStartResponse,
+  Locale,
+  SelfUser,
+} from '@vibe-gambling/shared'
 import { and, eq, gt, isNull, lte, or, sql } from 'drizzle-orm'
 
 import type { Database } from '../db/client.ts'
@@ -263,7 +268,7 @@ export class AuthService {
 
   async updateSettings(
     userId: string,
-    changes: { hidden?: boolean | undefined; locale?: 'en' | 'es' | null | undefined },
+    changes: { hidden?: boolean | undefined; locale?: Locale | null | undefined },
   ): Promise<SelfUser> {
     const set: Partial<Pick<UserRow, 'hidden' | 'locale' | 'updatedAt'>> = {
       updatedAt: this.#d.clock.now(),

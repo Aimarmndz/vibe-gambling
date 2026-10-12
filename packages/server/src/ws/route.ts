@@ -83,6 +83,7 @@ export async function wsRoutes(app: FastifyInstance, options: WsOptions): Promis
       sessionId: ctx.auth.session.id,
       alive: true,
       pending: [],
+      visible: true,
     }
     hub.add(connection)
     socket.on('pong', () => {
@@ -130,8 +131,10 @@ export async function wsRoutes(app: FastifyInstance, options: WsOptions): Promis
       const parsed = parseMessage(data, isBinary)
       chain = chain
         .then(async () => {
-          // Un `ping` no toca nada: no merece una consulta.
-          if ((typeof parsed === 'object' && parsed?.type === 'ping') || (await stillValid())) {
+          // Un `ping` o un `presence` no tocan nada: no merecen una consulta.
+          const cheap =
+            typeof parsed === 'object' && (parsed?.type === 'ping' || parsed?.type === 'presence')
+          if (cheap || (await stillValid())) {
             await handle(services, hub, connection, parsed)
           }
         })
@@ -175,6 +178,7 @@ async function sendHello(services: Services, hub: Hub, connection: Connection): 
     round: state.round,
     lastRound: state.lastRound,
     serverTime: services.game.now().toISOString(),
+    achievements: state.achievements,
   })
   hub.ready(connection)
 }
@@ -220,6 +224,41 @@ async function handle(
         await services.auth.updateSettings(userId, {
           hidden: message.hidden,
           locale: message.locale,
+        })
+        return
+      case 'presence':
+        // No toca la base de datos: solo decide si el próximo turno se juega en directo.
+        hub.setVisible(connection, message.visible)
+        return
+      case 'spin.pending': {
+        const spent = await services.game.spendPending(userId, {
+          quick: message.quick,
+          requestId: message.requestId,
+        })
+        // Reintento de un GIRAR ya hecho: a esta ventana se le repite el resultado.
+        if (!spent.fresh) {
+          hub.sendTo(connection, {
+            v: V,
+            type: 'round.resolved',
+            round: spent.round,
+            wallet: spent.wallet,
+          })
+        }
+        return
+      }
+      case 'stats.request':
+        // Solo a la ventana que lo pide: es una pantalla, no un aviso.
+        hub.sendTo(connection, {
+          v: V,
+          type: 'stats',
+          stats: await services.stats.stats(userId, message.seasonId),
+        })
+        return
+      case 'bank.request':
+        hub.sendTo(connection, {
+          v: V,
+          type: 'bank',
+          bank: await services.stats.bank(userId, message.seasonId),
         })
         return
       case 'sync':
