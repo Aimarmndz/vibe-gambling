@@ -1,0 +1,17 @@
+{
+  "name": "vibe-gambling",
+  "owner": { "name": "Aimar", "url": "https://github.com/Aimarmndz" },
+  "metadata": {
+    "description": "🎰 Every prompt is a spin. A PS1-style roulette for Claude Code. Fake coins only."
+  },
+  "plugins": [
+    {
+      "name": "vibe-gambling",
+      "source": "./packages/mod",
+      "description": "🎰 Every prompt is a spin. A PS1-style roulette that pops up while Claude Code thinks. Fake coins only.",
+      "homepage": "https://vibe.aimar.dev",
+      "repository": "https://github.com/Aimarmndz/vibe-gambling",
+      "license": "AGPL-3.0-or-later"
+    }
+  ]
+}
