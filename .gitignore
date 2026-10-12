@@ -1,13 +1,41 @@
+# Especificación local (nunca se sube)
 .plan/
+
+# Dependencias y builds
 node_modules/
 dist/
+*.tsbuildinfo
+*.tgz
+.vite/
+.eslintcache
+.cache/
+
+# Tests: cobertura, Playwright (informes, trazas, estado de sesión) y testcontainers
 coverage/
 playwright-report/
 test-results/
-*.tsbuildinfo
-.DS_Store
-.env
-.env.*
+blob-report/
+playwright/.cache/
+playwright/.auth/
+.testcontainers*
+
+# Tipos que escribe el engine de Claude Code al cargar el mod
+packages/mod/.claude-plugin/types/
+
+# Secretos: ningún .env salvo los de ejemplo, ni claves ni certificados
+.env*
 !.env.example
 !**/.env.example
-packages/mod/.claude-plugin/types/
+*.pem
+*.key
+*.crt
+*.p12
+
+# Logs y basura del sistema o del editor
+*.log
+npm-debug.log*
+pnpm-debug.log*
+.DS_Store
+Thumbs.db
+.idea/
+*.swp
