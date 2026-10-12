@@ -27,6 +27,8 @@ RUN pnpm install --frozen-lockfile \
 
 COPY tsconfig.base.json ./
 COPY config ./config
+# Textos y banderas de cada idioma: la web los empaqueta (import.meta.glob) en la build.
+COPY locales ./locales
 COPY packages/shared ./packages/shared
 COPY packages/server ./packages/server
 COPY packages/web ./packages/web
