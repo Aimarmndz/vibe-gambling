@@ -10,6 +10,7 @@ import {
   SESSION_KEY,
   command,
   meReply,
+  queuedReply,
   turnStartReply,
   PLUGIN_VERSION,
   SERVER,
@@ -325,5 +326,56 @@ test(
     }
     expect(logLeaks(w.logs)).toEqual([])
     expect(w.logs.length).toBeGreaterThan(0)
+  },
+)
+
+test(
+  'with the window closed (queued and dropped spins) nothing new leaves the computer',
+  { options: TEST_OPTIONS },
+  async ($, on) => {
+    bashTool(on)
+    let pending = 99
+    const w = world(on, {
+      routes: {
+        ...happyCasino(false),
+        // El servidor guarda la tirada y, a la segunda, ya está en el tope.
+        '/api/turn/end': () => {
+          pending = Math.min(100, pending + 1)
+          return queuedReply(pending, pending === 100 && pending > 99)
+        },
+      },
+      store: LOGGED_IN,
+      files: ['/usr/bin/chromium'],
+      env: { HOME: '/home/CWD-e5b6f0' },
+    })
+    await startSession($, w, { cwd: '/home/player/REPO-ff0942/CWD-e5b6f0' })
+    for (let i = 0; i < 2; i++) {
+      await playTurn($, w, {
+        prompt: 'PROMPT-7c1f3a: push it',
+        answer: 'ANSWER-92be0d',
+        bash: [
+          {
+            command: 'git push origin BASHCMD-4d8e21',
+            stderr: 'To REPO-ff0942\n a..b main -> main',
+          },
+          { command: 'pnpm test FILE-31d2aa', exitCode: 1, stdout: 'STDOUT-0a9c77' },
+        ],
+      })
+    }
+    await w.clock.advance(10_000)
+    expect(w.toasts).toHaveLength(2)
+    for (const request of w.requests) checkRequest(request)
+    const ends = w.to('/api/turn/end')
+    expect(ends).toHaveLength(2)
+    for (const end of ends) {
+      expect(Object.keys(end.body as object).sort()).toEqual(
+        ['durationMs', 'gitPushOk', 'os', 'pluginVersion', 'testFailed', 'turnId', 'v'].sort(),
+      )
+      expect(end.body).toMatchObject({ gitPushOk: true, testFailed: true })
+    }
+    // Ni el toast ni la status line repiten nada del trabajo.
+    for (const text of [...w.toasts, w.lastStatus() ?? '']) {
+      expect(MARKERS.filter(marker => text.includes(marker))).toEqual([])
+    }
   },
 )

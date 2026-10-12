@@ -2,6 +2,7 @@
 // `/vibe-server`: enseña el servidor y lo cambia solo si `/api/meta` habla nuestro protocolo.
 import { expect, test } from 'claude-code/testing'
 
+import { USER_CONFIG_DEFAULTS } from '../hooks/generated/manifest.ts'
 import { SERVER, TEST_OPTIONS, startSession, world, command } from './support/harness.ts'
 
 const meta = (protocol: number, isOfficial: boolean, name = 'Casino de Pruebas') => ({
@@ -42,10 +43,11 @@ test('`default` goes back to the URL in the manifest', { options: TEST_OPTIONS }
   const w = world(on, { routes: { '/api/meta': meta(1, true) } })
   await startSession($, w)
   await command($, 'vibe-server', 'default')
-  expect(w.to('/api/meta')[0]?.url).toBe('https://default.casino.test/api/meta')
-  expect(w.configSets).toEqual([
-    { key: 'vibe-gambling.serverUrl', value: 'https://default.casino.test' },
-  ])
+  // El de `plugin.json`, generado en el mod (un test de shared comprueba que coinciden).
+  const manifestUrl = USER_CONFIG_DEFAULTS.serverUrl
+  expect(manifestUrl).not.toBe(TEST_OPTIONS.serverUrl)
+  expect(w.to('/api/meta')[0]?.url).toBe(`${manifestUrl}/api/meta`)
+  expect(w.configSets).toEqual([{ key: 'vibe-gambling.serverUrl', value: manifestUrl }])
 })
 
 test(

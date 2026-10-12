@@ -5,6 +5,8 @@ import { mock } from 'claude-code/testing'
 import type { Engine, MockClock } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
+import { PLUGIN_VERSION } from '../../hooks/generated/manifest.ts'
+
 /** Configuración de test (la de producción vive en el manifiesto). */
 export const SERVER = 'https://casino.test'
 export const TEST_OPTIONS = {
@@ -19,7 +21,8 @@ export const TEST_OPTIONS = {
   revealMaxDelayMs: 30000,
 } as const
 
-export const PLUGIN_VERSION = '9.8.7'
+/** La versión que el mod manda en cada turno: la de `plugin.json`, generada en el mod. */
+export { PLUGIN_VERSION }
 export const TOKEN = 'T'.repeat(43)
 export const LOGIN = 'octocat'
 export const SESSION_KEY = `session:${SERVER}`
@@ -86,12 +89,19 @@ export interface World {
   readonly lastStatus: () => string | undefined
 }
 
-/** Manifiesto que el mod lee con `$.fs.read` (los tests no tocan el disco). */
-export const MANIFEST = JSON.stringify({
-  name: 'vibe-gambling',
-  version: PLUGIN_VERSION,
-  userConfig: { serverUrl: { type: 'string', default: 'https://default.casino.test' } },
-})
+/**
+ * ¿La ruta que llega a `fs.exists` es la del archivo falso? El engine resuelve la ruta con las
+ * reglas del SO que ejecuta el test, no con las del SO falso: en un host POSIX `C:\\…` es relativa
+ * a la sesión (`/sesión/C:\\…`), y en Windows `/Users/…` cuelga de la unidad actual
+ * (`D:\\Users\\…`). Se comparan sin unidad y con `/` como separador.
+ */
+export function isSameFakePath(resolved: string, file: string): boolean {
+  const slashes = (path: string): string => path.replaceAll('\\', '/')
+  const withoutDrive = (path: string): string => slashes(path).replace(/^[A-Za-z]:(?=\/)/, '')
+  return (
+    withoutDrive(resolved) === withoutDrive(file) || slashes(resolved).endsWith(`/${slashes(file)}`)
+  )
+}
 
 export function world(on: On, options: WorldOptions = {}): World {
   const clock = mock.clock(on, { now: Date.parse('2026-10-12T20:00:00.000Z') })
@@ -182,13 +192,12 @@ export function world(on: On, options: WorldOptions = {}): World {
       value: { exitCode, stdout, stderr: '', isStdoutTruncated: false, isStderrTruncated: false },
     }
   })
-  on('fs.read', (_$, e) =>
-    e.path.endsWith('/.claude-plugin/plugin.json') ? { value: MANIFEST } : { deny: 'ENOENT' },
-  )
+  // El mod no lee archivos (su versión y sus valores por defecto van generados en el código):
+  // si alguna vez lo hiciera, el test lo vería en vez de leer el disco de verdad.
+  on('fs.read', (_$, e) => ({ deny: `unexpected read of ${e.path}` }))
   on('fs.exists', (_$, e) => {
     checked.push(e.path)
-    // En un host POSIX el engine resuelve `C:\\…` como ruta relativa a la sesión: se compara el final.
-    return { value: [...files].some(file => e.path === file || e.path.endsWith(`/${file}`)) }
+    return { value: [...files].some(file => isSameFakePath(e.path, file)) }
   })
   on('config.set', (_$, e) => {
     configSets.push({ key: e.key, value: e.value })
@@ -319,6 +328,7 @@ export function wallet(overrides: Record<string, unknown> = {}) {
     loans: 0,
     currentStreak: 0,
     bestStreak: 1,
+    pendingSpins: 0,
     ...overrides,
   }
 }
@@ -365,6 +375,22 @@ export function resolvedReply(
         ...round,
       },
       wallet: wallet({ balance: 1100, netWorth: 1100, ...walletOverrides }),
+    },
+  }
+}
+
+/** Turno sin ventana visible: el servidor guarda la tirada (o la descarta por el tope). */
+export function queuedReply(
+  pendingSpins: number,
+  dropped = false,
+  walletOverrides: Record<string, unknown> = {},
+): Reply {
+  return {
+    json: {
+      v: 1,
+      status: 'queued',
+      dropped,
+      wallet: wallet({ pendingSpins, ...walletOverrides }),
     },
   }
 }

@@ -48,6 +48,58 @@ test(
 )
 
 test(
+  '/balance speaks French with LANG=fr_FR.UTF-8 (narrow no-break space between thousands)',
+  { options: { ...TEST_OPTIONS, language: 'auto' } },
+  async ($, on) => {
+    const w = world(on, {
+      routes: {
+        '/api/me': meReply({
+          wallet: wallet({ balance: 12345, debt: 2040, netWorth: -1790 }),
+          brokeRank: null,
+        }),
+      },
+      store: LOGGED_IN,
+      env: { LANG: 'fr_FR.UTF-8' },
+    })
+    await startSession($, w)
+    const { text } = await command($, 'balance')
+    expect(text).toBe(
+      '🎰 Solde 12\u202f345 · Dette 2\u202f040 · Patrimoine −1\u202f790 · pas encore classé',
+    )
+    expect(w.lastStatus()).toBe('🎰 12\u202f345 🪙 · dette 2\u202f040')
+  },
+)
+
+test(
+  '/balance speaks German with LANG=de_DE.UTF-8',
+  { options: { ...TEST_OPTIONS, language: 'auto' } },
+  async ($, on) => {
+    const w = world(on, {
+      routes: { '/api/me': meReply({ wallet: wallet({ balance: 12345 }), brokeRank: 3 }) },
+      store: LOGGED_IN,
+      env: { LANG: 'de_DE.UTF-8' },
+    })
+    await startSession($, w)
+    const { text } = await command($, 'balance')
+    expect(text).toBe('🎰 Kontostand 12.345 · Schulden 0 · Vermögen 1.000 · #3')
+  },
+)
+
+test(
+  'an explicit language option wins over the system one',
+  { options: { ...TEST_OPTIONS, language: 'de' } },
+  async ($, on) => {
+    const w = world(on, {
+      routes: { '/api/me': meReply({ wallet: wallet({ balance: 5 }), brokeRank: null }) },
+      store: LOGGED_IN,
+      env: { LANG: 'fr_FR.UTF-8' },
+    })
+    await startSession($, w)
+    expect((await command($, 'balance')).text).toContain('Kontostand 5')
+  },
+)
+
+test(
   '/balance says when you are hidden from the leaderboard',
   { options: TEST_OPTIONS },
   async ($, on) => {

@@ -27,7 +27,7 @@ describe('parseConfig', () => {
   })
 
   test('reports every bad or missing field', () => {
-    const parsed = parseConfig({ serverUrl: 'gopher://x', windowSize: 'big', language: 'fr' })
+    const parsed = parseConfig({ serverUrl: 'gopher://x', windowSize: 'big', language: 'klingon' })
     expect(parsed.ok).toBe(false)
     if (!parsed.ok) {
       const text = parsed.errors.join('\n')

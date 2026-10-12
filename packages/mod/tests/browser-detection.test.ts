@@ -14,6 +14,7 @@ import {
   SERVER,
   TEST_OPTIONS,
   happyCasino,
+  isSameFakePath,
   playTurn,
   startSession,
   world,
@@ -172,6 +173,19 @@ describe('launch commands', () => {
 })
 
 describe('with a fake OS', () => {
+  // El engine resuelve las rutas con las reglas del SO que ejecuta el test (el CI corre en Linux,
+  // macOS y Windows): los archivos falsos tienen que encontrarse igual en los tres.
+  test('the fake files are found whatever the host resolves', () => {
+    const mac = '/Users/player/Applications/Google Chrome.app'
+    const edge = 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe'
+    expect(isSameFakePath(mac, mac)).toBe(true)
+    expect(isSameFakePath('D:\\Users\\player\\Applications\\Google Chrome.app', mac)).toBe(true)
+    expect(isSameFakePath(edge, edge)).toBe(true)
+    expect(isSameFakePath(`/home/player/project/${edge}`, edge)).toBe(true)
+    expect(isSameFakePath('D:\\Users\\player\\Applications\\Brave Browser.app', mac)).toBe(false)
+    expect(isSameFakePath('/Users/player/Applications/Google Chrome.app.bak', mac)).toBe(false)
+  })
+
   test('macOS with Chrome', { options: TEST_OPTIONS }, async ($, on) => {
     const w = world(on, {
       routes: happyCasino(false),
