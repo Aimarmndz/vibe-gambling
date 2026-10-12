@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Comprueba que la versión del proyecto es la misma en todos los manifiestos (ver
-// scripts/lib/versions.ts) y que CHANGELOG.md tiene su sección.
+// scripts/lib/versions.ts), que la copia generada del manifiesto del mod
+// (`packages/mod/hooks/generated/manifest.ts`) está al día y que CHANGELOG.md tiene su sección.
 //
 // Uso:
 //   node scripts/check-versions.ts                 # en `pnpm lint` y en el CI
@@ -8,14 +9,15 @@
 //                                                  # empujada tiene que ser `v` + esa versión
 // Sale con código 1 si algo no cuadra y con 2 si los argumentos no son válidos.
 import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, relative } from 'node:path'
 import { parseArgs } from 'node:util'
 
 import { findSection, parseChangelog } from './lib/changelog.ts'
 import { ROOT } from './lib/repo.ts'
 import { checkVersions } from './lib/versions.ts'
+import { isModManifestFresh, MOD_MANIFEST_MODULE } from './lib/mod-manifest.ts'
 
-function main(): number {
+async function main(): Promise<number> {
   let tag: string | undefined
   try {
     tag = parseArgs({ options: { tag: { type: 'string' } } }).values.tag
@@ -27,6 +29,11 @@ function main(): number {
   const { version, problems } = checkVersions()
   if (tag !== undefined && tag !== `v${version}`) {
     problems.push(`tag "${tag}" does not match the project version (expected "v${version}")`)
+  }
+  if (!(await isModManifestFresh())) {
+    problems.push(
+      `${relative(ROOT, MOD_MANIFEST_MODULE)} does not match the mod's plugin.json (run \`pnpm sync:mod\`)`,
+    )
   }
   const changelog = parseChangelog(readFileSync(join(ROOT, 'CHANGELOG.md'), 'utf8'))
   const section = findSection(changelog, version)
@@ -47,7 +54,7 @@ function main(): number {
 }
 
 try {
-  process.exitCode = main()
+  process.exitCode = await main()
 } catch (error) {
   console.error(`check-versions: ${error instanceof Error ? error.message : String(error)}`)
   process.exitCode = 1

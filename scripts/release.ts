@@ -12,7 +12,7 @@
 // generan desde los Conventional Commits desde la última etiqueta `v*`. Si la versión pedida es
 // la actual y aún no tiene etiqueta (la primera release), solo se fecha su sección y se etiqueta.
 import { readFileSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, relative } from 'node:path'
 import { parseArgs } from 'node:util'
 
 import {
@@ -35,6 +35,7 @@ import {
   parseSemVer,
 } from './lib/semver.ts'
 import { checkVersions, collectVersionFields, writeVersion } from './lib/versions.ts'
+import { MOD_MANIFEST_MODULE, writeModManifest } from './lib/mod-manifest.ts'
 
 // Rama desde la que se publica (política del repo, ver docs/RELEASING.md).
 const RELEASE_BRANCH = 'main'
@@ -164,13 +165,16 @@ function isFirstRelease(version: string): boolean {
   return gitOrNull(['rev-parse', '--quiet', '--verify', `refs/tags/v${version}`]) === null
 }
 
-function apply(release: Plan): void {
+async function apply(release: Plan): Promise<void> {
   const changelogPath = join(ROOT, CHANGELOG)
-  const touched = [...new Set([...collectVersionFields().map(f => f.file), CHANGELOG])]
+  // La versión del mod también va generada en su código (`hooks/generated/manifest.ts`).
+  const generated = relative(ROOT, MOD_MANIFEST_MODULE)
+  const touched = [...new Set([...collectVersionFields().map(f => f.file), generated, CHANGELOG])]
   // Copia de lo que había, para dejarlo todo como estaba si algo falla antes del commit.
   const backup = new Map(touched.map(file => [file, readFileSync(join(ROOT, file), 'utf8')]))
   try {
     if (release.from !== release.to) writeVersion(release.from, release.to)
+    await writeModManifest()
     writeFileSync(changelogPath, release.changelog)
     const after = checkVersions()
     if (after.problems.length > 0 || after.version !== release.to) {
@@ -198,7 +202,7 @@ function apply(release: Plan): void {
   ])
 }
 
-function main(): number {
+async function main(): Promise<number> {
   let parsed
   try {
     parsed = parseArgs({
@@ -264,7 +268,7 @@ function main(): number {
     for (const problem of release.problems) console.error(`  - ${problem}`)
     return 1
   }
-  apply(release)
+  await apply(release)
   console.log(
     `Committed "chore(release): ${release.tag}" and tagged ${release.tag} (nothing pushed).`,
   )
@@ -274,7 +278,7 @@ function main(): number {
 }
 
 try {
-  process.exitCode = main()
+  process.exitCode = await main()
 } catch (error) {
   console.error(`release: ${error instanceof Error ? error.message : String(error)}`)
   process.exitCode = 1

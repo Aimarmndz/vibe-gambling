@@ -2,9 +2,13 @@
 // Genera en `packages/mod/hooks/generated/` la copia de lo que el mod necesita de `shared`.
 //
 // El mod se instala copiando solo `packages/mod`, así que no puede importar `packages/shared`.
-// Este script copia las frases (tal cual) y las constantes del protocolo (versión, SO, idiomas,
-// códigos de error, longitudes de los textos y rutas). `packages/shared/test/mod-sync.test.ts` falla si la copia está
-// desactualizada.
+// Este script copia la lógica de las frases (tal cual; las frases de cada idioma las genera
+// `scripts/gen-locales.ts` desde `locales/`) y las constantes del protocolo (versión, SO, idiomas,
+// códigos de error, longitudes de los textos y rutas). `packages/shared/test/mod-contract.test.ts`
+// falla si la copia está desactualizada.
+//
+// También escribe `manifest.ts` (versión y valores por defecto del `plugin.json` del mod), que se
+// genera en scripts/lib/mod-manifest.ts.
 //
 // Uso: `node scripts/sync-mod-shared.ts` (escribe) o `node scripts/sync-mod-shared.ts --check`.
 import { readFile, writeFile, mkdir } from 'node:fs/promises'
@@ -21,13 +25,14 @@ import {
   TEXT_LIMITS,
 } from '../packages/shared/src/protocol/common.ts'
 import { API_ROUTES, PAGE_PATHS } from '../packages/shared/src/protocol/routes.ts'
+import { MOD_MANIFEST_MODULE, renderModManifest } from './lib/mod-manifest.ts'
 
 export const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const SHARED_I18N = join(REPO_ROOT, 'packages/shared/src/i18n')
 export const GENERATED_DIR = join(REPO_ROOT, 'packages/mod/hooks/generated')
 
 /** Archivos de `shared/src/i18n` que se copian tal cual (no importan nada fuera de la carpeta). */
-const VERBATIM_I18N = ['phrases.ts', 'phrases.en.ts', 'phrases.es.ts'] as const
+const VERBATIM_I18N = ['phrases.ts'] as const
 
 const SPDX = '// SPDX-License-Identifier: AGPL-3.0-or-later'
 
@@ -64,6 +69,19 @@ function renderProtocol(): string {
   ].join('\n')
 }
 
+/** Mismo formato que el resto del repo, para que `prettier --check` no proteste. */
+async function prettify(path: string, text: string): Promise<string> {
+  const options = await resolveConfig(path)
+  return format(text, { ...options, filepath: path })
+}
+
+async function readTextOrNull(path: string): Promise<string | null> {
+  return readFile(path, 'utf8').catch((error: NodeJS.ErrnoException) => {
+    if (error.code === 'ENOENT') return null
+    throw error
+  })
+}
+
 /** Devuelve el contenido esperado de cada archivo generado (ruta absoluta → texto). */
 export async function renderModSharedFiles(): Promise<Map<string, string>> {
   const files = new Map<string, string>()
@@ -74,12 +92,9 @@ export async function renderModSharedFiles(): Promise<Map<string, string>> {
   }
   files.set(join(GENERATED_DIR, 'protocol.ts'), renderProtocol())
 
-  // Mismo formato que el resto del repo, para que `prettier --check` no proteste.
   const formatted = new Map<string, string>()
-  for (const [path, text] of files) {
-    const options = await resolveConfig(path)
-    formatted.set(path, await format(text, { ...options, filepath: path }))
-  }
+  for (const [path, text] of files) formatted.set(path, await prettify(path, text))
+  formatted.set(MOD_MANIFEST_MODULE, await renderModManifest())
   return formatted
 }
 
@@ -87,10 +102,7 @@ export async function renderModSharedFiles(): Promise<Map<string, string>> {
 export async function staleModSharedFiles(): Promise<string[]> {
   const stale: string[] = []
   for (const [path, expected] of await renderModSharedFiles()) {
-    const current = await readFile(path, 'utf8').catch((error: NodeJS.ErrnoException) => {
-      if (error.code === 'ENOENT') return null
-      throw error
-    })
+    const current = await readTextOrNull(path)
     if (current !== expected) stale.push(relative(REPO_ROOT, path))
   }
   return stale
