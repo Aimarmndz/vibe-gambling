@@ -3,6 +3,8 @@
 import type { Authenticated } from '../services/auth.ts'
 
 export interface WsContext {
+  /** La IP ya ha pasado su cupo de peticiones (cada intento de conexión cuenta). */
+  limited: boolean
   originOk: boolean
   auth: Authenticated | null
 }

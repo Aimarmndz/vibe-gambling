@@ -13,6 +13,7 @@ import type { Config } from '../config.ts'
 import { lookup } from '../http/auth.ts'
 import { isAllowedOrigin, originOf } from '../http/security.ts'
 import { AppError } from '../lib/errors.ts'
+import { rateLimitKeyOf } from '../lib/real-ip.ts'
 import type { Services } from '../services/index.ts'
 import type { Connection, Hub } from './hub.ts'
 
@@ -28,19 +29,36 @@ export async function wsRoutes(app: FastifyInstance, options: WsOptions): Promis
   const { config, services, hub } = options
   const { env } = config
 
-  // Antes del upgrade: origen y sesión. El resultado se aplica ya con el socket abierto, para
-  // poder cerrarlo con los códigos 44xx del protocolo (el navegador no ve los 4xx de HTTP).
+  // Los intentos de conexión cuentan por IP real (con su propio cupo, aparte del de /api):
+  // si no, abrir y cerrar sockets sería una forma gratis de hacer consultas de sesión.
+  const ipLimit = app.createRateLimit({
+    max: env.RATE_LIMIT_IP_MAX,
+    timeWindow: env.RATE_LIMIT_IP_WINDOW_MS,
+    keyGenerator: (request: FastifyRequest) =>
+      `ws:${rateLimitKeyOf(request.realIp, env.RATE_LIMIT_IPV6_PREFIX)}`,
+  })
+
+  // Antes del upgrade: cupo, origen y sesión. El resultado se aplica ya con el socket abierto,
+  // para poder cerrarlo con los códigos 44xx del protocolo (el navegador no ve los 4xx de HTTP).
   app.addHook('preValidation', async (request: FastifyRequest) => {
+    const limit = await ipLimit(request)
+    const limited = !limit.isAllowed && limit.isExceeded
     const originOk = isAllowedOrigin(config, originOf(request))
     const cookie = request.cookies[env.SESSION_COOKIE_NAME]
     const auth =
-      originOk && cookie ? await lookup(services.auth, { via: 'cookie', token: cookie }) : null
-    request.wsContext = { originOk, auth: auth?.session.kind === 'web' ? auth : null }
+      !limited && originOk && cookie
+        ? await lookup(services.auth, { via: 'cookie', token: cookie })
+        : null
+    request.wsContext = { limited, originOk, auth: auth?.session.kind === 'web' ? auth : null }
   })
 
   app.get('/ws', { websocket: true }, (socket: WebSocket, request: FastifyRequest) => {
     const ctx = request.wsContext
-    if (!ctx?.originOk) {
+    if (!ctx || ctx.limited) {
+      socket.close(WS_CLOSE_CODES.tooManyConnections, 'rate limited')
+      return
+    }
+    if (!ctx.originOk) {
       socket.close(WS_CLOSE_CODES.forbiddenOrigin, 'forbidden origin')
       return
     }
@@ -83,8 +101,19 @@ export async function wsRoutes(app: FastifyInstance, options: WsOptions): Promis
       return count <= env.WS_RATE_LIMIT_MAX
     }
 
+    // La sesión puede caducar, revocarse o purgarse con la ventana abierta (o justo entre la
+    // comprobación previa y el alta en el hub): se vuelve a mirar antes de cada acción.
+    const stillValid = async (): Promise<boolean> => {
+      if (await services.auth.isSessionActive(connection.sessionId)) return true
+      hub.remove(connection)
+      socket.close(WS_CLOSE_CODES.unauthorized, 'session ended')
+      return false
+    }
+
     // Los mensajes de una misma ventana se procesan de uno en uno y en orden.
-    let chain: Promise<void> = sendHello(services, hub, connection).catch((error: unknown) => {
+    let chain: Promise<void> = (async () => {
+      if (await stillValid()) await sendHello(services, hub, connection)
+    })().catch((error: unknown) => {
       request.log.error({ err: error }, 'no se pudo preparar el hello')
       socket.close(WS_CLOSE_CODES.protocolError, 'hello failed')
     })
@@ -95,7 +124,12 @@ export async function wsRoutes(app: FastifyInstance, options: WsOptions): Promis
       }
       const parsed = parseMessage(data, isBinary)
       chain = chain
-        .then(() => handle(services, hub, connection, parsed))
+        .then(async () => {
+          // Un `ping` no toca nada: no merece una consulta.
+          if (parsed?.type === 'ping' || (await stillValid())) {
+            await handle(services, hub, connection, parsed)
+          }
+        })
         .catch((error: unknown) => {
           request.log.error({ err: error }, 'error procesando un mensaje WS')
           hub.sendTo(connection, errorMessage('internal', 'Something broke on our side.'))
@@ -134,7 +168,7 @@ async function sendHello(services: Services, hub: Hub, connection: Connection): 
     slip: state.slip,
     round: state.round,
     lastRound: state.lastRound,
-    serverTime: new Date().toISOString(),
+    serverTime: services.game.now().toISOString(),
   })
   hub.ready(connection)
 }

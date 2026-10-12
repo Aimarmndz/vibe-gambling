@@ -93,6 +93,25 @@ export class AuthService {
     return row
   }
 
+  /**
+   * Si una sesión sigue valiendo (ni revocada, ni caducada, ni purgada, ni con la cuenta
+   * borrada). La ventana la comprueba antes de cada acción: su WebSocket puede vivir más que
+   * la sesión con la que se abrió.
+   */
+  async isSessionActive(sessionId: string): Promise<boolean> {
+    const [row] = await this.#d.db
+      .select({ id: sessions.id })
+      .from(sessions)
+      .where(
+        and(
+          eq(sessions.id, sessionId),
+          isNull(sessions.revokedAt),
+          gt(sessions.expiresAt, this.#d.clock.now()),
+        ),
+      )
+    return row !== undefined
+  }
+
   async revokeSession(sessionId: string): Promise<void> {
     await this.#d.db
       .update(sessions)
