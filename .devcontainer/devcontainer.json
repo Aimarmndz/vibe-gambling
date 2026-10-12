@@ -1,0 +1,45 @@
+// Entorno de desarrollo listo para usar en GitHub Codespaces o en local con Dev Containers:
+// Node (versión de .nvmrc), pnpm (versión de `packageManager`), Docker dentro del contenedor
+// para la pila de deploy/docker-compose.dev.yml y los tests con testcontainers, y los
+// navegadores de Playwright para el E2E. Ver «Setting up the environment» en CONTRIBUTING.md.
+{
+  "name": "vibe-gambling",
+  // Node 26 como en .nvmrc; bookworm porque es la base que mejor soporta `playwright install-deps`.
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:26-bookworm",
+  "features": {
+    // Docker real dentro del contenedor (no el del host): `docker compose` y testcontainers.
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+      "moby": false
+    },
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+  // La pila de desarrollo y el E2E levantan varios procesos y un Postgres a la vez.
+  "hostRequirements": {
+    "cpus": 4,
+    "memory": "8gb"
+  },
+  // pnpm en la versión exacta de `packageManager` (Node 26 ya no trae Corepack), el workspace y
+  // los navegadores con los que corre el E2E (Chromium el recorrido completo; Firefox y WebKit,
+  // el humo).
+  "postCreateCommand": "npm install --global \"$(node -p \"require('./package.json').packageManager\")\" && pnpm install --frozen-lockfile && pnpm --filter @vibe-gambling/web exec playwright install --with-deps chromium firefox webkit",
+  "forwardPorts": [8787, 5173, 5436],
+  "portsAttributes": {
+    "8787": { "label": "Server (API, WebSocket and built web)", "onAutoForward": "notify" },
+    "5173": { "label": "Vite dev server", "onAutoForward": "openBrowser" },
+    "5436": { "label": "Postgres (dev)", "onAutoForward": "silent" }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": ["dbaeumer.vscode-eslint", "esbenp.prettier-vscode"],
+      "settings": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "editor.formatOnSave": true,
+        "eslint.useFlatConfig": true,
+        "typescript.tsdk": "node_modules/typescript/lib"
+      }
+    },
+    "codespaces": {
+      "openFiles": ["CONTRIBUTING.md"]
+    }
+  }
+}
