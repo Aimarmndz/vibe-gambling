@@ -143,8 +143,91 @@ describe('WebSocket', () => {
       },
     })
     await client.next('round.resolved')
-    expect(client.messages.map(m => m.type)).toEqual(['hello', 'round.started', 'round.resolved'])
+    // La primera tirada desbloquea "first_spin", que llega siempre detrás del resultado.
+    await client.next('achievement.unlocked')
+    expect(client.messages.map(m => m.type)).toEqual([
+      'hello',
+      'round.started',
+      'round.resolved',
+      'achievement.unlocked',
+    ])
     client.ws.close()
+  })
+
+  it('tiradas pendientes: presence oculta → pending; GIRAR → round.started y round.resolved', async () => {
+    const { user, bearer } = await createUser(t, 'pendingws')
+    const endTurn = async (id: string) =>
+      t.app.inject({
+        method: 'POST',
+        url: '/api/turn/end',
+        headers: bearer,
+        payload: {
+          v: 1,
+          turnId: id,
+          durationMs: 9,
+          gitPushOk: false,
+          testFailed: false,
+          ...MOD_META,
+        },
+      })
+    // Con la ventana cerrada se acumula una; al abrirla, el hello ya trae el contador.
+    expect((await endTurn(turnId())).json().status).toBe('queued')
+    const client = connect({ cookie: await webCookie(t, user.id) })
+    expect((await client.next('hello')).wallet.pendingSpins).toBe(1)
+
+    // La ventana se oculta: el turno se guarda (la ronda que veía girar se cierra con `pending`).
+    client.send({ v: 1, type: 'presence', visible: false })
+    client.send({ v: 1, type: 'ping', t: 1 })
+    await client.next('pong')
+    const id = turnId()
+    await t.app.inject({
+      method: 'POST',
+      url: '/api/turn/start',
+      headers: bearer,
+      payload: { v: 1, turnId: id, ...MOD_META },
+    })
+    expect((await endTurn(id)).json().status).toBe('queued')
+    await client.next('round.started')
+    const queued = await client.next('pending')
+    expect(queued).toMatchObject({ event: 'queued', wallet: { pendingSpins: 2 } })
+
+    // GIRAR: started antes que resolved, con el contador rebajado.
+    const requestId = 'spin-ws-0001'
+    client.send({ v: 1, type: 'spin.pending', quick: false, requestId })
+    const started = await client.next('round.started')
+    const resolved = await client.next('round.resolved')
+    expect(resolved.round.roundId).toBe(started.round.roundId)
+    expect(resolved.wallet).toMatchObject({ pendingSpins: 1, spins: 1 })
+    await client.next('achievement.unlocked')
+    const order = client.messages.map(m => m.type)
+    expect(order.slice(-3)).toEqual(['round.started', 'round.resolved', 'achievement.unlocked'])
+
+    // Reintento del mismo GIRAR: solo se repite el resultado a esta ventana.
+    t.clock.advance(t.config.game.spin.minSpinMs)
+    try {
+      client.send({ v: 1, type: 'spin.pending', quick: false, requestId })
+      const replay = await client.next('round.resolved')
+      expect(replay.round.roundId).toBe(resolved.round.roundId)
+      expect(replay.wallet.pendingSpins).toBe(1)
+
+      // Otro GIRAR sin dejar caer la bola anterior: rate_limited.
+      client.send({ v: 1, type: 'spin.pending', quick: true, requestId: 'spin-ws-0002' })
+      await client.next('round.resolved')
+      client.send({ v: 1, type: 'spin.pending', quick: true, requestId: 'spin-ws-0003' })
+      expect((await client.next('error')).error).toBe('rate_limited')
+      t.clock.advance(t.config.game.pendingSpins.quickSpinMs)
+      client.send({ v: 1, type: 'spin.pending', quick: true, requestId: 'spin-ws-0004' })
+      expect((await client.next('error')).error).toBe('not_found')
+
+      // Visible otra vez: en directo.
+      client.send({ v: 1, type: 'presence', visible: true })
+      client.send({ v: 1, type: 'ping', t: 2 })
+      await client.next('pong')
+      expect((await endTurn(turnId())).json().status).toBe('resolved')
+    } finally {
+      t.clock.set('2026-10-15T12:00:00Z')
+      client.ws.close()
+    }
   })
 
   it('apuestas, préstamo, ajustes y ping desde la ventana; se difunde a todas sus ventanas', async () => {
@@ -180,6 +263,10 @@ describe('WebSocket', () => {
 
     a.send({ v: 1, type: 'settings.update', locale: 'es' })
     expect((await b.next('settings')).user.locale).toBe('es')
+    a.send({ v: 1, type: 'settings.update', locale: 'fr' })
+    expect((await b.next('settings')).user.locale).toBe('fr')
+    a.send({ v: 1, type: 'settings.update', locale: 'de' })
+    expect((await b.next('settings')).user.locale).toBe('de')
 
     a.send({ v: 1, type: 'ping', t: 42 })
     expect(await a.next('pong')).toEqual({ v: 1, type: 'pong', t: 42 })
@@ -253,6 +340,39 @@ describe('WebSocket', () => {
       t.clock.set('2026-10-15T12:00:00Z')
       client.ws.close()
     }
+  })
+
+  it('hello trae los logros; stats.request y bank.request responden solo a esa ventana', async () => {
+    const { user } = await createUser(t, 'wsstats')
+    const cookie = await webCookie(t, user.id)
+    const client = connect({ cookie })
+    const other = connect({ cookie })
+    const hello = await client.next('hello')
+    await other.next('hello')
+    expect(hello.achievements?.length).toBeGreaterThanOrEqual(12)
+    expect(hello.achievements?.every(a => a.unlockedAt === null)).toBe(true)
+
+    client.send({ v: 1, type: 'stats.request' })
+    const stats = await client.next('stats')
+    expect(stats.stats).toMatchObject({
+      seasonId: '2026-10',
+      spins: 0,
+      series: [{ spin: 0, netWorth: 1000 }],
+    })
+    client.send({ v: 1, type: 'bank.request', seasonId: '2026-10' })
+    const bank = await client.next('bank')
+    expect(bank.bank).toMatchObject({ debt: 0, loans: 0, history: [], truncated: false })
+    // Una temporada en la que no jugó: error, sin cerrar la ventana.
+    client.send({ v: 1, type: 'stats.request', seasonId: '1999-01' })
+    expect(await client.next('error')).toMatchObject({ error: 'not_found' })
+    client.send({ v: 1, type: 'ping', t: 7 })
+    await client.next('pong')
+    // La otra ventana del mismo usuario no recibe pantallas que no ha pedido.
+    other.send({ v: 1, type: 'ping', t: 8 })
+    await other.next('pong')
+    expect(other.messages.map(m => m.type)).toEqual(['hello', 'pong'])
+    client.ws.close()
+    other.ws.close()
   })
 
   it('límite de mensajes por ventana: los que sobran reciben rate_limited', async () => {

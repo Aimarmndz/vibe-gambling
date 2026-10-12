@@ -10,5 +10,15 @@
   "hallOfRuinSize": 3,
   "spin": { "minSpinMs": 4000 },
   "round": { "staleAfterMs": 600000 },
-  "streak": { "colorWarningAt": 3, "historySize": 10 }
+  "streak": { "colorWarningAt": 3, "historySize": 10, "onFireAt": 3 },
+  "pendingSpins": { "max": 3, "quickSpinMs": 1000 },
+  "bigWin": { "minNetMultiple": 5, "megaNetMultiple": 15 },
+  "achievements": {
+    "proDebtorLoans": 2,
+    "compoundInterestDebt": 700,
+    "zeroCollectorZeros": 2,
+    "addictSpins": 6,
+    "nightOwl": { "fromHour": 3, "toHour": 6 }
+  },
+  "stats": { "recentRounds": 4, "seriesPoints": 5, "loanMarks": 3, "bankHistory": 4 }
 }

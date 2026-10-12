@@ -6,7 +6,7 @@ import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { rounds, turns } from '../../src/db/schema.ts'
-import { createUser, MOD_META, startTestApp, turnId } from '../helpers/app.ts'
+import { createWatchingUser, MOD_META, startTestApp, turnId } from '../helpers/app.ts'
 import type { TestApp } from '../helpers/app.ts'
 
 let t: TestApp
@@ -63,13 +63,14 @@ async function bet(headers: Record<string, string>, amount: number | 'all-in', t
 
 describe('turnos', () => {
   it('turn/start y turn/end son idempotentes por (usuario, turnId)', async () => {
-    const { user, bearer } = await createUser(t)
+    const { user, bearer } = await createWatchingUser(t)
     const id = turnId()
     const a = await start(bearer, id)
     const b = await start(bearer, id)
     expect(b.round).toEqual(a.round)
     expect(a.reused).toBe(false)
-    expect(a.windowConnected).toBe(false)
+    // Tiene la ventana abierta (y visible): la tirada se juega en directo.
+    expect(a.windowConnected).toBe(true)
 
     t.rng.fix(17)
     const first = await end(bearer, id)
@@ -83,7 +84,7 @@ describe('turnos', () => {
   })
 
   it('dos sesiones de Claude Code a la vez comparten la ronda abierta', async () => {
-    const { user, bearer } = await createUser(t)
+    const { user, bearer } = await createWatchingUser(t)
     const second = await t.services.auth.createSession(user.id, 'mod')
     const bearer2 = { authorization: `Bearer ${second}` }
     const idA = turnId()
@@ -102,7 +103,7 @@ describe('turnos', () => {
   })
 
   it('una ronda abierta más de round.staleAfterMs caduca sin tirada', async () => {
-    const { user, bearer } = await createUser(t)
+    const { user, bearer } = await createWatchingUser(t)
     const id = turnId()
     const opened = await start(bearer, id)
     t.clock.advance(t.config.game.round.staleAfterMs + 1)
@@ -124,7 +125,7 @@ describe('turnos', () => {
   })
 
   it('turn/end sin turn/start (se perdió) sigue siendo una tirada', async () => {
-    const { user, bearer } = await createUser(t)
+    const { user, bearer } = await createWatchingUser(t)
     const id = turnId()
     const res = await end(bearer, id)
     expect(res.status).toBe('resolved')
@@ -134,7 +135,7 @@ describe('turnos', () => {
   })
 
   it('revealAt respeta el giro mínimo: max(openedAt + minSpinMs, resolvedAt)', async () => {
-    const { bearer } = await createUser(t)
+    const { bearer } = await createWatchingUser(t)
     const quick = turnId()
     await start(bearer, quick)
     t.clock.advance(1000)
@@ -153,7 +154,7 @@ describe('turnos', () => {
   })
 
   it('sin boleto: primero la apuesta por defecto, luego se repite la última', async () => {
-    const { bearer } = await createUser(t)
+    const { bearer } = await createWatchingUser(t)
     t.rng.fix(1) // rojo
     const first = await end(bearer, turnId())
     if (first.status !== 'resolved') throw new Error('debía resolverse')
@@ -181,7 +182,7 @@ describe('turnos', () => {
   })
 
   it('sin saldo para repetir, la ruleta gira sin apuesta', async () => {
-    const { bearer } = await createUser(t)
+    const { bearer } = await createWatchingUser(t)
     expect((await bet(bearer, 'all-in', 'red')).statusCode).toBe(200)
     t.rng.fix(2) // negro: lo pierde todo
     const lost = await end(bearer, turnId())
@@ -196,7 +197,7 @@ describe('turnos', () => {
   })
 
   it('jackpot dev: con git push la ganancia se multiplica', async () => {
-    const { bearer } = await createUser(t)
+    const { bearer } = await createWatchingUser(t)
     expect((await bet(bearer, 100, '17')).statusCode).toBe(200)
     t.rng.fix(17)
     const res = await end(bearer, turnId(), { gitPushOk: true })
@@ -209,7 +210,7 @@ describe('turnos', () => {
   })
 
   it('el git push no da jackpot si se pierde', async () => {
-    const { bearer } = await createUser(t)
+    const { bearer } = await createWatchingUser(t)
     expect((await bet(bearer, 100, '17')).statusCode).toBe(200)
     t.rng.fix(18)
     const res = await end(bearer, turnId(), { gitPushOk: true })
@@ -219,7 +220,7 @@ describe('turnos', () => {
   })
 
   it('la racha de color se calcula sobre las tiradas del usuario', async () => {
-    const { bearer } = await createUser(t)
+    const { bearer } = await createWatchingUser(t)
     for (const n of [1, 3, 5]) {
       t.rng.fix(n)
       const res = await end(bearer, turnId())
@@ -241,7 +242,7 @@ describe('turnos', () => {
     expect(res.statusCode).toBe(401)
     expect(res.json()).toMatchObject({ v: 1, error: 'unauthorized' })
 
-    const { user } = await createUser(t)
+    const { user } = await createWatchingUser(t)
     const web = await t.services.auth.createSession(user.id, 'web')
     const asBearer = await t.app.inject({
       method: 'POST',
@@ -253,7 +254,7 @@ describe('turnos', () => {
   })
 
   it('rechaza campos de más en turn/end (privacidad)', async () => {
-    const { bearer } = await createUser(t)
+    const { bearer } = await createWatchingUser(t)
     const res = await t.app.inject({
       method: 'POST',
       url: '/api/turn/end',

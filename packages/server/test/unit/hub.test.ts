@@ -44,6 +44,7 @@ function conn(userId = 'u1', sessionId = 's1', ready = true) {
     sessionId,
     alive: true,
     pending: ready ? null : [],
+    visible: true,
   }
   return { socket, c }
 }
@@ -83,6 +84,7 @@ const resolved = {
     loans: 0,
     currentStreak: 0,
     bestStreak: 0,
+    pendingSpins: 0,
   },
 } satisfies ServerMessage
 
@@ -176,5 +178,26 @@ describe('Hub', () => {
     expect(socket.sent).toEqual([{ v: 1, type: 'bye', reason: 'shutdown' }])
     expect(socket.closedWith).toBe(1001)
     expect(hub.size).toBe(0)
+  })
+
+  it('isAttentive: alguna ventana del usuario visible (presence)', () => {
+    const hub = new Hub(logger)
+    expect(hub.isAttentive('u1')).toBe(false)
+    const a = conn('u1', 's1')
+    const b = conn('u1', 's2')
+    hub.add(a.c)
+    hub.add(b.c)
+    // Sin `presence` todavía, una ventana cuenta como visible.
+    expect(hub.isAttentive('u1')).toBe(true)
+    hub.setVisible(a.c, false)
+    expect(hub.isAttentive('u1')).toBe(true)
+    hub.setVisible(b.c, false)
+    expect(hub.isAttentive('u1')).toBe(false)
+    expect(hub.isConnected('u1')).toBe(true)
+    hub.setVisible(a.c, true)
+    expect(hub.isAttentive('u1')).toBe(true)
+    hub.remove(a.c)
+    expect(hub.isAttentive('u1')).toBe(false)
+    expect(hub.isAttentive('otro')).toBe(false)
   })
 })

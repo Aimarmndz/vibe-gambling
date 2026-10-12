@@ -6,7 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { loans, wallets } from '../../src/db/schema.ts'
 import { AppError } from '../../src/lib/errors.ts'
-import { createUser, MOD_META, startTestApp, turnId } from '../helpers/app.ts'
+import { createUser, createWatchingUser, MOD_META, startTestApp, turnId } from '../helpers/app.ts'
 import type { TestApp } from '../helpers/app.ts'
 
 let t: TestApp
@@ -114,7 +114,7 @@ describe('concurrencia', () => {
   })
 
   it('turn/end y apuestas a la vez: cada moneda está en un solo sitio', async () => {
-    const { user, bearer } = await createUser(t)
+    const { user, bearer } = await createWatchingUser(t)
     t.rng.fix(0)
     const jobs: Array<Promise<unknown>> = []
     for (let i = 0; i < 20; i++) {
@@ -146,7 +146,7 @@ describe('concurrencia', () => {
 
 describe('préstamo', () => {
   it('solo se concede cuando el saldo (contando el boleto) no llega a la ficha mínima', async () => {
-    const { user, bearer } = await createUser(t)
+    const { user, bearer } = await createWatchingUser(t)
     await expect(t.services.game.requestLoan(user.id)).rejects.toMatchObject({
       code: 'loan_not_allowed',
     })
@@ -175,7 +175,7 @@ describe('préstamo', () => {
   })
 
   it('la deuda crece con cada tirada (redondeando a favor del banco)', async () => {
-    const { user, bearer } = await createUser(t)
+    const { user, bearer } = await createWatchingUser(t)
     await bet(bearer, 'all-in', 'red')
     t.rng.fix(2)
     const end = () =>

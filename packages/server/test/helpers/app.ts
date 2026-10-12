@@ -2,7 +2,9 @@
 // Arranca la aplicación completa contra una base de datos de test, con reloj y azar controlados.
 import type { AddressInfo } from 'node:net'
 
+import type { ServerMessage } from '@vibe-gambling/shared'
 import type { FastifyInstance } from 'fastify'
+import type { WebSocket } from 'ws'
 
 import { buildApp } from '../../src/app.ts'
 import type { Config } from '../../src/config.ts'
@@ -11,7 +13,7 @@ import { users } from '../../src/db/schema.ts'
 import { ManualClock } from '../../src/lib/clock.ts'
 import { sequenceRng } from '../../src/lib/rng.ts'
 import type { Services } from '../../src/services/index.ts'
-import type { Hub } from '../../src/ws/hub.ts'
+import type { Connection, Hub } from '../../src/ws/hub.ts'
 import { createTestDb } from './db.ts'
 import { testConfig } from './env.ts'
 
@@ -64,8 +66,49 @@ export async function startTestApp(
 
 let githubIds = 1000
 
-/** Crea un usuario directamente en la base de datos (sin pasar por GitHub). */
-export async function createUser(t: TestApp, login = `user${githubIds}`) {
+/**
+ * Ventana de mentira registrada en el hub: cuenta como conectada y guarda lo que le llega.
+ * Sirve para los tests que solo usan HTTP: con una ventana visible, los turnos se juegan en
+ * directo; sin ninguna (o con todas ocultas), se guardan como tiradas pendientes.
+ */
+export function attachWindow(t: TestApp, userId: string, visible = true) {
+  const received: ServerMessage[] = []
+  const socket = {
+    OPEN: 1,
+    readyState: 1,
+    send: (data: string) => received.push(JSON.parse(data) as ServerMessage),
+    close: () => {},
+    terminate: () => {},
+    ping: () => {},
+  }
+  const connection: Connection = {
+    socket: socket as unknown as WebSocket,
+    userId,
+    sessionId: 'fake-window',
+    alive: true,
+    pending: null,
+    visible,
+  }
+  t.hub.add(connection)
+  return {
+    received,
+    setVisible: (value: boolean) => t.hub.setVisible(connection, value),
+    detach: () => t.hub.remove(connection),
+  }
+}
+
+/** Qué ventana tiene abierta el usuario recién creado. */
+export type WindowMode = 'none' | 'visible' | 'hidden'
+
+/**
+ * Crea un usuario directamente en la base de datos (sin pasar por GitHub). Con `window`, además
+ * le abre una ventana de mentira (visible: los turnos se juegan en directo).
+ */
+export async function createUser(
+  t: TestApp,
+  login = `user${githubIds}`,
+  options: { window?: WindowMode } = {},
+) {
   const [user] = await t.db.db
     .insert(users)
     .values({
@@ -76,7 +119,9 @@ export async function createUser(t: TestApp, login = `user${githubIds}`) {
     .returning()
   if (!user) throw new Error('no se creó el usuario')
   const modToken = await t.services.auth.createSession(user.id, 'mod')
-  return { user, modToken, bearer: { authorization: `Bearer ${modToken}` } }
+  const mode = options.window ?? 'none'
+  const window = mode === 'none' ? null : attachWindow(t, user.id, mode === 'visible')
+  return { user, modToken, bearer: { authorization: `Bearer ${modToken}` }, window }
 }
 
 /** Sesión web (cookie) para un usuario, como si hubiera canjeado un enlace. */
@@ -91,3 +136,8 @@ export function turnId(): string {
 }
 
 export const MOD_META = { pluginVersion: '0.1.0', os: 'linux' } as const
+
+/** Usuario con la ventana abierta y visible: sus turnos se juegan en directo. */
+export function createWatchingUser(t: TestApp, login?: string) {
+  return createUser(t, login, { window: 'visible' })
+}

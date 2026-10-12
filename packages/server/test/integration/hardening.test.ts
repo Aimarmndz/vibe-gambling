@@ -17,7 +17,14 @@ import WebSocket from 'ws'
 import { hallOfRuin, sessions, users, wallets } from '../../src/db/schema.ts'
 import { runMigrations } from '../../src/db/migrate.ts'
 import { AppError } from '../../src/lib/errors.ts'
-import { createUser, MOD_META, START, startTestApp, turnId } from '../helpers/app.ts'
+import {
+  createUser,
+  createWatchingUser,
+  MOD_META,
+  START,
+  startTestApp,
+  turnId,
+} from '../helpers/app.ts'
 import type { TestApp } from '../helpers/app.ts'
 import { withDatabase } from '../helpers/db-url.ts'
 import { MIGRATIONS_DIR, TEST_PUBLIC_URL } from '../helpers/env.ts'
@@ -72,7 +79,7 @@ describe('cambio de temporada con fichas en el boleto', () => {
   it('las fichas del boleto vuelven al saldo al cerrar: el Salón ve el patrimonio real', async () => {
     const own = await startTestApp()
     try {
-      const { user, bearer } = await createUser(own, 'slipper')
+      const { user, bearer } = await createWatchingUser(own, 'slipper')
       // Una tirada (apuesta por defecto: 10 al rojo; sale el 17, negro) para entrar en el Salón.
       const end = await own.app.inject({
         method: 'POST',
@@ -238,7 +245,7 @@ describe('rate limit', () => {
 
 describe('carreras que ya aguantaban (regresión)', () => {
   it('20 turn/end simultáneos con el mismo turnId: una sola tirada', async () => {
-    const { user, bearer } = await createUser(t)
+    const { user, bearer } = await createWatchingUser(t)
     const id = turnId()
     const payload = {
       v: 1,
@@ -263,7 +270,7 @@ describe('carreras que ya aguantaban (regresión)', () => {
     expect(await walletRow(t, user.id, '2026-10')).toMatchObject({ spins: 1, balance: 990 })
 
     // El mismo turnId de otro usuario es otro turno.
-    const other = await createUser(t)
+    const other = await createWatchingUser(t)
     const res = await t.app.inject({
       method: 'POST',
       url: '/api/turn/end',

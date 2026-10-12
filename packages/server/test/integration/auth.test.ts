@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Enlace de un solo uso, cookie de sesión, logout, ajustes y borrado de cuenta.
-import { linkResponseSchema, meResponseSchema, redeemResponseSchema } from '@vibe-gambling/shared'
+import {
+  LOCALES,
+  linkResponseSchema,
+  meResponseSchema,
+  redeemResponseSchema,
+} from '@vibe-gambling/shared'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -220,6 +225,30 @@ describe('ajustes', () => {
       payload: { v: 1 },
     })
     expect(empty.statusCode).toBe(400)
+  })
+
+  it('acepta cualquier idioma registrado en locales/ (fr, de…) y rechaza los demás', async () => {
+    const { bearer } = await createUser(t)
+    const set = (locale: unknown) =>
+      t.app.inject({
+        method: 'PATCH',
+        url: '/api/me/settings',
+        headers: bearer,
+        payload: { v: 1, locale },
+      })
+    for (const locale of LOCALES) {
+      const res = await set(locale)
+      expect(res.statusCode, locale).toBe(200)
+      expect(res.json().user.locale).toBe(locale)
+    }
+    expect((await set('fr')).json().user.locale).toBe('fr')
+    expect((await set('de')).json().user.locale).toBe('de')
+    for (const bad of ['xx', 'klingon', 'FR', 'de-DE', '']) {
+      expect((await set(bad)).statusCode, bad).toBe(400)
+    }
+    const me = await t.app.inject({ method: 'GET', url: '/api/me', headers: bearer })
+    expect(me.json().user.locale).toBe('de')
+    expect((await set(null)).json().user.locale).toBeNull()
   })
 })
 
