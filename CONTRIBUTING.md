@@ -84,16 +84,20 @@ Every value (ports, URLs, the fake GitHub for local logins…) is documented in 
 
 At the root:
 
-| Command              | What it does                                                                                       |
-| -------------------- | -------------------------------------------------------------------------------------------------- |
-| `pnpm lint`          | ESLint + Prettier check + SPDX headers + protocol docs check                                       |
-| `pnpm lint:spdx`     | Only the SPDX header check (`scripts/check-spdx.ts`)                                               |
-| `pnpm format`        | Prettier write on the whole repo                                                                   |
-| `pnpm typecheck`     | `tsc` in every package                                                                             |
-| `pnpm test`          | Unit tests in every package (`pnpm -r test`)                                                       |
-| `pnpm build`         | Production build of the server and the web                                                         |
-| `pnpm sync:mod`      | Regenerate the mod's copy of `shared` (`packages/mod/hooks/generated`)                             |
-| `pnpm docs:protocol` | Regenerate the schema sections of `docs/PROTOCOLO.md` (`--check` only checks; part of `pnpm lint`) |
+| Command              | What it does                                                                                        |
+| -------------------- | --------------------------------------------------------------------------------------------------- |
+| `pnpm lint`          | ESLint + Prettier check + SPDX headers + version sync + protocol docs check                         |
+| `pnpm lint:spdx`     | Only the SPDX header check (`scripts/check-spdx.ts`)                                                |
+| `pnpm lint:versions` | Only the version sync check: every manifest and `CHANGELOG.md` agree (`scripts/check-versions.ts`)  |
+| `pnpm format`        | Prettier write on the whole repo                                                                    |
+| `pnpm typecheck`     | `tsc` in every package                                                                              |
+| `pnpm test`          | Unit tests in every package (`pnpm -r test`)                                                        |
+| `pnpm build`         | Production build of the server and the web                                                          |
+| `pnpm package`       | Release artifacts in `dist-release/` (mod zip, server tarball, SBOM, checksums), reproducible       |
+| `pnpm release`       | Maintainers: bump the version, close the changelog, commit and tag locally ([RELEASING][releasing]) |
+| `pnpm test:scripts`  | Tests of the release scripts (`node --test`)                                                        |
+| `pnpm sync:mod`      | Regenerate the mod's copy of `shared` (`packages/mod/hooks/generated`)                              |
+| `pnpm docs:protocol` | Regenerate the schema sections of `docs/PROTOCOLO.md` (`--check` only checks; part of `pnpm lint`)  |
 
 Per package (`pnpm --filter @vibe-gambling/<package> <script>`):
 
@@ -139,6 +143,10 @@ Types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`
 6. CI must be green. A maintainer reviews it; expect questions and small change requests.
 7. PRs are merged with **squash** or **rebase**, keeping the Conventional Commit title and the sign-off.
 
+Your Conventional Commit titles feed the changelog draft, so make them read well (`feat` → _Added_, `fix` → _Fixed_). You never bump versions or edit `CHANGELOG.md` releases in a PR: the maintainer does it when cutting a release, as explained in [docs/RELEASING.md][releasing] (in Spanish).
+
+[releasing]: docs/RELEASING.md
+
 ## Ways to contribute
 
 ### New funny phrases
@@ -177,6 +185,7 @@ The PSX pipeline (320×240 render target, vertex snapping, affine textures, 15-b
 - Cada commit lleva **`Signed-off-by`** (DCO, [developercertificate.org](https://developercertificate.org/)): usa `git commit -s`. Con eso certificas que tienes derecho a aportar el cambio bajo la licencia del proyecto (AGPL-3.0-or-later con el término 7(b) de atribución).
 - Entorno: Node 26, pnpm 11 (`corepack enable`), Docker; `pnpm install` y `docker compose -f deploy/docker-compose.dev.yml up -d --build` (pila completa en http://localhost:8787 con un GitHub falso), o solo `postgres` en Docker y los scripts `dev:fake-github` y `dev` del servidor y `dev` de la web en modo watch. El mod se carga con `claude --plugin-dir packages/mod` y se apunta al servidor local con `/vibe-server http://localhost:8787`.
 - Antes del PR: `pnpm lint`, `pnpm typecheck`, `pnpm test` y los tests de integración o E2E de lo que toques.
+- Versiones y CHANGELOG: no se tocan en los PR. Las releases las saca el mantenedor con `pnpm release`, como cuenta [docs/RELEASING.md](docs/RELEASING.md); el título de tu commit acaba en el borrador del CHANGELOG, así que cuídalo.
 - Estilo: Prettier y ESLint limpios; identificadores en inglés y **comentarios en español**; cabecera SPDX en cada archivo fuente; commits con **Conventional Commits en español** e imperativo.
 - **Frases nuevas** en `packages/shared/src/i18n/phrases.en.ts` y `phrases.es.ts`, en los dos idiomas si puedes. Humor sobre la ludopatía de mentira y la cultura dev; **nunca** sobre personas ni colectivos, ni nada que anime a apostar de verdad.
 - **Traducciones** y **shaders**: mira las secciones de arriba; en lo visual, capturas del antes y el después en el PR.

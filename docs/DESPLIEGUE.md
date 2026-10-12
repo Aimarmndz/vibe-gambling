@@ -43,14 +43,14 @@ flowchart LR
   S -- "red de Docker 172.29.0.0/24" --> P[("postgres<br/>sin puertos publicados")]
 ```
 
-| Pieza                    | Dónde                                                                                                                       |
-| ------------------------ | --------------------------------------------------------------------------------------------------------------------------- |
-| Compose de producción    | [`deploy/docker-compose.yml`](../deploy/docker-compose.yml): `server` + `postgres:17-alpine`, sin proxy                     |
-| Variables de entorno     | [`deploy/.env.example`](../deploy/.env.example) (todas documentadas; el servidor las valida al arrancar)                    |
-| Imagen                   | `ghcr.io/aimarmndz/vibe-gambling:<tag>` (la publica [`docker.yml`](../.github/workflows/docker.yml) con cada etiqueta `v*`) |
-| Copias de seguridad      | [`deploy/backup.sh`](../deploy/backup.sh)                                                                                   |
-| Firewall                 | [`deploy/cloudflare-firewall.sh`](../deploy/cloudflare-firewall.sh)                                                         |
-| Despliegues desde GitHub | [`deploy.yml`](../.github/workflows/deploy.yml) (solo a mano: _Run workflow_)                                               |
+| Pieza                    | Dónde                                                                                                                         |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| Compose de producción    | [`deploy/docker-compose.yml`](../deploy/docker-compose.yml): `server` + `postgres:17-alpine`, sin proxy                       |
+| Variables de entorno     | [`deploy/.env.example`](../deploy/.env.example) (todas documentadas; el servidor las valida al arrancar)                      |
+| Imagen                   | `ghcr.io/aimarmndz/vibe-gambling:<tag>` (la publica [`release.yml`](../.github/workflows/release.yml) con cada etiqueta `v*`) |
+| Copias de seguridad      | [`deploy/backup.sh`](../deploy/backup.sh)                                                                                     |
+| Firewall                 | [`deploy/cloudflare-firewall.sh`](../deploy/cloudflare-firewall.sh)                                                           |
+| Despliegues desde GitHub | [`deploy.yml`](../.github/workflows/deploy.yml) (solo a mano: _Run workflow_)                                                 |
 
 El servidor escucha **solo en `127.0.0.1:${PORT}`** de la VPS (8787 por defecto): nada de esto es accesible desde fuera salvo a través del reverse proxy. Las migraciones de la base de datos se aplican solas al arrancar (`MIGRATE_ON_START=true`). La imagen corre como usuario sin privilegios, con el sistema de archivos de solo lectura y `cap_drop: ALL`.
 
@@ -244,9 +244,9 @@ Si falta una variable o tiene un valor raro, el servidor **no arranca** y el log
 
 ## 8. La imagen Docker
 
-La imagen la publica el workflow [`docker.yml`](../.github/workflows/docker.yml) en `ghcr.io/aimarmndz/vibe-gambling` al empujar una etiqueta `vX.Y.Z` (amd64 + arm64, con SBOM y procedencia). Lleva el servidor, la build de la web, las migraciones y `config/*.json`.
+La imagen la publica el workflow [`release.yml`](../.github/workflows/release.yml) en `ghcr.io/aimarmndz/vibe-gambling` al empujar una etiqueta `vX.Y.Z` (amd64 + arm64, con SBOM y procedencia), junto con la GitHub Release ([RELEASING.md](RELEASING.md)). Lleva el servidor, la build de la web, las migraciones y `config/*.json`.
 
-- Para el primer despliegue tiene que existir la etiqueta: `git tag -a v0.1.0 -m "v0.1.0" && git push origin v0.1.0` (lo hace Aimar en el lanzamiento, ver [launch/CHECKLIST.md](launch/CHECKLIST.md)).
+- Para el primer despliegue tiene que existir la etiqueta: `pnpm release 0.1.0 && git push --atomic origin main v0.1.0` (lo hace Aimar en el lanzamiento, ver [RELEASING.md](RELEASING.md#la-primera-versión-v010) y [launch/CHECKLIST.md](launch/CHECKLIST.md)).
 - El paquete de GHCR tiene que ser **público** (GitHub → tu perfil → _Packages_ → `vibe-gambling` → _Package settings_ → _Change visibility_). Si se queda privado, la VPS necesita iniciar sesión con un token (PAT clásico con `read:packages`):
 
   ```sh
@@ -465,9 +465,11 @@ docker rm -f vibe-restore-test
 
 ### Publicar una versión
 
-1. Sube la versión en los `package.json` y en `packages/mod/.claude-plugin/plugin.json`, con su commit.
-2. `git tag -a vX.Y.Z -m "vX.Y.Z" && git push origin vX.Y.Z`.
-3. [`docker.yml`](../.github/workflows/docker.yml) construye y publica `ghcr.io/aimarmndz/vibe-gambling:X.Y.Z` (y `X.Y`, y `latest` si es estable).
+Paso a paso en [RELEASING.md](RELEASING.md). En corto:
+
+1. `pnpm release <patch|minor|major> --dry-run` y luego sin `--dry-run`: sube la versión en todos los manifiestos, cierra el CHANGELOG y deja el commit `chore(release): vX.Y.Z` y la etiqueta en local.
+2. `git push --atomic origin main vX.Y.Z`.
+3. [`release.yml`](../.github/workflows/release.yml) publica `ghcr.io/aimarmndz/vibe-gambling:X.Y.Z` (y `X.Y`, y `latest` si es estable) y la GitHub Release con sus artefactos.
 
 ### Desplegar con `deploy.yml`
 

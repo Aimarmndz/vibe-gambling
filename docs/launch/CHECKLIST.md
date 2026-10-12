@@ -36,7 +36,7 @@ Para Aimar. **Nada de esto está hecho**: todo lo que toca GitHub, la VPS o publ
 
 - [ ] Crear la **OAuth App de GitHub** con _Enable Device Flow_ ([DESPLIEGUE.md §6](../DESPLIEGUE.md#6-la-oauth-app-de-github)) y apuntar el Client ID.
 - [ ] Preparar la VPS: Docker, usuario `deploy`, firewall de Cloudflare, certificado de origen y `.env` ([DESPLIEGUE.md](../DESPLIEGUE.md), secciones 1 a 7).
-- [ ] Etiqueta **`v0.1.0`**: `git tag -a v0.1.0 -m "v0.1.0" && git push origin v0.1.0`. Esperar a que `docker.yml` publique `ghcr.io/aimarmndz/vibe-gambling:0.1.0`.
+- [ ] Etiqueta **`v0.1.0`** ([RELEASING.md](../RELEASING.md#la-primera-versión-v010)): `pnpm release 0.1.0 --dry-run`, `pnpm release 0.1.0` y `git push --atomic origin main v0.1.0`. Esperar a que `release.yml` publique `ghcr.io/aimarmndz/vibe-gambling:0.1.0` y la GitHub Release con sus artefactos. Si el repo ya es público, salen con atestaciones; si no, relanzar el workflow después de hacerlo público.
 - [ ] Hacer **público el paquete** de GHCR (_tu perfil → Packages → vibe-gambling → Package settings → Change visibility_) y comprobar que está enlazado al repo.
 - [ ] Desplegar (`docker compose pull && docker compose up -d`), añadir `vibe.aimar.dev` al reverse proxy y pasar la [comprobación final](../DESPLIEGUE.md#11-comprobación-final).
 - [ ] Copias de seguridad con cron y una restauración de prueba ([DESPLIEGUE.md §12](../DESPLIEGUE.md#12-copias-de-seguridad)).
@@ -46,7 +46,7 @@ Para Aimar. **Nada de esto está hecho**: todo lo que toca GitHub, la VPS o publ
 
 - [ ] **Hacer público el repo** (_Settings → General → Danger Zone → Change visibility_).
 - [ ] Probar la instalación de verdad, en un Claude Code limpio: `/plugin install vibe-gambling --marketplace Aimarmndz/vibe-gambling` → `/vibe-login` → un prompt → la ventana se abre y la bola cae. Con el repo privado este paso falla: hazlo justo después de publicarlo.
-- [ ] **Release v0.1.0** (_Releases → Draft a new release_, etiqueta `v0.1.0`): título `v0.1.0 — Every prompt is a spin`, el GIF (`docs/demo.gif`) arriba, el comando de instalación, "Fake coins only", un resumen de qué trae y el enlace a `https://vibe.aimar.dev`.
+- [ ] **Release v0.1.0**: la crea `release.yml` con las notas del CHANGELOG, los artefactos y la verificación. Editarla (_Releases → v0.1.0 → Edit_) para el anuncio: título `v0.1.0 — Every prompt is a spin`, el GIF (`docs/demo.gif`) arriba, "Fake coins only" y el enlace a `https://vibe.aimar.dev` (relanzar el workflow vuelve a escribir las notas).
 - [ ] **Fijar** el repo en tu perfil (_tu perfil → Customize your pins_), junto a scan2nas.
 - [ ] En el README de tu perfil (`Aimarmndz/aimarmndz`), una línea con el enlace.
 - [ ] Ponerle **descripción a scan2nas** en GitHub (ahora está vacía y el README de vibe-gambling lo enlaza): `Preset-based document scanning for Epson scanners on Linux, straight to your NAS (CLI + Qt app).`

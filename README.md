@@ -137,6 +137,10 @@ Contributions welcome, especially:
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) first. Every commit needs a `Signed-off-by` line ([DCO](https://developercertificate.org/), `git commit -s`). Be nice: [Code of Conduct](CODE_OF_CONDUCT.md). Security issues go through [SECURITY.md](SECURITY.md), never public issues.
 
+## Releases
+
+One version for everything (plugin, server, web and Docker image), following [SemVer](https://semver.org/); `0.x` while the protocol may still change. Each [GitHub Release](https://github.com/Aimarmndz/vibe-gambling/releases) ships the plugin as a zip, the server as a tarball for Node.js without Docker, an SPDX SBOM and `SHA256SUMS`, with build provenance attestations you can check with `gh attestation verify`; the multi-arch image goes to `ghcr.io/aimarmndz/vibe-gambling`. What changed: [CHANGELOG.md](CHANGELOG.md). How a release is cut and verified: [docs/RELEASING.md](docs/RELEASING.md).
+
 ## More from Aimar
 
 This is the joke. These are not:
@@ -249,6 +253,10 @@ Un monorepo de TypeScript: `shared` (el contrato en zod y la lógica pura de la 
 ### Contribuir
 
 Se agradecen sobre todo **frases nuevas de ludópata** (en inglés y en español) en [`packages/shared/src/i18n`](packages/shared/src/i18n) o con la plantilla de issue _New funny phrase_; **traducciones**; y **shaders**. Humor sobre la ludopatía de mentira y la cultura dev; nunca sobre personas reales ni adicciones de nadie. Lee [CONTRIBUTING.md](CONTRIBUTING.md): cada commit lleva `Signed-off-by` ([DCO](https://developercertificate.org/), `git commit -s`).
+
+### Versiones
+
+Una sola versión para todo (plugin, servidor, web e imagen), con [SemVer](https://semver.org/lang/es/) y `0.x` mientras el protocolo pueda cambiar. Cada [release](https://github.com/Aimarmndz/vibe-gambling/releases) trae el plugin en zip, el servidor en tar.gz para Node.js sin Docker, un SBOM SPDX y `SHA256SUMS`, con atestaciones de procedencia; la imagen multi-arquitectura va a `ghcr.io/aimarmndz/vibe-gambling`. Los cambios, en el [CHANGELOG](CHANGELOG.md); cómo se publica y se verifica una versión, en [docs/RELEASING.md](docs/RELEASING.md).
 
 ### Más de Aimar
 
