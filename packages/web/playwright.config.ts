@@ -104,7 +104,15 @@ export default defineConfig({
       use: {
         ...devices['Desktop Firefox'],
         viewport: { width: 960, height: 720 },
-        launchOptions: {},
+        // Los runners del CI no tienen GPU: sin esto Firefox no crea el contexto WebGL2
+        // ("WebGL creation failed") y la ventana enseña el aviso de navegador sin WebGL.
+        launchOptions: {
+          firefoxUserPrefs: {
+            'webgl.force-enabled': true,
+            'webgl.disabled': false,
+            'webgl.enable-webgl2': true,
+          },
+        },
         ...remote(e2e.E2E_FIREFOX_WS_ENDPOINT),
       },
     },
