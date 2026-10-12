@@ -25,6 +25,11 @@ export interface Screen {
   pointer?(kind: 'move' | 'down' | 'leave', x: number, y: number): boolean
   wheel?(delta: number): void
   update?(dt: number, t: number): void
+  /**
+   * Franja vertical (píxeles de 320×240) donde pueden salir los avisos sin tapar nada importante.
+   * Sin ella, encima de la barra inferior de la mesa.
+   */
+  toastBand?(): { top: number; bottom: number }
 }
 
 export interface ButtonLabels {
@@ -62,6 +67,8 @@ export interface AppContext {
   loanAvailable(): boolean
   /** Estado de la conexión con el servidor. */
   connection(): LinkStatus
+  /** Enseña "cómo se juega" (el giro lo lanza un prompt en Claude Code). */
+  showTip(): void
   /** Abre el diálogo del préstamo. */
   offerLoan(): void
   /** Ranking de la temporada (del servidor, o uno de mentira en el modo demo). */

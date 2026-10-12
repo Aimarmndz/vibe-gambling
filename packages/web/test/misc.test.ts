@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { measure, wrap, hasGlyph } from '../src/font/bitmap.ts'
 import { chipLabel, describePayout, describeSelection } from '../src/game/describe.ts'
@@ -46,5 +46,37 @@ describe('fuente bitmap', () => {
     expect(wrap('supercalifragilisticoespialidoso', 10)).toEqual([
       'supercalifragilisticoespialidoso',
     ])
+  })
+})
+
+describe('recordatorios por navegador', () => {
+  it('arranque visto y "cómo se juega" leído; si el almacenamiento falla, se vuelve a enseñar', async () => {
+    const { bootSeen, markBootSeen, markTipSeen, tipSeen } =
+      await import('../src/app/onboarding.ts')
+    const data = new Map<string, string>()
+    const storage = {
+      getItem: (k: string) => data.get(k) ?? null,
+      setItem: (k: string, v: string) => void data.set(k, v),
+    }
+    expect(tipSeen(storage)).toBe(false)
+    markTipSeen(storage)
+    expect(tipSeen(storage)).toBe(true)
+    expect(bootSeen(storage)).toBe(false)
+    markBootSeen(storage)
+    expect(bootSeen(storage)).toBe(true)
+    expect(tipSeen(null)).toBe(false)
+    const broken = {
+      getItem: () => {
+        throw new Error('bloqueado')
+      },
+      setItem: () => {
+        throw new Error('lleno')
+      },
+    }
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    expect(tipSeen(broken)).toBe(false)
+    expect(() => markTipSeen(broken)).not.toThrow()
+    expect(warn).toHaveBeenCalledTimes(2)
+    warn.mockRestore()
   })
 })

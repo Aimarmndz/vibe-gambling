@@ -5,6 +5,7 @@ import type { ActionEvent } from '../../app/input.ts'
 import { drawText, wrap } from '../../font/bitmap.ts'
 import { dim, drawHelpBar, drawWindow } from '../draw.ts'
 import { ListMenu } from '../listMenu.ts'
+import { attribution, displayUrl } from '../../legal/attribution.ts'
 import { PALETTE } from '../palette.ts'
 import { LeaderboardScreen } from './leaderboard.ts'
 import { MemoryCardScreen } from './memoryCard.ts'
@@ -20,6 +21,7 @@ export class MenuScreen implements Screen {
     this.ctx = ctx
     this.menu = new ListMenu(ctx, 'menu', [
       { label: () => ctx.tr.t('menu.resume'), accept: () => ctx.pop(this) },
+      { label: () => ctx.tr.t('menu.howTo'), accept: () => ctx.showTip() },
       {
         label: () => ctx.tr.t('menu.leaderboard'),
         accept: () => ctx.push(new LeaderboardScreen(ctx)),
@@ -152,12 +154,12 @@ export class CreditsScreen implements Screen {
     const help = site.helpLinks[ctx.tr.locale] ?? []
     this.menu = new ListMenu(ctx, 'credits', [
       {
-        label: () => site.author.url.replace(/^https?:\/\//, ''),
+        label: () => displayUrl(site.author.url),
         accept: () => ctx.openLink(site.author.url),
       },
       ...help.map(link => ({ label: () => link.label, accept: () => ctx.openLink(link.url) })),
       {
-        label: () => site.repoUrl.replace(/^https?:\/\//, ''),
+        label: () => displayUrl(site.repoUrl),
         accept: () => ctx.openLink(site.repoUrl),
       },
     ])
@@ -177,9 +179,8 @@ export class CreditsScreen implements Screen {
     drawWindow(g, 16, 16, 288, 208)
     drawText(g, tr.t('credits.title'), 160, 24, { color: PALETTE.gold, align: 'center' })
     drawText(g, tr.t('brand.title'), 160, 40, { color: PALETTE.cream, align: 'center', scale: 2 })
-    drawText(g, tr.t('credits.createdBy', { author: web.site.author.name }), 28, 64, {
-      color: PALETTE.cream,
-    })
+    // Atribución obligatoria (términos 7(b) de LICENSE).
+    drawText(g, attribution(web.site.author, tr).text, 28, 64, { color: PALETTE.cream })
     let y = 76
     for (const line of wrap(tr.t('credits.fakeCoins'), 264)) {
       drawText(g, line, 28, y, { color: PALETTE.muted })

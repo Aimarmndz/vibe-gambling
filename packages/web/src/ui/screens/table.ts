@@ -9,10 +9,13 @@ import type { AppContext, Screen } from '../../app/context.ts'
 import type { ActionEvent } from '../../app/input.ts'
 import { drawText, measure } from '../../font/bitmap.ts'
 import { chipLabel, describePayout, describeSelection } from '../../game/describe.ts'
+import { idleStatusKey, spinHelpOnRepeat, tableHelpKey } from '../../game/hints.ts'
 import { INITIAL_CURSOR, hitTest, moveCursor } from '../../game/layout.ts'
 import type { Point } from '../../game/layout.ts'
 import { drawChipIcon, drawWindow } from '../draw.ts'
 import { CHIP_COLORS, PALETTE } from '../palette.ts'
+import { STATUS_BOX, STATUS_LOOKS, statusColor } from '../status.ts'
+import type { StatusKind } from '../status.ts'
 import { MenuScreen } from './menu.ts'
 
 /** Altura del letrero de estado (entre la ruleta y el tapete). */
@@ -62,11 +65,17 @@ export class TableScreen implements Screen {
     return hitTest(this.focus())
   }
 
-  private bet(sel: BetSelection | null): void {
+  private bet(sel: BetSelection | null, fromPad = false): void {
     if (!sel) return
+    const state = this.ctx.state()
+    const onIt = state.slip.bets.some(b => selectionKey(b.selection) === selectionKey(sel))
     const chip = this.chip()
     const ok = this.ctx.send({ type: 'bet.place', selection: sel, amount: chip })
     this.ctx.sfx.play(ok ? 'chip' : 'error')
+    // ✕ otra vez sobre las mismas fichas suele ser buscar "girar": se explica cómo se gira.
+    if (ok && fromPad && spinHelpOnRepeat(onIt, state.phase)) {
+      this.ctx.toast(this.ctx.tr.t(this.ctx.demo ? 'toast.howToSpinDemo' : 'toast.howToSpin'))
+    }
   }
 
   private cycleChip(dir: number): void {
@@ -86,7 +95,7 @@ export class TableScreen implements Screen {
         this.ctx.sfx.play('move')
         return
       case 'accept':
-        this.bet(this.hover())
+        this.bet(this.hover(), true)
         return
       case 'clear':
         if (this.ctx.state().slip.bets.length === 0) return
@@ -172,13 +181,19 @@ export class TableScreen implements Screen {
     // Estado: centrado bajo la ruleta.
     const status = this.statusText()
     if (status) {
+      const look = STATUS_LOOKS[status.kind]
       const sw = measure(status.text) + 16
-      drawWindow(g, 160 - sw / 2, STATUS_Y, sw, 15, { shadow: true })
-      // El parpadeo alterna el brillo (nunca deja el letrero vacío).
-      const dimmed = status.blink && Math.floor(t * 2) % 2 === 1
-      drawText(g, status.text, 160, STATUS_Y + 4, {
-        color: dimmed ? PALETTE.frameInner : status.color,
+      const box = STATUS_BOX
+      drawWindow(g, 160 - sw / 2, STATUS_Y, sw, box.height, {
+        shadow: true,
+        top: look.top,
+        bottom: look.bottom,
+      })
+      // El parpadeo alterna dos colores legibles (nunca deja el letrero tenue ni vacío).
+      drawText(g, status.text, 160, STATUS_Y + box.textTop, {
+        color: statusColor(look, t),
         align: 'center',
+        shadow: PALETTE.ink,
       })
     }
 
@@ -220,27 +235,30 @@ export class TableScreen implements Screen {
       })
       x += slotW + 4
     })
-    drawText(g, tr.t('help.table', { ...this.ctx.buttons() }), 6, 231, { color: muted })
+    // La ayuda alterna los controles con cómo se gira (no hay botón de girar).
+    const helpKey = tableHelpKey(t * 1000, this.ctx.client.ui.helpCycleMs, this.ctx.demo)
+    drawText(g, tr.t(helpKey, { ...this.ctx.buttons() }), 6, 231, {
+      color: helpKey === 'help.table' ? muted : PALETTE.gold,
+    })
   }
 
-  private statusText(): { text: string; color: string; blink: boolean } | null {
+  private statusText(): { text: string; kind: StatusKind } | null {
     const { tr } = this.ctx
     const conn = this.ctx.connection()
-    if (conn === 'connecting')
-      return { text: tr.t('status.connecting'), color: PALETTE.muted, blink: true }
-    if (conn === 'reconnecting')
-      return { text: tr.t('status.offline'), color: PALETTE.loss, blink: true }
-    switch (this.ctx.state().phase) {
+    if (conn === 'connecting') return { text: tr.t('status.connecting'), kind: 'connecting' }
+    if (conn === 'reconnecting') return { text: tr.t('status.offline'), kind: 'offline' }
+    const state = this.ctx.state()
+    switch (state.phase) {
       case 'spinning':
-        return { text: tr.t('status.thinking'), color: PALETTE.gold, blink: true }
+        return { text: tr.t('status.thinking'), kind: 'thinking' }
       case 'landing':
-        return { text: tr.t('status.landing'), color: PALETTE.cream, blink: false }
-      case 'idle':
-        return {
-          text: this.ctx.demo ? tr.t('status.demo') : tr.t('status.idle'),
-          color: PALETTE.cream,
-          blink: false,
-        }
+        return { text: tr.t('status.landing'), kind: 'landing' }
+      case 'idle': {
+        // Sin ronda abierta: el giro lo lanza un prompt en Claude Code, no la ventana.
+        const key = idleStatusKey(this.ctx.demo, state.slip.total)
+        const ready = key === 'status.ready' || key === 'status.demoReady'
+        return { text: tr.t(key), kind: ready ? 'ready' : 'idle' }
+      }
       default:
         return null
     }

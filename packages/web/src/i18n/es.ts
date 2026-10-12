@@ -7,6 +7,8 @@ export const es: Messages = {
 
   'brand.title': 'VIBE GAMBLING',
   'brand.tagline': 'Cada prompt es una tirada.',
+  // Términos 7(b) de LICENSE: solo se traduce "Created by"; {author} y {url} son de site.json.
+  'legal.createdBy': 'Creado por {author} ({url})',
   'brand.fakeCoins': 'Monedas de mentira.',
 
   'boot.console': 'POLYGONE',
@@ -15,7 +17,6 @@ export const es: Messages = {
   'boot.licensor1': 'VIBE CODING',
   'boot.licensor2': 'ENTERTAINMENT',
   'boot.pressStart': 'PULSA {x} PARA EMPEZAR',
-  'boot.createdBy': 'Creado por {author}',
   'boot.skip': 'Cualquier tecla lo salta',
   'boot.soundHint': 'Haz clic para activar el sonido',
 
@@ -30,18 +31,39 @@ export const es: Messages = {
   'hud.allIn': 'ALL-IN',
   'hud.muted': 'SILENCIO',
 
-  'status.idle': 'HAGAN JUEGO',
+  'status.idle': 'MANDA UN PROMPT EN CLAUDE CODE PARA GIRAR',
+  'status.ready': 'APUESTA LISTA · GIRA CON TU PRÓXIMO PROMPT',
   'status.thinking': 'CLAUDE ESTÁ PENSANDO…',
   'status.landing': 'NO VA MÁS',
   'status.connecting': 'CONECTANDO…',
   'status.offline': 'SIN CONEXIÓN · REINTENTANDO…',
-  'status.demo': 'DEMO · NO SE GUARDA NADA',
+  'status.demo': 'DEMO · GIRA SOLA · NO SE GUARDA NADA',
+  'status.demoReady': 'DEMO · APUESTA LISTA PARA EL PRÓXIMO GIRO',
 
   'help.table': '←→↑↓ MOVER  {x} APOSTAR  {tri} RETIRAR  {sq} FICHA  {start} MENÚ',
   'help.fine': 'MAYÚS: MOVIMIENTO FINO (CABALLOS, CUADROS)',
   'help.menu': '↑↓ MOVER  ←→ CAMBIAR  {x} ACEPTAR  {o} ATRÁS',
   'help.keys':
     'Teclas: X/Espacio ✕ · O/Esc ○ · C △ · Z □ · 1-9 ficha · P START · Mayús fino · M silencio',
+
+  'help.spin': 'NO HAY BOTÓN DE GIRAR: MANDA UN PROMPT EN CLAUDE CODE',
+  'help.spinDemo': 'DEMO: LA RULETA GIRA SOLA CADA POCOS SEGUNDOS',
+
+  'tip.title': 'CÓMO SE JUEGA',
+  'tip.1': '1. Pon fichas en el tapete: flechas y {x}, o con el ratón.',
+  'tip.2':
+    '2. Manda cualquier prompt en Claude Code: la ruleta gira mientras Claude piensa. No hay botón de girar.',
+  'tip.2demo':
+    '2. En esta demo la ruleta gira sola. De verdad, cada prompt que mandas en Claude Code es una tirada.',
+  'tip.3':
+    '3. Cuando Claude termina, cae la bola. ¿No apuestas de nuevo? Se repite tu última apuesta.',
+  'tip.ok': '{x} ENTENDIDO',
+  'menu.howTo': 'CÓMO SE GIRA',
+  'toast.betReady': 'Apuesta lista: se jugará en tu próximo prompt de Claude Code.',
+  'toast.betReadyDemo': 'Apuesta lista: se jugará en el próximo giro de la demo.',
+  'toast.howToSpin':
+    'Aquí no hay botón de girar: la ruleta gira cuando mandas un prompt en Claude Code.',
+  'toast.howToSpinDemo': 'En la demo la ruleta gira sola cada pocos segundos.',
 
   'bet.straight': 'PLENO {numbers}',
   'bet.split': 'CABALLO {numbers}',
@@ -109,7 +131,8 @@ export const es: Messages = {
   'mc.nodeModulesInfo': '14 bloques. No lo borres: siempre vuelve.',
   'mc.freeInfo': 'Bloque vacío. Aquí no hay nada que perder (aún).',
   'mc.blocks': '{n} BLOQUES',
-  'mc.noData': 'Aún no hay partida guardada. Primero haz girar la ruleta.',
+  'mc.noData':
+    'Aún no hay partida guardada. Manda un prompt en Claude Code para la primera tirada.',
 
   'loan.title': 'LUDO-CRÉDITO EXPRESS',
   'loan.pitch': 'No te llega ni para la ficha mínima. Te damos {amount} monedas AHORA MISMO.',
@@ -162,7 +185,6 @@ export const es: Messages = {
   'lb.switch': '←→ CAMBIAR TABLA',
 
   'credits.title': 'CRÉDITOS',
-  'credits.createdBy': 'Creado por {author}',
   'credits.fakeCoins': 'Monedas de mentira. Si el juego de verdad te preocupa:',
   'credits.disclaimer': 'Sin relación con Anthropic ni con Sony Interactive Entertainment.',
   'credits.assets': 'Fuente Polygone 12 (OFL) · todos los sonidos se sintetizan en vivo',
@@ -242,7 +264,6 @@ export const es: Messages = {
   'landing.hall.empty': 'Aún no se ha cerrado ninguna temporada. La historia se sigue perdiendo.',
   'landing.hall.season': 'Temporada {season}',
 
-  'footer.createdBy': 'Creado por {author}',
   'footer.fakeCoins': 'Monedas de mentira. Si el juego de verdad te preocupa:',
   'footer.disclaimer': 'Sin relación con Anthropic ni con Sony Interactive Entertainment.',
   'footer.privacy': 'Privacidad',

@@ -45,6 +45,8 @@ export const webClientConfigSchema = z
         toastMs: ms,
         /** Cuánto espera la pantalla de título del arranque antes de pasar sola a la mesa. */
         titleHoldMs: ms,
+        /** Periodo de la ayuda de la barra inferior (controles ↔ cómo se gira). */
+        helpCycleMs: ms.min(1000),
       })
       .strict(),
     spin: z

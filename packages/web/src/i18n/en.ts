@@ -8,6 +8,8 @@ export const en = {
 
   'brand.title': 'VIBE GAMBLING',
   'brand.tagline': 'Every prompt is a spin.',
+  // Términos 7(b) de LICENSE: solo se traduce "Created by"; {author} y {url} son de site.json.
+  'legal.createdBy': 'Created by {author} ({url})',
   'brand.fakeCoins': 'Fake coins only.',
 
   'boot.console': 'POLYGONE',
@@ -16,7 +18,6 @@ export const en = {
   'boot.licensor1': 'VIBE CODING',
   'boot.licensor2': 'ENTERTAINMENT',
   'boot.pressStart': 'PRESS {x} TO START',
-  'boot.createdBy': 'Created by {author}',
   'boot.skip': 'Any key skips',
   'boot.soundHint': 'Click anywhere for sound',
 
@@ -31,17 +32,36 @@ export const en = {
   'hud.allIn': 'ALL-IN',
   'hud.muted': 'MUTED',
 
-  'status.idle': 'PLACE YOUR BETS',
+  'status.idle': 'SEND A PROMPT IN CLAUDE CODE TO SPIN',
+  'status.ready': 'BET READY · SPINS ON YOUR NEXT PROMPT',
   'status.thinking': 'CLAUDE IS THINKING…',
   'status.landing': 'NO MORE BETS',
   'status.connecting': 'CONNECTING…',
   'status.offline': 'OFFLINE · RECONNECTING…',
-  'status.demo': 'DEMO · NOTHING IS SAVED',
+  'status.demo': 'DEMO · SPINS BY ITSELF · NOTHING SAVED',
+  'status.demoReady': 'DEMO · BET READY FOR THE NEXT SPIN',
 
   'help.table': '←→↑↓ MOVE  {x} BET  {tri} CLEAR  {sq} CHIP  {start} MENU',
   'help.fine': 'SHIFT: FINE MOVE (SPLITS, CORNERS)',
   'help.menu': '↑↓ MOVE  ←→ CHANGE  {x} OK  {o} BACK',
   'help.keys': 'Keys: X/Space ✕ · O/Esc ○ · C △ · Z □ · 1-9 chip · P START · Shift fine · M mute',
+
+  'help.spin': 'NO SPIN BUTTON: SEND A PROMPT IN CLAUDE CODE',
+  'help.spinDemo': 'DEMO: THE WHEEL SPINS BY ITSELF EVERY FEW SECONDS',
+
+  'tip.title': 'HOW TO PLAY',
+  'tip.1': '1. Put chips on the table: arrows and {x}, or the mouse.',
+  'tip.2':
+    '2. Send any prompt in Claude Code: the wheel spins while Claude thinks. There is no spin button.',
+  'tip.2demo':
+    '2. In this demo the wheel spins by itself. For real, every prompt you send in Claude Code is a spin.',
+  'tip.3': '3. When Claude finishes, the ball drops. No new bet? Your last one plays again.',
+  'tip.ok': '{x} GOT IT',
+  'menu.howTo': 'HOW TO SPIN',
+  'toast.betReady': 'Bet ready: it plays on your next prompt in Claude Code.',
+  'toast.betReadyDemo': 'Bet ready: it plays on the next demo spin.',
+  'toast.howToSpin': 'No spin button here: the wheel spins when you send a prompt in Claude Code.',
+  'toast.howToSpinDemo': 'In the demo the wheel spins by itself every few seconds.',
 
   'bet.straight': 'STRAIGHT {numbers}',
   'bet.split': 'SPLIT {numbers}',
@@ -109,7 +129,7 @@ export const en = {
   'mc.nodeModulesInfo': '14 blocks. Do not delete it: it always comes back.',
   'mc.freeInfo': 'Empty block. Nothing to lose here (yet).',
   'mc.blocks': '{n} BLOCKS',
-  'mc.noData': 'No save data yet. Spin the wheel first.',
+  'mc.noData': 'No save data yet. Send a prompt in Claude Code to spin for the first time.',
 
   'loan.title': 'LUDO-CREDIT EXPRESS',
   'loan.pitch': 'You cannot afford the minimum chip. Get {amount} coins RIGHT NOW.',
@@ -162,7 +182,6 @@ export const en = {
   'lb.switch': '←→ CHANGE BOARD',
 
   'credits.title': 'CREDITS',
-  'credits.createdBy': 'Created by {author}',
   'credits.fakeCoins': 'Fake coins only. If real gambling worries you:',
   'credits.disclaimer': 'Not affiliated with Anthropic or Sony Interactive Entertainment.',
   'credits.assets': 'Font Polygone 12 (OFL) · every sound is synthesized live',
@@ -242,7 +261,6 @@ export const en = {
   'landing.hall.empty': 'No season has closed yet. History is still being lost.',
   'landing.hall.season': 'Season {season}',
 
-  'footer.createdBy': 'Created by {author}',
   'footer.fakeCoins': 'Fake coins only. If real gambling worries you:',
   'footer.disclaimer': 'Not affiliated with Anthropic or Sony Interactive Entertainment.',
   'footer.privacy': 'Privacy',
