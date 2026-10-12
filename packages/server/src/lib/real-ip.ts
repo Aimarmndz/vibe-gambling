@@ -42,3 +42,42 @@ export function createRealIpResolver(cidrs: readonly string[], header: string): 
     return normalizeAddress(value)
   }
 }
+
+/** Grupos de 16 bits de una parte de una IPv6 (admite una IPv4 incrustada al final). */
+function parseGroups(part: string): number[] {
+  if (part === '') return []
+  const groups: number[] = []
+  for (const piece of part.split(':')) {
+    if (piece.includes('.')) {
+      const [a = 0, b = 0, c = 0, d = 0] = piece.split('.').map(Number)
+      groups.push((a << 8) | b, (c << 8) | d)
+    } else {
+      groups.push(Number.parseInt(piece, 16))
+    }
+  }
+  return groups
+}
+
+/** Los 8 grupos de una IPv6 ya validada con `isIP` (expande `::` y quita la zona `%eth0`). */
+function ipv6Groups(address: string): number[] {
+  const [head = '', tail] = (address.split('%')[0] ?? '').split('::')
+  const first = parseGroups(head)
+  if (tail === undefined) return first
+  const last = parseGroups(tail)
+  return [...first, ...Array<number>(8 - first.length - last.length).fill(0), ...last]
+}
+
+/**
+ * Clave del rate limit por IP. Una IPv4 cuenta sola; una IPv6 cuenta por su prefijo
+ * (`RATE_LIMIT_IPV6_PREFIX`, normalmente /64): cualquier conexión doméstica recibe al menos un
+ * /64 y podría estrenar una dirección en cada petición para saltarse el límite.
+ */
+export function rateLimitKeyOf(ip: string, ipv6Prefix: number): string {
+  if (isIP(ip) !== 6) return ip
+  const masked = ipv6Groups(ip).map((group, i) => {
+    const bits = Math.max(0, Math.min(16, ipv6Prefix - i * 16))
+    const mask = bits === 0 ? 0 : (0xffff << (16 - bits)) & 0xffff
+    return (group & mask).toString(16)
+  })
+  return `${masked.join(':')}/${ipv6Prefix}`
+}

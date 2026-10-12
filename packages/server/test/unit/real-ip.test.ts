@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { describe, expect, it } from 'vitest'
 
-import { createRealIpResolver, normalizeAddress } from '../../src/lib/real-ip.ts'
+import { createRealIpResolver, normalizeAddress, rateLimitKeyOf } from '../../src/lib/real-ip.ts'
 
 // Dos rangos reales de Cloudflare (cloudflare.com/ips) como ejemplo de test.
 const CLOUDFLARE = ['173.245.48.0/20', '2400:cb00::/32']
@@ -34,5 +34,20 @@ describe('IP real', () => {
     expect(resolve('::ffff:173.245.48.10', { 'x-real-ip': '198.51.100.2' })).toBe('198.51.100.2')
     expect(resolve('10.0.0.1', { 'x-real-ip': '198.51.100.3' })).toBe('198.51.100.3')
     expect(resolve(undefined, {})).toBe('unknown')
+  })
+})
+
+describe('clave del rate limit por IP', () => {
+  it('agrupa las IPv6 por prefijo (cambiar de dirección dentro de un /64 no da cupo nuevo)', () => {
+    expect(rateLimitKeyOf('2001:db8::1', 64)).toBe(rateLimitKeyOf('2001:db8::ffff:1:2:3', 64))
+    expect(rateLimitKeyOf('2001:db8:0:0:abcd::9', 64)).toBe(rateLimitKeyOf('2001:db8::', 64))
+    expect(rateLimitKeyOf('2001:db8:0:1::1', 64)).not.toBe(rateLimitKeyOf('2001:db8::1', 64))
+    expect(rateLimitKeyOf('2001:db8:aa::1', 48)).toBe(rateLimitKeyOf('2001:db8:aa:ff::2', 48))
+    expect(rateLimitKeyOf('2001:db8::1', 128)).not.toBe(rateLimitKeyOf('2001:db8::2', 128))
+  })
+
+  it('las IPv4 y lo que no es una IP se quedan como están', () => {
+    expect(rateLimitKeyOf('203.0.113.9', 64)).toBe('203.0.113.9')
+    expect(rateLimitKeyOf('unknown', 64)).toBe('unknown')
   })
 })

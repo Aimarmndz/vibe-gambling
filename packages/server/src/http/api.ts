@@ -36,6 +36,7 @@ import type { ZodTypeProvider } from 'fastify-type-provider-zod'
 
 import type { Config } from '../config.ts'
 import { AppError } from '../lib/errors.ts'
+import { rateLimitKeyOf } from '../lib/real-ip.ts'
 import type { Services } from '../services/index.ts'
 import { authOf, makeRequireAuth, tokenKeyOf } from './auth.ts'
 
@@ -67,7 +68,8 @@ export async function apiRoutes(parent: FastifyInstance, options: ApiOptions): P
   const ipLimit = app.createRateLimit({
     max: env.RATE_LIMIT_IP_MAX,
     timeWindow: env.RATE_LIMIT_IP_WINDOW_MS,
-    keyGenerator: (request: FastifyRequest) => `ip:${request.realIp}`,
+    keyGenerator: (request: FastifyRequest) =>
+      `ip:${rateLimitKeyOf(request.realIp, env.RATE_LIMIT_IPV6_PREFIX)}`,
   })
   const tokenLimit = app.createRateLimit({
     max: env.RATE_LIMIT_TOKEN_MAX,

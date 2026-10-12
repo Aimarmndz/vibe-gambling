@@ -37,7 +37,9 @@ export function helmetOptions(config: Config): FastifyHelmetOptions {
     // Los avatares de GitHub son de otro origen y no mandan CORP: sin COEP.
     crossOriginEmbedderPolicy: false,
     // HSTS solo tiene sentido (y efecto) sobre HTTPS.
-    strictTransportSecurity: https ? { maxAge: 31_536_000, includeSubDomains: false } : false,
+    strictTransportSecurity: https
+      ? { maxAge: config.env.HSTS_MAX_AGE_SECONDS, includeSubDomains: false }
+      : false,
     referrerPolicy: { policy: 'no-referrer' },
   }
 }
