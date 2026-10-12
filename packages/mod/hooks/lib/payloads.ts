@@ -82,10 +82,13 @@ const ALL_IN_WORDS = new Set(['all', 'allin', 'all-in', 'todo'])
  * validarla; aquí solo se filtra lo que no tiene sentido mandar.
  */
 export function parseBetAmount(raw: string): BetAmount | null {
-  const text = raw.trim().toLowerCase().replace(/[._]/g, '')
+  const text = raw.trim().toLowerCase()
   if (ALL_IN_WORDS.has(text)) return 'all-in'
-  if (!/^\d{1,15}$/.test(text)) return null
-  const amount = Number(text)
+  // Separador de miles (`1.000`, `1,000`, `1_000`) solo en grupos de tres y siempre el mismo:
+  // así `1.5` no se convierte en 15 monedas, sino en un error.
+  const digits = /^\d{1,3}([._,])\d{3}(?:\1\d{3})*$/.test(text) ? text.replace(/[._,]/g, '') : text
+  if (!/^\d{1,15}$/.test(digits)) return null
+  const amount = Number(digits)
   return Number.isSafeInteger(amount) && amount > 0 ? amount : null
 }
 

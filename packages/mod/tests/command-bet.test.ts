@@ -26,6 +26,15 @@ describe('parseBetAmount', () => {
     expect(parseBetAmount('ALL-IN')).toBe('all-in')
     expect(parseBetAmount('todo')).toBe('all-in')
   })
+  test('thousands separators only in groups of three, never as a decimal point', () => {
+    expect(parseBetAmount('1.000')).toBe(1000)
+    expect(parseBetAmount('1,000,000')).toBe(1_000_000)
+    expect(parseBetAmount('10_000')).toBe(10_000)
+    // "1.5" no son 15 monedas: es un decimal, y aquí solo hay monedas enteras.
+    for (const raw of ['1.5', '0.5', '1,5', '12.34', '1.00.0', '1..000', '.100', '100.', '1_0']) {
+      expect(parseBetAmount(raw), raw).toBeNull()
+    }
+  })
   test('rejects the rest', () => {
     for (const raw of ['0', '-5', '1.5e3', 'abc', '', '9999999999999999', '12abc']) {
       expect(parseBetAmount(raw), raw).toBeNull()
