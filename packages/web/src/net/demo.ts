@@ -48,6 +48,8 @@ export interface DemoTurnOptions {
   minSpinMs?: number
   /** Caída de la bola de esta ronda (las pendientes de GIRAR TODAS caen más rápido). */
   landingMs?: number
+  /** `requestId` del `spin.pending` que la gasta: va en su `round.resolved`. */
+  requestId?: string
 }
 
 /** Mandos del modo demo para los tests y las capturas (`window.__vgDemo`). */
@@ -309,7 +311,7 @@ export class DemoLink implements Link {
       case 'presence':
         return
       case 'spin.pending':
-        this.spendPending(msg.quick)
+        this.spendPending(msg.quick, msg.requestId)
         return
       case 'stats.request':
         this.emit({ v: PROTOCOL_VERSION, type: 'stats', stats: this.progress.stats(this.wallet) })
@@ -380,18 +382,26 @@ export class DemoLink implements Link {
   }
 
   /** GIRAR: gasta una tirada pendiente al momento (la de GIRAR TODAS, con el giro rápido). */
-  private spendPending(quick: boolean): void {
+  private spendPending(quick: boolean, requestId: string): void {
+    // Como el servidor: los errores dicen a qué mensaje responden y la tirada lleva su requestId.
     if (this.wallet.pendingSpins <= 0) {
       this.emit({
         v: PROTOCOL_VERSION,
         type: 'error',
         error: 'not_found',
         message: 'no pending spins',
+        re: 'spin.pending',
       })
       return
     }
     if (this.busy || this.round) {
-      this.emit({ v: PROTOCOL_VERSION, type: 'error', error: 'conflict', message: 'wheel busy' })
+      this.emit({
+        v: PROTOCOL_VERSION,
+        type: 'error',
+        error: 'conflict',
+        message: 'wheel busy',
+        re: 'spin.pending',
+      })
       return
     }
     this.wallet = { ...this.wallet, pendingSpins: this.wallet.pendingSpins - 1 }
@@ -399,6 +409,7 @@ export class DemoLink implements Link {
       thinkMs: 0,
       minSpinMs: quick ? this.cfg.pendingSpins.quickSpinMs : this.cfg.spin.minSpinMs,
       landingMs: quick ? this.cfg.pendingSpins.quickLandingMs : this.cfg.spin.landingMs,
+      requestId,
     })
   }
 
@@ -510,7 +521,13 @@ export class DemoLink implements Link {
       },
     )
     this.lastRound = resolved
-    this.emit({ v: PROTOCOL_VERSION, type: 'round.resolved', round: resolved, wallet: this.wallet })
+    this.emit({
+      v: PROTOCOL_VERSION,
+      type: 'round.resolved',
+      round: resolved,
+      wallet: this.wallet,
+      ...(options.requestId ? { requestId: options.requestId } : {}),
+    })
     this.progress.recordRound(resolved, this.wallet)
     // El primer logro también en la demo (el resto solo los da el servidor de verdad).
     if (this.progress.unlock('first_spin', resolved.resolvedAt, this.wallet.seasonId)) {

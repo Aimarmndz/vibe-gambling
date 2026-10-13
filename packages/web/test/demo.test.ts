@@ -114,6 +114,19 @@ describe('modo demo', () => {
     link.stop()
   })
 
+  it('GIRAR en la demo responde como el servidor: requestId en la tirada y re en el error', async () => {
+    const { link, got } = setup()
+    link.send(withVersion({ type: 'spin.pending', quick: true, requestId: 'spin-demo-0001' }))
+    await vi.advanceTimersByTimeAsync(50)
+    expect(got.at(-1)).toMatchObject({ type: 'error', error: 'not_found', re: 'spin.pending' })
+    link.controls.showcase()
+    await vi.advanceTimersByTimeAsync(10_000)
+    link.send(withVersion({ type: 'spin.pending', quick: true, requestId: 'spin-demo-0002' }))
+    await vi.advanceTimersByTimeAsync(10_000)
+    const resolved = got.filter(m => m.type === 'round.resolved').at(-1)
+    expect(resolved).toMatchObject({ requestId: 'spin-demo-0002' })
+  })
+
   it('completa la configuración que la web no ve con valores de demo', () => {
     const cfg = demoGameConfig(testWebConfig.game)
     expect(cfg.defaultBet.amount).toBe(5)
