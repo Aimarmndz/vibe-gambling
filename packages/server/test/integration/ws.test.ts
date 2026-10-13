@@ -423,6 +423,14 @@ describe('WebSocket', () => {
     // Una temporada en la que no jugó: error, sin cerrar la ventana.
     client.send({ v: 1, type: 'stats.request', seasonId: '1999-01' })
     expect(await client.next('error')).toMatchObject({ error: 'not_found' })
+    // AFILIADOS: el código (creado al pedirlo), el enlace y las cuentas de la pirámide.
+    client.send({ v: 1, type: 'referral.request' })
+    const referral = await client.next('referral')
+    expect(referral.referral).toMatchObject({
+      url: `${TEST_PUBLIC_URL}/r/${referral.referral.code}`,
+      invited: 0,
+      season: { seasonId: '2026-10', commissions: 0 },
+    })
     client.send({ v: 1, type: 'ping', t: 7 })
     await client.next('pong')
     // La otra ventana del mismo usuario no recibe pantallas que no ha pedido.

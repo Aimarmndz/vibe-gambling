@@ -23,6 +23,11 @@ import {
   parseBetTarget,
   redeemRequestSchema,
   redeemResponseSchema,
+  referralLookupQuerySchema,
+  referralLookupResponseSchema,
+  referralRedeemRequestSchema,
+  referralRedeemResponseSchema,
+  referralResponseSchema,
   settingsRequestSchema,
   settingsResponseSchema,
   turnEndRequestSchema,
@@ -272,5 +277,32 @@ export async function apiRoutes(parent: FastifyInstance, options: ApiOptions): P
     ...at(API_ROUTES.hallOfRuin),
     schema: { response: { 200: hallOfRuinResponseSchema } },
     handler: async () => services.leaderboard.hallOfRuin(),
+  })
+
+  // ---------------------------------------------------------------- afiliados
+
+  app.route({
+    ...at(API_ROUTES.referral),
+    schema: { response: { 200: referralResponseSchema } },
+    handler: async request => ({
+      v: V,
+      referral: await services.referrals.status(authOf(request).user.id),
+    }),
+  })
+
+  app.route({
+    ...at(API_ROUTES.referralRedeem),
+    schema: { body: referralRedeemRequestSchema, response: { 200: referralRedeemResponseSchema } },
+    handler: async request =>
+      services.referrals.redeem(authOf(request).user.id, request.body.code),
+  })
+
+  app.route({
+    ...at(API_ROUTES.referralLookup),
+    schema: {
+      querystring: referralLookupQuerySchema,
+      response: { 200: referralLookupResponseSchema },
+    },
+    handler: async request => services.referrals.lookup(request.query.code),
   })
 }

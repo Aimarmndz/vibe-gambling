@@ -48,11 +48,21 @@ export const users = pgTable(
     locale: text('locale'),
     /** Última apuesta resuelta (para repetirla si no apuesta). */
     lastBets: jsonb('last_bets').$type<Bet[]>(),
+    /**
+     * Código de afiliado (`/r/<código>`), creado la primera vez que lo pide. Aleatorio: no dice
+     * nada del usuario. Formato en `game/referral.ts` de shared.
+     */
+    referralCode: text('referral_code'),
     createdAt: ts('created_at').notNull().defaultNow(),
     updatedAt: ts('updated_at').notNull().defaultNow(),
   },
   t => [
     uniqueIndex('users_github_id_key').on(t.githubId),
+    uniqueIndex('users_referral_code_key').on(t.referralCode),
+    check(
+      'users_referral_code_check',
+      sql`${t.referralCode} is null or ${t.referralCode} ~ '^[2-9A-HJKMNP-TV-Z]{8}$'`,
+    ),
     // Solo el formato del código: la lista de idiomas válidos sale de `locales/` (localeSchema) y
     // un idioma nuevo no necesita migración.
     check(
@@ -341,6 +351,55 @@ export const achievements = pgTable(
   t => [primaryKey({ columns: [t.userId, t.achievementId] })],
 )
 
+// ---------------------------------------------------------------- afiliados
+
+/**
+ * Canjes de códigos de afiliado: quién invitó a quién, cuándo, el bono de bienvenida y, cuando el
+ * invitado se activa, la comisión (0 si quien invitó ya había cobrado el tope de esa temporada).
+ *
+ * Al borrar una de las dos cuentas, su lado queda a `null` (no en cascada): así la fila sigue
+ * contando para el tope de comisiones de la temporada de quien queda (si no, borrar y volver a
+ * crear la cuenta del invitado daría comisiones sin fin) y quien canjeó no puede canjear otro,
+ * pero ya no dice de quién era. Si se quedan los dos a `null`, el borrado de cuenta la elimina.
+ */
+export const referrals = pgTable(
+  'referrals',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    referrerId: uuid('referrer_id').references(() => users.id, { onDelete: 'set null' }),
+    inviteeId: uuid('invitee_id').references(() => users.id, { onDelete: 'set null' }),
+    redeemedAt: ts('redeemed_at').notNull(),
+    /** Temporada en la que el invitado cobró el bono de bienvenida. */
+    seasonId: text('season_id')
+      .notNull()
+      .references(() => seasons.id),
+    welcomeBonus: coins('welcome_bonus').notNull(),
+    /** Cuándo se activó el invitado (null mientras no). */
+    activatedAt: ts('activated_at'),
+    /** Comisión pagada al activarse (0 si ya estaba el tope). */
+    commission: coins('commission'),
+    /** Temporada en cuya cartera se pagó la comisión (la del momento de activarse). */
+    paidSeasonId: text('paid_season_id').references(() => seasons.id),
+  },
+  t => [
+    // Un canje por cuenta, para siempre (los `null` de cuentas borradas no chocan entre sí).
+    uniqueIndex('referrals_invitee_key').on(t.inviteeId),
+    // Estadísticas de quien invita y su tope de comisiones por temporada.
+    index('referrals_referrer_season_idx').on(t.referrerId, t.paidSeasonId),
+    // Invitados aún sin activar (lo que se mira tras cada tirada).
+    index('referrals_pending_idx')
+      .on(t.inviteeId)
+      .where(sql`${t.activatedAt} is null`),
+    check('referrals_not_self_check', sql`${t.referrerId} <> ${t.inviteeId}`),
+    check('referrals_welcome_bonus_check', sql`${t.welcomeBonus} >= 0`),
+    check(
+      'referrals_activation_check',
+      sql`(${t.activatedAt} is null) = (${t.commission} is null) and (${t.activatedAt} is null) = (${t.paidSeasonId} is null)`,
+    ),
+    check('referrals_commission_check', sql`${t.commission} is null or ${t.commission} >= 0`),
+  ],
+)
+
 // ---------------------------------------------------------------- Salón de la Ruina
 
 export const hallOfRuin = pgTable(
@@ -368,3 +427,4 @@ export type WalletRow = typeof wallets.$inferSelect
 export type RoundRow = typeof rounds.$inferSelect
 export type TurnRow = typeof turns.$inferSelect
 export type AchievementRow = typeof achievements.$inferSelect
+export type ReferralRow = typeof referrals.$inferSelect

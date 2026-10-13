@@ -22,10 +22,10 @@ import type {
   GameConfig,
   ProgressSnapshot,
 } from '@vibe-gambling/shared'
-import { and, count, eq } from 'drizzle-orm'
+import { and, count, eq, gt } from 'drizzle-orm'
 
 import type { Executor, Tx } from '../db/client.ts'
-import { achievements, rounds } from '../db/schema.ts'
+import { achievements, referrals, rounds } from '../db/schema.ts'
 import type { AchievementRow, WalletRow } from '../db/schema.ts'
 
 export function achievementRules(game: GameConfig): AchievementRules {
@@ -35,7 +35,27 @@ export function achievementRules(game: GameConfig): AchievementRules {
     loan: game.loan,
     bigWin: game.bigWin,
     streak: { onFireAt: game.streak.onFireAt, colorWarningAt: game.streak.colorWarningAt },
+    referral: { maxCommissionsPerSeason: game.referral.maxCommissionsPerSeason },
   }
+}
+
+/** Comisiones de afiliado cobradas (con monedas, sin las del tope) por un usuario en una temporada. */
+export async function paidCommissions(
+  db: Executor,
+  referrerId: string,
+  seasonId: string,
+): Promise<number> {
+  const [row] = await db
+    .select({ n: count() })
+    .from(referrals)
+    .where(
+      and(
+        eq(referrals.referrerId, referrerId),
+        eq(referrals.paidSeasonId, seasonId),
+        gt(referrals.commission, 0),
+      ),
+    )
+  return row?.n ?? 0
 }
 
 /** Contexto de un evento menos lo que se calcula aquí (la hora local). */
@@ -110,7 +130,7 @@ export class AchievementService {
   async list(
     db: Executor,
     userId: string,
-    wallet: { row: WalletRow | undefined; pendingSpins: number },
+    wallet: { row: WalletRow | undefined; pendingSpins: number; seasonId: string },
   ): Promise<Achievement[]> {
     const rows = await db.select().from(achievements).where(eq(achievements.userId, userId))
     const byId = new Map(rows.map(row => [row.achievementId, row]))
@@ -122,6 +142,9 @@ export class AchievementService {
       pendingSpins: wallet.pendingSpins,
       // Solo hace falta mientras se enseña su barra de progreso.
       lifetimeZeros: byId.has('zero_collector') ? 0 : await this.lifetimeZeros(db, userId),
+      referralCommissions: byId.has('pyramid_boss')
+        ? 0
+        : await paidCommissions(db, userId, wallet.seasonId),
     }
     return ACHIEVEMENTS.map(a => {
       const row = byId.get(a.id)

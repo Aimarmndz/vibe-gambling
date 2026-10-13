@@ -61,6 +61,14 @@
       "toHour": 6
     }
   },
+  "referral": {
+    "welcomeBonus": 500,
+    "commission": 1000,
+    "activationSpins": 3,
+    "redeemWindowDays": 7,
+    "redeemMaxSpins": 5,
+    "maxCommissionsPerSeason": 2
+  },
   "stats": {
     "recentRounds": 4,
     "seriesPoints": 5,

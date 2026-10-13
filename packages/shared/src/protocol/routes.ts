@@ -32,6 +32,12 @@ export const API_ROUTES = Object.freeze({
   deleteAccount: { method: 'POST', path: '/api/me/delete', auth: 'any' },
   leaderboard: { method: 'GET', path: '/api/leaderboard', auth: 'public' },
   hallOfRuin: { method: 'GET', path: '/api/hall-of-ruin', auth: 'public' },
+  /** Tu código de afiliado (se crea la primera vez), tu enlace y tus estadísticas de la pirámide. */
+  referral: { method: 'GET', path: '/api/referral', auth: 'any' },
+  /** Canjea el código de quien te invitó (una vez en la vida de la cuenta). */
+  referralRedeem: { method: 'POST', path: '/api/referral/redeem', auth: 'mod' },
+  /** Quién invita con un código (para la página `/r/<código>`). */
+  referralLookup: { method: 'GET', path: '/api/referral/lookup', auth: 'public' },
 } as const satisfies Record<string, ApiRoute>)
 export type ApiRouteName = keyof typeof API_ROUTES
 
@@ -39,6 +45,8 @@ export type ApiRouteName = keyof typeof API_ROUTES
 export const PAGE_PATHS = Object.freeze({
   play: '/play',
   privacy: '/privacy',
+  /** Página de invitación: `/r/<código>`. */
+  invite: '/r',
   webConfig: '/config.json',
   ws: '/ws',
   healthz: '/healthz',

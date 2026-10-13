@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Migraciones de la v2 (0001 → 0004) sobre una base de datos con datos de la v1: se aplica solo la
+// Migraciones de la v2 (0001 → 0005) sobre una base de datos con datos de la v1: se aplica solo la
 // 0000, se llenan las tablas como las dejaba la v1, se migra y se comprueba que no se pierde nada,
 // que los checks nuevos aceptan las filas viejas y que el servidor de la v2 trabaja con ellas
 // (estadísticas reconstruidas, reintentos de turnos de la v1, idioma guardado).
@@ -157,7 +157,7 @@ describe('migraciones de la v2 sobre datos de la v1', () => {
   let before: Record<string, number>
   let t: TestApp
 
-  it('0001 → 0004 se aplican sin perder ninguna fila ni ningún valor', async () => {
+  it('0001 → 0005 se aplican sin perder ninguna fila ni ningún valor', async () => {
     const sql = handle.sql
     before = await countAll(sql)
     const snapshot = await sql`
@@ -175,7 +175,7 @@ describe('migraciones de la v2 sobre datos de la v1', () => {
     ).toEqual(snapshot)
     const applied = await sql<{ n: number }[]>`
       select count(*)::int as n from drizzle.__drizzle_migrations`
-    expect(applied[0]!.n).toBe(5)
+    expect(applied[0]!.n).toBe(6)
 
     // Columnas nuevas vacías en las filas viejas; los idiomas guardados siguen ahí.
     const [cols] = await sql<{ n: number }[]>`
@@ -198,6 +198,12 @@ describe('migraciones de la v2 sobre datos de la v1', () => {
     const [dated] = await sql<{ n: number }[]>`
       select count(*)::int as n from users where github_created_at is not null`
     expect(dated!.n).toBe(0)
+    // 0005: nadie tiene aún código de afiliado (se crea al pedirlo) ni canjes.
+    const [coded] = await sql<{ n: number }[]>`
+      select count(*)::int as n from users where referral_code is not null`
+    expect(coded!.n).toBe(0)
+    const [redeemed] = await sql<{ n: number }[]>`select count(*)::int as n from referrals`
+    expect(redeemed!.n).toBe(0)
 
     // Los checks nuevos están y funcionan.
     await expect(sql`update users set locale = 'xx_YY' where id = ${USER_C}`).rejects.toThrow(
@@ -209,6 +215,9 @@ describe('migraciones de la v2 sobre datos de la v1', () => {
     await expect(
       sql`update rounds set status = 'perdida' where id = '10000000-0000-4000-8000-000000000004'`,
     ).rejects.toThrow(/rounds_status_check/)
+    await expect(sql`update users set referral_code = 'abc' where id = ${USER_C}`).rejects.toThrow(
+      /users_referral_code_check/,
+    )
   })
 
   it('el servidor de la v2 trabaja con las filas de la v1', async () => {
@@ -285,6 +294,16 @@ describe('migraciones de la v2 sobre datos de la v1', () => {
       const [hall] = await handle.sql<{ n: number }[]>`
         select count(*)::int as n from hall_of_ruin where season_id = ${PAST}`
       expect(hall!.n).toBe(1)
+
+      // Afiliados: los jugadores de antes reciben su código al pedirlo; canjear uno ya no (con 5
+      // tiradas, el tope de la config de test).
+      const a = await t.services.referrals.status(USER_A)
+      const b = await t.services.referrals.status(USER_B)
+      expect(a.code).not.toBe(b.code)
+      expect(a).toMatchObject({ invited: 0, canRedeem: false })
+      expect(await t.services.referrals.redeem(USER_A, b.code)).toMatchObject({
+        status: 'rejected',
+      })
     } finally {
       await t.app.close()
     }

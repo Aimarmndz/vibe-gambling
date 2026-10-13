@@ -15,7 +15,7 @@ import {
   versionSchema,
   walletSchema,
 } from './common.ts'
-import { betAmountSchema } from './http.ts'
+import { betAmountSchema, referralStatusSchema } from './http.ts'
 import { achievementSchema, bankStatementSchema, seasonStatsSchema } from './progress.ts'
 
 /** Tamaño máximo de un mensaje del cliente (bytes). */
@@ -78,6 +78,8 @@ export const clientMessageSchema = z.discriminatedUnion('type', [
       seasonId: seasonIdSchema.optional(),
     })
     .strict(),
+  /** Pide tu situación en el programa de afiliados (pantalla AFILIADOS). Responde `referral`. */
+  z.object({ v: versionSchema, type: z.literal('referral.request') }).strict(),
   /** Pide el estado completo (tras reconectar). */
   z.object({ v: versionSchema, type: z.literal('sync') }).strict(),
   z.object({ v: versionSchema, type: z.literal('ping'), t: z.number().int().min(0) }).strict(),
@@ -96,6 +98,7 @@ export const clientMessageTypeSchema = z.enum([
   'spin.pending',
   'stats.request',
   'bank.request',
+  'referral.request',
 ])
 export type ClientMessageType = z.output<typeof clientMessageTypeSchema>
 export type ClientMessageInput = z.input<typeof clientMessageSchema>
@@ -198,6 +201,27 @@ export const serverMessageSchema = z.discriminatedUnion('type', [
   z.object({ v: versionSchema, type: z.literal('stats'), stats: seasonStatsSchema }).strict(),
   /** Respuesta a `bank.request`. */
   z.object({ v: versionSchema, type: z.literal('bank'), bank: bankStatementSchema }).strict(),
+  /** Respuesta a `referral.request`. */
+  z
+    .object({ v: versionSchema, type: z.literal('referral'), referral: referralStatusSchema })
+    .strict(),
+  /**
+   * Uno de tus invitados se ha activado: comisión cobrada en la cartera de la temporada en curso
+   * (o 0 con `capped`, si ya cobraste el tope de la temporada). Puede llegar en cualquier momento:
+   * lo provoca la tirada de otro jugador.
+   */
+  z
+    .object({
+      v: versionSchema,
+      type: z.literal('referral.commission'),
+      amount: z.number().int().min(0),
+      capped: z.boolean(),
+      /** Comisiones cobradas esta temporada (con esta) y el tope. */
+      commissions: z.number().int().min(0),
+      cap: z.number().int().positive(),
+      wallet: walletSchema,
+    })
+    .strict(),
   z.object({ v: versionSchema, type: z.literal('settings'), user: selfUserSchema }).strict(),
   z
     .object({

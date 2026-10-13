@@ -29,6 +29,8 @@ const PAGES: Readonly<Record<string, string>> = Object.freeze({
   '/': 'index.html',
   '/play': 'play.html',
   '/privacy': 'privacy.html',
+  // Invitación del programa de afiliados: la página lee el código de su propia URL.
+  '/r/:code': 'invite.html',
 })
 
 /** Página que se sirve cuando el servidor arranca sin la build de la web (solo API). */

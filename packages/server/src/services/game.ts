@@ -65,6 +65,11 @@ export interface GameDeps {
   notifier: Notifier
   achievements: AchievementService
   logger: GameLogger
+  /**
+   * Después de cada tirada nueva (ya confirmada y anunciada): el programa de afiliados mira si el
+   * jugador acaba de activarse como invitado. Nunca rompe la tirada (sus errores se registran).
+   */
+  afterSpin?: (userId: string) => Promise<void>
 }
 
 export interface GameState {
@@ -322,6 +327,7 @@ export class GameService {
       pushUnlocked(outbox, userId, outcome.unlocked)
     }
     this.#flush(outbox)
+    if (outcome.fresh) await this.#afterSpin(userId)
     return { v: V, status: 'resolved', round: resolved, wallet }
   }
 
@@ -442,6 +448,7 @@ export class GameService {
       pushUnlocked(outbox, userId, result.unlocked)
     }
     this.#flush(outbox)
+    if (result.fresh) await this.#afterSpin(userId)
     return { round, wallet, fresh: result.fresh }
   }
 
@@ -594,6 +601,7 @@ export class GameService {
       achievements: await this.#d.achievements.list(db, userId, {
         row: walletRow,
         pendingSpins: pending,
+        seasonId: season.id,
       }),
       user,
       wallet: this.#d.views.wallet(walletRow, season.id, pending),
@@ -631,37 +639,17 @@ export class GameService {
   }
 
   async #lockWallet(tx: Tx, userId: string, seasonId: string): Promise<WalletRow> {
-    // Una petición que leyó el reloj justo antes del cambio de mes puede llegar con la temporada
-    // ya cerrada: sus monedas se quedarían en una temporada que ya no se juega. El cerrojo
-    // compartido sobre la fila de la temporada espera a que termine un cierre en curso (que la
-    // bloquea en exclusiva) y luego ve su `closed_at`.
-    const [season] = await tx
-      .select({ closedAt: seasons.closedAt })
-      .from(seasons)
-      .where(eq(seasons.id, seasonId))
-      .for('key share')
-    if (season?.closedAt) {
-      throw new AppError('conflict', 'The season just ended. Try again.')
-    }
+    return lockWallet(tx, this.#d.game.startingBalance, userId, seasonId)
+  }
+
+  /** Lo que haya que hacer tras una tirada nueva (afiliados). Sus fallos no tocan la tirada. */
+  async #afterSpin(userId: string): Promise<void> {
+    if (!this.#d.afterSpin) return
     try {
-      await tx
-        .insert(wallets)
-        .values({ userId, seasonId, balance: this.#d.game.startingBalance })
-        .onConflictDoNothing()
+      await this.#d.afterSpin(userId)
     } catch (error) {
-      // La cuenta se ha borrado entre la autenticación y esta transacción.
-      if (isForeignKeyViolation(error)) {
-        throw new AppError('unauthorized', 'This account no longer exists.', { cause: error })
-      }
-      throw error
+      this.#d.logger.warn({ err: error }, 'tras la tirada: no se pudo revisar el programa de afiliados')
     }
-    const [row] = await tx
-      .select()
-      .from(wallets)
-      .where(and(eq(wallets.userId, userId), eq(wallets.seasonId, seasonId)))
-      .for('update')
-    if (!row) throw new AppError('unauthorized', 'This account no longer exists.')
-    return row
   }
 
   #isStale(round: Pick<RoundRow, 'openedAt' | 'seasonId'>, seasonId: string, now: Date): boolean {
@@ -770,17 +758,7 @@ export class GameService {
 
   /** Tiradas pendientes del usuario en una temporada. */
   async #pendingCount(db: Executor, userId: string, seasonId: string): Promise<number> {
-    const [row] = await db
-      .select({ n: count() })
-      .from(rounds)
-      .where(
-        and(
-          eq(rounds.userId, userId),
-          eq(rounds.seasonId, seasonId),
-          eq(rounds.status, 'deferred'),
-        ),
-      )
-    return row?.n ?? 0
+    return pendingCount(db, userId, seasonId)
   }
 
   /**
@@ -1068,6 +1046,64 @@ function pushUnlocked(outbox: Outbox, userId: string, unlocked: readonly Achieve
   for (const achievement of unlocked) {
     outbox.push({ userId, message: { v: V, type: 'achievement.unlocked', achievement } })
   }
+}
+
+/**
+ * Bloquea (`FOR UPDATE`) la cartera de un usuario en una temporada y la crea con el saldo inicial
+ * si aún no existe. Es el cerrojo de todo lo que toca su dinero.
+ */
+export async function lockWallet(
+  tx: Tx,
+  startingBalance: number,
+  userId: string,
+  seasonId: string,
+): Promise<WalletRow> {
+  // Una petición que leyó el reloj justo antes del cambio de mes puede llegar con la temporada
+  // ya cerrada: sus monedas se quedarían en una temporada que ya no se juega. El cerrojo
+  // compartido sobre la fila de la temporada espera a que termine un cierre en curso (que la
+  // bloquea en exclusiva) y luego ve su `closed_at`.
+  const [season] = await tx
+    .select({ closedAt: seasons.closedAt })
+    .from(seasons)
+    .where(eq(seasons.id, seasonId))
+    .for('key share')
+  if (season?.closedAt) {
+    throw new AppError('conflict', 'The season just ended. Try again.')
+  }
+  try {
+    await tx
+      .insert(wallets)
+      .values({ userId, seasonId, balance: startingBalance })
+      .onConflictDoNothing()
+  } catch (error) {
+    // La cuenta se ha borrado entre la autenticación y esta transacción.
+    if (isForeignKeyViolation(error)) {
+      throw new AppError('unauthorized', 'This account no longer exists.', { cause: error })
+    }
+    throw error
+  }
+  const [row] = await tx
+    .select()
+    .from(wallets)
+    .where(and(eq(wallets.userId, userId), eq(wallets.seasonId, seasonId)))
+    .for('update')
+  if (!row) throw new AppError('unauthorized', 'This account no longer exists.')
+  return row
+}
+
+/** Tiradas pendientes de un usuario en una temporada. */
+export async function pendingCount(
+  db: Executor,
+  userId: string,
+  seasonId: string,
+): Promise<number> {
+  const [row] = await db
+    .select({ n: count() })
+    .from(rounds)
+    .where(
+      and(eq(rounds.userId, userId), eq(rounds.seasonId, seasonId), eq(rounds.status, 'deferred')),
+    )
+  return row?.n ?? 0
 }
 
 /** Crea la fila de la temporada si aún no existe (el job la cerrará al vencer). */

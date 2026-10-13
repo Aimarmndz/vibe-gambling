@@ -37,6 +37,14 @@ export const testGame = gameConfigSchema.parse({
     addictSpins: 10,
     nightOwl: { fromHour: 3, toHour: 6 },
   },
+  referral: {
+    welcomeBonus: 250,
+    commission: 750,
+    activationSpins: 20,
+    redeemWindowDays: 7,
+    redeemMaxSpins: 40,
+    maxCommissionsPerSeason: 4,
+  },
   stats: { recentRounds: 5, seriesPoints: 10, loanMarks: 3, bankHistory: 5 },
 })
 

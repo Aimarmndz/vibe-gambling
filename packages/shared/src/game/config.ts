@@ -175,6 +175,29 @@ export const gameConfigSchema = z
           .refine(h => h.fromHour !== h.toHour, { message: 'el intervalo no puede estar vacío' }),
       })
       .strict(),
+    /**
+     * Programa de Afiliados Piramidal (legalmente distinto): códigos de invitación
+     * (`game/referral.ts`). Todo en monedas de mentira.
+     */
+    referral: z
+      .object({
+        /** Bono para quien canjea el código de otro, en su cartera de la temporada en curso. */
+        welcomeBonus: coins,
+        /** Comisión para quien invitó cuando su invitado se activa. */
+        commission: coins,
+        /**
+         * Tiradas que tiene que jugar el invitado desde el canje para activarse (además de que su
+         * cuenta de GitHub tenga `leaderboard.minAccountAgeDays` días).
+         */
+        activationSpins: z.number().int().min(1).max(1_000_000),
+        /** Días desde el alta en vibe-gambling en los que aún se puede canjear un código. */
+        redeemWindowDays: z.number().int().min(1).max(3650),
+        /** Con estas tiradas jugadas (todas las temporadas) ya no se puede canjear un código. */
+        redeemMaxSpins: z.number().int().min(1).max(1_000_000),
+        /** Comisiones cobradas como mucho por un mismo jugador en una temporada. */
+        maxCommissionsPerSeason: z.number().int().min(1).max(10_000),
+      })
+      .strict(),
     /** Límites de las pantallas de Estadísticas y Banco (cuánto se lee y se manda). */
     stats: z
       .object({
@@ -242,6 +265,17 @@ export const publicGameConfigSchema = z
      * La landing lo explica junto al ranking.
      */
     minAccountAgeDays: z.number().int().min(0),
+    /** Reglas del programa de afiliados (la página `/r/<código>` y la pantalla AFILIADOS). */
+    referral: z
+      .object({
+        welcomeBonus: coins,
+        commission: coins,
+        activationSpins: z.number().int().positive(),
+        redeemWindowDays: z.number().int().positive(),
+        redeemMaxSpins: z.number().int().positive(),
+        maxCommissionsPerSeason: z.number().int().positive(),
+      })
+      .strict(),
   })
   .strict()
 export type PublicGameConfig = z.output<typeof publicGameConfigSchema>
@@ -274,5 +308,6 @@ export function toPublicGameConfig(cfg: GameConfig): PublicGameConfig {
     },
     onFireAt: cfg.streak.onFireAt,
     minAccountAgeDays: cfg.leaderboard.minAccountAgeDays,
+    referral: { ...cfg.referral },
   }
 }

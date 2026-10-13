@@ -4,6 +4,7 @@ import { z } from 'zod'
 
 import { publicGameConfigSchema } from '../game/config.ts'
 import { LEADERBOARD_BOARDS } from '../game/constants.ts'
+import { REFERRAL_REJECTIONS, referralCodeSchema } from '../game/referral.ts'
 import { seasonIdSchema } from '../game/season.ts'
 import { betSelectionSchema } from '../roulette/bets.ts'
 import {
@@ -330,6 +331,116 @@ export const hallOfRuinResponseSchema = z
   })
   .strict()
 export type HallOfRuinResponse = z.output<typeof hallOfRuinResponseSchema>
+
+// ---------------------------------------------------------------- afiliados
+
+/** Reglas del programa de afiliados de esta instancia (las de `config/game.json`). */
+export const referralRulesSchema = z
+  .object({
+    welcomeBonus: z.number().int().positive(),
+    commission: z.number().int().positive(),
+    activationSpins: z.number().int().positive(),
+    redeemWindowDays: z.number().int().positive(),
+    redeemMaxSpins: z.number().int().positive(),
+    maxCommissionsPerSeason: z.number().int().positive(),
+    /** Días que tiene que tener la cuenta de GitHub del invitado para activarse (0: sin mínimo). */
+    minAccountAgeDays: z.number().int().min(0),
+  })
+  .strict()
+export type ReferralRulesView = z.output<typeof referralRulesSchema>
+
+/**
+ * Tu situación en la pirámide: tu código y tu enlace, a cuántos has invitado, cuántos se han
+ * activado y cuánto has cobrado, y si tú mismo puedes canjear aún el código de otro. Sin nada de
+ * los invitados (ni quiénes son): solo números.
+ */
+export const referralStatusSchema = z
+  .object({
+    code: referralCodeSchema,
+    /** `PUBLIC_URL/r/<código>`. */
+    url: httpUrlSchema,
+    /** Códigos canjeados con el tuyo (también los de cuentas que ya se han borrado). */
+    invited: z.number().int().min(0),
+    /** Invitados que ya se han activado (con comisión o con el tope ya lleno). */
+    activated: z.number().int().min(0),
+    /** Invitados que aún no se han activado. */
+    waiting: z.number().int().min(0),
+    /** Monedas cobradas en comisiones (todas las temporadas). */
+    earned: z.number().int().min(0),
+    /** Comisiones cobradas en la temporada en curso y su tope. */
+    season: z
+      .object({
+        seasonId: seasonIdSchema,
+        commissions: z.number().int().min(0),
+        cap: z.number().int().positive(),
+      })
+      .strict(),
+    /** El código que canjeaste tú (null si no has canjeado ninguno). */
+    invitedBy: z
+      .object({
+        redeemedAt: z.iso.datetime(),
+        bonus: z.number().int().min(0),
+        activated: z.boolean(),
+      })
+      .strict()
+      .nullable(),
+    /** Si aún puedes canjear un código (no lo has hecho, estás en plazo y con pocas tiradas). */
+    canRedeem: z.boolean(),
+    /** Hasta cuándo podrías canjear uno (por días; las tiradas también cuentan). */
+    redeemUntil: z.iso.datetime(),
+    rules: referralRulesSchema,
+  })
+  .strict()
+export type ReferralStatus = z.output<typeof referralStatusSchema>
+
+export const referralResponseSchema = z
+  .object({ v: versionSchema, referral: referralStatusSchema })
+  .strict()
+export type ReferralResponse = z.output<typeof referralResponseSchema>
+
+/** `/vibe-redeem <código>`: el mod lo manda ya normalizado (mayúsculas, sin espacios). */
+export const referralRedeemRequestSchema = z
+  .object({ v: versionSchema, code: referralCodeSchema })
+  .strict()
+export type ReferralRedeemRequest = z.output<typeof referralRedeemRequestSchema>
+
+export const referralRejectionSchema = z.enum(REFERRAL_REJECTIONS)
+
+export const referralRedeemResponseSchema = z.discriminatedUnion('status', [
+  z
+    .object({
+      v: versionSchema,
+      status: z.literal('redeemed'),
+      /** Bono de bienvenida ya sumado a la cartera de la temporada en curso. */
+      bonus: z.number().int().positive(),
+      wallet: walletSchema,
+      /** Quién te invitó; null si está oculto del ranking. */
+      inviter: publicUserSchema.nullable(),
+    })
+    .strict(),
+  z
+    .object({
+      v: versionSchema,
+      /** No se ha canjeado nada (ni ha cambiado nada): `reason` dice por qué. */
+      status: z.literal('rejected'),
+      reason: referralRejectionSchema,
+    })
+    .strict(),
+])
+export type ReferralRedeemResponse = z.output<typeof referralRedeemResponseSchema>
+
+/** `?code=` tal como venga de la URL: el servidor lo normaliza y si no es un código, no existe. */
+export const referralLookupQuerySchema = z.object({ code: z.string().min(1).max(64) }).strict()
+
+export const referralLookupResponseSchema = z
+  .object({
+    v: versionSchema,
+    found: z.boolean(),
+    /** Quién invita (null si el código no existe o si está oculto del ranking). */
+    inviter: publicUserSchema.nullable(),
+  })
+  .strict()
+export type ReferralLookupResponse = z.output<typeof referralLookupResponseSchema>
 
 // ---------------------------------------------------------------- /config.json (web)
 

@@ -94,6 +94,7 @@ const COMMON = {
   BankStatement: 'bankStatementSchema',
   LeaderboardRow: 'leaderboardRowSchema',
   HallOfRuinRow: 'hallOfRuinRowSchema',
+  ReferralStatus: 'referralStatusSchema',
   PublicGameConfig: 'publicGameConfigSchema',
   ErrorResponse: 'errorResponseSchema',
 } as const satisfies Record<string, SchemaName>
@@ -298,6 +299,12 @@ const ROUTE_DOCS: Readonly<
   deleteAccount: { request: 'deleteAccountRequestSchema', response: 'okResponseSchema' },
   leaderboard: { query: 'leaderboardQuerySchema', response: 'leaderboardResponseSchema' },
   hallOfRuin: { response: 'hallOfRuinResponseSchema' },
+  referral: { response: 'referralResponseSchema' },
+  referralRedeem: {
+    request: 'referralRedeemRequestSchema',
+    response: 'referralRedeemResponseSchema',
+  },
+  referralLookup: { query: 'referralLookupQuerySchema', response: 'referralLookupResponseSchema' },
 }
 
 const AUTH_TEXT: Readonly<Record<shared.RouteAuth, string>> = {

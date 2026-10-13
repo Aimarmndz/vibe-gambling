@@ -38,6 +38,8 @@ export interface AppDeps {
   db: Database
   clock?: Clock
   rng?: Rng
+  /** Generador de códigos de afiliado (tests). Por defecto, aleatorio con `crypto`. */
+  generateReferralCode?: () => string
   /** `false` para silenciar los logs (tests). Por defecto, pino con `LOG_LEVEL`. */
   logger?: FastifyServerOptions['logger']
 }
@@ -72,6 +74,7 @@ export async function buildApp(deps: AppDeps): Promise<App> {
     notifier: hub,
     logger: app.log,
     userAgent: USER_AGENT,
+    ...(deps.generateReferralCode ? { generateReferralCode: deps.generateReferralCode } : {}),
   })
 
   const realIp = createRealIpResolver(env.TRUST_PROXY_CIDRS, env.REAL_IP_HEADER)

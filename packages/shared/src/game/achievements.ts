@@ -16,7 +16,7 @@ import type { ColorStreak } from './streaks.ts'
 const FRIDAY = 5
 
 /** Qué ha pasado para que se evalúen los logros. */
-export const ACHIEVEMENT_EVENTS = ['round', 'loan', 'queue'] as const
+export const ACHIEVEMENT_EVENTS = ['round', 'loan', 'queue', 'referral'] as const
 export type AchievementEvent = (typeof ACHIEVEMENT_EVENTS)[number]
 
 /** Configuración que miran los logros (la del juego, tal cual). */
@@ -25,6 +25,7 @@ export type AchievementRules = Pick<
   'achievements' | 'pendingSpins' | 'loan' | 'bigWin'
 > & {
   readonly streak: Pick<GameConfig['streak'], 'onFireAt' | 'colorWarningAt'>
+  readonly referral: Pick<GameConfig['referral'], 'maxCommissionsPerSeason'>
 }
 
 /** La ronda que se acaba de resolver, vista por los logros. */
@@ -69,6 +70,11 @@ export interface AchievementContext {
    * Solo cambia con las tiradas pendientes, que se tiran después; sin él, `local`.
    */
   readonly turnLocal?: { readonly weekday: number; readonly hour: number }
+  /**
+   * Solo en `referral` (se ha activado uno de tus invitados): invitados activados en total y
+   * comisiones cobradas esta temporada (con la de ahora).
+   */
+  readonly referral?: { readonly activated: number; readonly seasonCommissions: number }
 }
 
 /** Lo que enseña la barra de progreso de los logros contables. */
@@ -79,6 +85,8 @@ export interface ProgressSnapshot {
   readonly bestStreak: number
   readonly pendingSpins: number
   readonly lifetimeZeros: number
+  /** Comisiones de afiliado cobradas esta temporada. */
+  readonly referralCommissions: number
 }
 
 export interface AchievementDef {
@@ -255,6 +263,24 @@ export const ACHIEVEMENTS = [
     params: rules => ({ goal: rules.loan.maxDebt }),
     check: (ctx, rules) => ctx.wallet.debt >= rules.loan.maxDebt,
   },
+  {
+    // Programa de Afiliados Piramidal: primer invitado activado ("ya tienes downline").
+    id: 'influencer',
+    hidden: false,
+    check: ctx => ctx.event === 'referral' && (ctx.referral?.activated ?? 0) >= 1,
+  },
+  {
+    // Llenar el tope de comisiones de una temporada: la cima de la pirámide (legalmente distinta).
+    id: 'pyramid_boss',
+    hidden: false,
+    check: (ctx, rules) =>
+      ctx.event === 'referral' &&
+      (ctx.referral?.seasonCommissions ?? 0) >= rules.referral.maxCommissionsPerSeason,
+    progress: (snap, rules) => ({
+      current: snap.referralCommissions,
+      goal: rules.referral.maxCommissionsPerSeason,
+    }),
+  },
 ] as const satisfies readonly AchievementDef[]
 
 export type AchievementId = (typeof ACHIEVEMENTS)[number]['id']
@@ -304,6 +330,7 @@ const EMPTY_SNAPSHOT: ProgressSnapshot = {
   bestStreak: 0,
   pendingSpins: 0,
   lifetimeZeros: 0,
+  referralCommissions: 0,
 }
 
 /**

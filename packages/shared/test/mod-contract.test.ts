@@ -9,11 +9,14 @@ import {
   deleteAccountBody,
   devicePollBody,
   emptyBody,
+  normalizeReferralCode,
   parseBetAmount,
+  referralRedeemBody,
   settingsBody,
   turnEndBody,
   turnStartBody,
 } from '../../mod/hooks/lib/payloads.ts'
+import { normalizeReferralCode as sharedNormalizeReferralCode } from '../src/game/referral.ts'
 import { parseBetAmount as sharedParseBetAmount } from '../src/roulette/parse.ts'
 import {
   betRequestSchema,
@@ -21,6 +24,7 @@ import {
   devicePollRequestSchema,
   deviceStartRequestSchema,
   linkRequestSchema,
+  referralRedeemRequestSchema,
   settingsRequestSchema,
   turnEndRequestSchema,
   turnStartRequestSchema,
@@ -99,6 +103,27 @@ describe('cuerpos que construye el mod', () => {
       const amount = parseBetAmount(raw)
       if (amount !== null)
         expect(betRequestSchema.safeParse(betBody(amount, 'red')).success).toBe(true)
+    }
+  })
+
+  it('el código de afiliado se normaliza igual que en shared y el canje pasa el esquema', () => {
+    for (const raw of [
+      'ABCD2345',
+      'abcd-2345',
+      ' abcd 2345 ',
+      'https://vibe.test/r/abcd2345/',
+      'ABCD0345',
+      'OLIO1234',
+      'ABC',
+      'ABCD23456',
+      '',
+      '/',
+    ]) {
+      const code = normalizeReferralCode(raw)
+      expect(code, raw).toEqual(sharedNormalizeReferralCode(raw))
+      if (code !== null) {
+        expect(referralRedeemRequestSchema.parse(referralRedeemBody(code))).toEqual({ v: 1, code })
+      }
     }
   })
 })

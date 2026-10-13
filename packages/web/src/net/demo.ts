@@ -108,6 +108,7 @@ export function demoGameConfig(pub: PublicGameConfig): GameConfig {
       nightOwl: { fromHour: 0, toHour: 1 },
     },
     stats: { recentRounds: 1, seriesPoints: 2, loanMarks: 0, bankHistory: 1 },
+    referral: { ...pub.referral },
   }
 }
 

@@ -10,7 +10,7 @@ import type {
 import { and, eq, gt, isNull, lte, or, sql } from 'drizzle-orm'
 
 import type { Database } from '../db/client.ts'
-import { deviceAuths, linkCodes, sessions, users } from '../db/schema.ts'
+import { deviceAuths, linkCodes, referrals, sessions, users } from '../db/schema.ts'
 import type { SessionRow, UserRow } from '../db/schema.ts'
 import type { Clock } from '../lib/clock.ts'
 import { AppError } from '../lib/errors.ts'
@@ -38,6 +38,11 @@ export interface AuthDeps {
   views: Views
   notifier: Notifier
   options: AuthOptions
+  /**
+   * Tras cada login (con la fecha de la cuenta de GitHub ya al día): el programa de afiliados mira
+   * si el usuario acaba de activarse como invitado. Sus errores no rompen el login.
+   */
+  afterLogin?: (userId: string) => Promise<void>
 }
 
 export interface Authenticated {
@@ -267,8 +272,17 @@ export class AuthService {
           return { user: full, isNew: upserted.inserted }
         })
         const token = await this.createSession(user.id, 'mod')
+        await this.#afterLogin(user.id)
         return { v: V, status: 'ok', token, user: this.#d.views.selfUser(user), isNew }
       }
+    }
+  }
+
+  async #afterLogin(userId: string): Promise<void> {
+    try {
+      await this.#d.afterLogin?.(userId)
+    } catch {
+      // La comisión se vuelve a mirar en la próxima tirada: el login no depende de ella.
     }
   }
 
@@ -295,7 +309,14 @@ export class AuthService {
     if (confirm.trim().toLowerCase() !== user.login.toLowerCase()) {
       throw new AppError('invalid_request', 'Type your GitHub login to confirm.')
     }
-    await this.#d.db.delete(users).where(eq(users.id, user.id))
+    await this.#d.db.transaction(async tx => {
+      await tx.delete(users).where(eq(users.id, user.id))
+      // Sus canjes de afiliado quedan sin su lado (ON DELETE SET NULL, ver schema.ts); los que ya
+      // no tienen ninguno de los dos lados no son de nadie y se borran.
+      await tx
+        .delete(referrals)
+        .where(and(isNull(referrals.referrerId), isNull(referrals.inviteeId)))
+    })
     this.#d.notifier.closeUser(user.id, 'account_deleted')
   }
 

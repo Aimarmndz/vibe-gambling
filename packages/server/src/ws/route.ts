@@ -264,6 +264,13 @@ async function handle(
           bank: await services.stats.bank(userId, message.seasonId),
         })
         return
+      case 'referral.request':
+        hub.sendTo(connection, {
+          v: V,
+          type: 'referral',
+          referral: await services.referrals.status(userId),
+        })
+        return
       case 'sync':
         await sendHello(services, hub, connection)
         return

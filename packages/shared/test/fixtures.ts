@@ -37,6 +37,14 @@ export function testGameConfig(overrides: Partial<GameConfig> = {}): GameConfig 
       addictSpins: 500,
       nightOwl: { fromHour: 3, toHour: 6 },
     },
+    referral: {
+      welcomeBonus: 500,
+      commission: 1000,
+      activationSpins: 50,
+      redeemWindowDays: 7,
+      redeemMaxSpins: 100,
+      maxCommissionsPerSeason: 10,
+    },
     stats: { recentRounds: 18, seriesPoints: 280, loanMarks: 100, bankHistory: 50 },
     ...overrides,
   })

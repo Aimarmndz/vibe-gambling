@@ -35,6 +35,7 @@ beforeAll(async () => {
   )
   writeFileSync(join(dist, 'play.html'), '<!doctype html><title>play</title>')
   writeFileSync(join(dist, 'privacy.html'), '<!doctype html><title>privacy</title>')
+  writeFileSync(join(dist, 'invite.html'), '<!doctype html><title>invite</title>')
   writeFileSync(join(dist, 'assets', 'main-abc123.js'), 'console.log(1)')
   writeFileSync(join(dist, 'favicon.svg'), '<svg xmlns="http://www.w3.org/2000/svg"/>')
   writeFileSync(join(dist, '.secret'), 'nope')
@@ -119,6 +120,9 @@ describe('rutas públicas', () => {
       ['/', 'landing'],
       ['/play?code=abc', 'play'],
       ['/privacy', 'privacy'],
+      // La invitación sale igual con cualquier código: la página pregunta a la API si existe.
+      ['/r/ABCD2345', 'invite'],
+      ['/r/no-existe', 'invite'],
     ] as const) {
       const res = await t.app.inject({ method: 'GET', url })
       expect(res.statusCode).toBe(200)
@@ -208,7 +212,7 @@ describe('sin build de la web', () => {
   it('las páginas dan un HTML legible (503) en vez del JSON de la API', async () => {
     const t = await startTestApp({ db })
     try {
-      for (const url of ['/play?code=abc', '/', '/privacy']) {
+      for (const url of ['/play?code=abc', '/', '/privacy', '/r/abcdabcd']) {
         const res = await t.app.inject({ method: 'GET', url, headers: { accept: 'text/html' } })
         expect(res.statusCode, url).toBe(503)
         expect(res.headers['content-type']).toMatch(/^text\/html/)

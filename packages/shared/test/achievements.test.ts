@@ -43,6 +43,7 @@ const rules: AchievementRules = {
   loan: cfg.loan,
   bigWin: cfg.bigWin,
   streak: { onFireAt: 3, colorWarningAt: 4 },
+  referral: { maxCommissionsPerSeason: 3 },
 }
 const spectacleRules = { bigWin: cfg.bigWin, onFireAt: 3, colorWarningAt: 4 }
 
@@ -214,6 +215,16 @@ describe('cada logro', () => {
       ctx({ wallet: { ...wallet, debt: cfg.loan.maxDebt } }),
       ctx({ wallet: { ...wallet, debt: cfg.loan.maxDebt - 1 } }),
     ],
+    [
+      'influencer',
+      ctx({ event: 'referral', round: null, referral: { activated: 1, seasonCommissions: 0 } }),
+      ctx({ event: 'referral', round: null, referral: { activated: 0, seasonCommissions: 0 } }),
+    ],
+    [
+      'pyramid_boss',
+      ctx({ event: 'referral', round: null, referral: { activated: 3, seasonCommissions: 3 } }),
+      ctx({ event: 'referral', round: null, referral: { activated: 9, seasonCommissions: 2 } }),
+    ],
   ]
 
   it('cubre todo el catálogo', () => {
@@ -324,6 +335,7 @@ describe('progreso', () => {
     bestStreak: 2,
     pendingSpins: 2,
     lifetimeZeros: 0,
+    referralCommissions: 1,
   }
 
   it('contables con meta y tope; el resto sin progreso', () => {
@@ -339,6 +351,11 @@ describe('progreso', () => {
       current: 0,
       goal: 2,
     })
+    expect(achievementProgress('pyramid_boss', snap, rules, false)).toEqual({
+      current: 1,
+      goal: 3,
+    })
+    expect(achievementProgress('influencer', snap, rules, false)).toBeNull()
     expect(achievementProgress('first_spin', snap, rules, false)).toBeNull()
     expect(achievementProgress('pro_debtor', snap, rules, true)).toBeNull()
     expect(achievementProgress('on_fire', { ...snap, bestStreak: -3 }, rules, false)).toEqual({

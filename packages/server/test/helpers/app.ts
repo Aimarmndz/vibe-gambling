@@ -33,13 +33,25 @@ export interface TestApp {
 }
 
 export async function startTestApp(
-  options: { env?: Record<string, string>; listen?: boolean; db?: DbHandle } = {},
+  options: {
+    env?: Record<string, string>
+    listen?: boolean
+    db?: DbHandle
+    generateReferralCode?: () => string
+  } = {},
 ): Promise<TestApp> {
   const db = options.db ?? (await createTestDb())
   const config = testConfig(options.env)
   const clock = new ManualClock(START)
   const rng = sequenceRng([17])
-  const { app, services, hub } = await buildApp({ config, db: db.db, clock, rng, logger: false })
+  const { app, services, hub } = await buildApp({
+    config,
+    db: db.db,
+    clock,
+    rng,
+    logger: false,
+    ...(options.generateReferralCode ? { generateReferralCode: options.generateReferralCode } : {}),
+  })
   let baseUrl = ''
   if (options.listen) {
     await app.listen({ host: '127.0.0.1', port: 0 })
