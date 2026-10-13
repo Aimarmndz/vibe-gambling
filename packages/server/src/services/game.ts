@@ -13,6 +13,7 @@ import {
   applyLoan,
   chooseRoundBets,
   colorStreak,
+  dayAt,
   minBet,
   netWorth,
   nextStreak,
@@ -38,7 +39,7 @@ import type {
   TurnStartResponse,
   Wallet,
 } from '@vibe-gambling/shared'
-import { and, asc, count, desc, eq, max } from 'drizzle-orm'
+import { and, asc, count, desc, eq, gte, isNull, lt, max } from 'drizzle-orm'
 
 import type { Database, Executor, Tx } from '../db/client.ts'
 import { bets, loans, rounds, seasons, turns, users, wallets } from '../db/schema.ts'
@@ -50,6 +51,11 @@ import type { AchievementService } from './achievements.ts'
 import type { Notifier } from './notifier.ts'
 import type { Views } from './views.ts'
 
+/** Lo que el juego necesita del log (el de Fastify vale). */
+export interface GameLogger {
+  warn(obj: object, msg: string): void
+}
+
 export interface GameDeps {
   db: Database
   game: GameConfig
@@ -58,6 +64,7 @@ export interface GameDeps {
   views: Views
   notifier: Notifier
   achievements: AchievementService
+  logger: GameLogger
 }
 
 export interface GameState {
@@ -91,6 +98,8 @@ interface SpinOptions {
 type TurnOutcome =
   | Resolution
   | { kind: 'no_round'; wallet: WalletRow }
+  /** Tope diario: no se tira ni se guarda. `fresh` false en un reintento (no se avisa otra vez). */
+  | { kind: 'daily_limit'; wallet: WalletRow; reopensAt: Date; fresh: boolean }
   | {
       kind: 'queued'
       wallet: WalletRow
@@ -190,17 +199,22 @@ export class GameService {
     const outbox: Outbox = []
     // ¿Hay alguien mirando? Con alguna ventana visible se juega en directo; si no, se guarda.
     const attentive = this.#d.notifier.isAttentive(userId)
-    const settle = (tx: Tx, wallet: WalletRow, round: RoundRow) =>
-      attentive
-        ? this.#resolve(tx, wallet, round, req, now, {
-            spinMs: this.#d.game.spin.minSpinMs,
-            landingMs: this.#d.game.spin.landingMs,
-          })
-        : this.#defer(tx, wallet, round, req, now)
 
     const result = await this.#d.db.transaction(async tx => {
       await ensureSeason(tx, season)
       const wallet = await this.#lockWallet(tx, userId, season.id)
+      // Una tirada por bola: mientras la bola de la anterior siga cayendo (`revealAt` en el
+      // futuro), este turno no se tira en directo sino que se guarda como pendiente. Se mira con
+      // la cartera ya bloqueada: dos `turn/end` simultáneos se serializan aquí, y el segundo ve el
+      // `revealAt` que dejó el primero.
+      const live = attentive && !(await this.#ballRolling(tx, userId, now))
+      const settle = (wallet: WalletRow, round: RoundRow) =>
+        live
+          ? this.#resolve(tx, wallet, round, req, now, {
+              spinMs: this.#d.game.spin.minSpinMs,
+              landingMs: this.#d.game.spin.landingMs,
+            })
+          : this.#defer(tx, wallet, round, req, now)
       const outcome = await (async (): Promise<TurnOutcome> => {
         const [turn] = await tx
           .select()
@@ -208,21 +222,11 @@ export class GameService {
           .where(and(eq(turns.userId, userId), eq(turns.turnId, req.turnId)))
           .for('update')
 
+        // Sin `turn/start` no hay duración que medir, así que no hay tirada (ver más abajo). El
+        // mod nunca manda un `turn/end` si su `turn/start` falló: esto solo lo hace un script.
         if (!turn) {
-          // El `turn/start` no llegó (red, timeout del mod…): el prompt sigue siendo una tirada.
-          let round = await this.#freshOpenRound(tx, userId, season.id, now, outbox)
-          const reused = round !== null
-          // Sin nadie mirando no se anuncia una ronda que no va a girar.
-          round ??= await this.#openRound(tx, userId, season.id, now, attentive ? outbox : null)
-          await tx.insert(turns).values({
-            userId,
-            turnId: req.turnId,
-            roundId: round.id,
-            reused,
-            startedAt: now,
-            endedAt: now,
-          })
-          return settle(tx, wallet, round)
+          this.#tooShort(null)
+          return { kind: 'no_round', wallet }
         }
 
         const [round] = await tx
@@ -244,10 +248,44 @@ export class GameService {
           await this.#expire(tx, round, now, outbox)
           return { kind: 'no_round', wallet }
         }
-        return settle(tx, wallet, round)
+        // Duración mínima del turno, con el reloj del servidor (nunca la `durationMs` del mod):
+        // un turno más corto no da tirada ni pendiente. Si ningún otro turno abierto comparte la
+        // ronda, se cierra sin tirar; si no, la sigue esperando ese otro turno.
+        const elapsedMs = now.getTime() - turn.startedAt.getTime()
+        if (elapsedMs < this.#d.game.turn.minDurationMs) {
+          this.#tooShort(elapsedMs)
+          if (!(await this.#shared(tx, round))) await this.#expire(tx, round, now, outbox)
+          return { kind: 'no_round', wallet }
+        }
+        // Tope diario: con la cartera bloqueada, así dos turnos a la vez no pasan los dos del
+        // tope. Ni se tira ni se guarda; la ventana deja de ver girar la ronda con `daily_limit`.
+        const closed = await this.#dailyLimit(tx, userId, now)
+        if (closed) {
+          if (!(await this.#shared(tx, round))) {
+            await tx
+              .update(rounds)
+              .set({ status: 'expired', expiredAt: now })
+              .where(eq(rounds.id, round.id))
+          }
+          return { kind: 'daily_limit', wallet, reopensAt: closed, fresh: true }
+        }
+        return settle(wallet, round)
       })()
+      // Un reintento que no tiró (`no_round`) con la mesa cerrada repite el aviso del tope: la
+      // ronda no recuerda por qué no tiró, y es lo que el mod tiene que enseñar.
+      if (outcome.kind === 'no_round') {
+        const closed = await this.#dailyLimit(tx, userId, now)
+        if (closed) {
+          const pending = await this.#pendingCount(tx, userId, outcome.wallet.seasonId)
+          return {
+            outcome: { kind: 'daily_limit', wallet, reopensAt: closed, fresh: false } as const,
+            pending,
+          }
+        }
+      }
       // El contador de pendientes, con la cartera aún bloqueada (si no lo trae ya el desenlace).
-      const known = outcome.kind === 'no_round' ? null : outcome.pending
+      const known =
+        outcome.kind === 'no_round' || outcome.kind === 'daily_limit' ? null : outcome.pending
       const pending = known ?? (await this.#pendingCount(tx, userId, outcome.wallet.seasonId))
       return { outcome, pending }
     })
@@ -257,6 +295,15 @@ export class GameService {
     if (outcome.kind === 'no_round') {
       this.#flush(outbox)
       return { v: V, status: 'no_round', wallet }
+    }
+    if (outcome.kind === 'daily_limit') {
+      const reopensAt = outcome.reopensAt.toISOString()
+      const limit = this.#d.game.dailySpinLimit
+      if (outcome.fresh) {
+        outbox.push({ userId, message: { v: V, type: 'daily_limit', limit, reopensAt, wallet } })
+      }
+      this.#flush(outbox)
+      return { v: V, status: 'daily_limit', limit, reopensAt, wallet }
     }
     if (outcome.kind === 'queued') {
       if (outcome.fresh) {
@@ -305,6 +352,7 @@ export class GameService {
         .where(and(eq(rounds.userId, userId), eq(rounds.spendRequestId, opts.requestId)))
       if (done) {
         return {
+          closed: null,
           round: done,
           view: null,
           wallet,
@@ -317,13 +365,12 @@ export class GameService {
       if (await this.#freshOpenRound(tx, userId, season.id, now, outbox)) {
         throw new AppError('conflict', 'The wheel is already spinning for a prompt.')
       }
-      const [last] = await tx
-        .select({ revealAt: max(rounds.revealAt) })
-        .from(rounds)
-        .where(and(eq(rounds.userId, userId), eq(rounds.status, 'resolved')))
-      if (last?.revealAt && last.revealAt.getTime() > now.getTime()) {
+      if (await this.#ballRolling(tx, userId, now)) {
         throw new AppError('rate_limited', 'The ball is still rolling. Wait for it.')
       }
+      // Tope diario: las pendientes gastadas también cuentan. Con la cartera bloqueada.
+      const closed = await this.#dailyLimit(tx, userId, now)
+      if (closed) return { closed, wallet, pending: await pendingNow() }
       const [next] = await tx
         .select()
         .from(rounds)
@@ -358,6 +405,7 @@ export class GameService {
         },
       )
       return {
+        closed: null,
         round: spun.round,
         view: spun.view,
         wallet: spun.wallet,
@@ -367,6 +415,17 @@ export class GameService {
       }
     })
 
+    if (result.closed) {
+      // Todas las ventanas enseñan el aviso; quien pidió el GIRAR recibe además el error.
+      const reopensAt = result.closed.toISOString()
+      const wallet = this.#d.views.wallet(result.wallet, result.wallet.seasonId, result.pending)
+      const limit = cfg.dailySpinLimit
+      this.#d.notifier.send(userId, { v: V, type: 'daily_limit', limit, reopensAt, wallet })
+      throw new AppError(
+        'daily_limit',
+        `Daily spin limit reached. The table reopens at ${reopensAt}.`,
+      )
+    }
     const round =
       result.view ??
       this.#d.views.resolvedRound(result.round, await this.#betsOf(this.#d.db, result.round.id))
@@ -559,6 +618,18 @@ export class GameService {
 
   // ---------------------------------------------------------------- internos
 
+  /**
+   * Deja constancia de un turno demasiado corto (o sin `turn/start`, `elapsedMs` null) para la
+   * futura detección de abusos. Sin datos personales: ni usuario, ni sesión, ni turno; solo el
+   * hecho y la duración medida.
+   */
+  #tooShort(elapsedMs: number | null): void {
+    this.#d.logger.warn(
+      { event: 'turn_too_short', elapsedMs, minDurationMs: this.#d.game.turn.minDurationMs },
+      'turno sin tirada: demasiado corto',
+    )
+  }
+
   async #lockWallet(tx: Tx, userId: string, seasonId: string): Promise<WalletRow> {
     // Una petición que leyó el reloj justo antes del cambio de mes puede llegar con la temporada
     // ya cerrada: sus monedas se quedarían en una temporada que ya no se juega. El cerrojo
@@ -652,6 +723,51 @@ export class GameService {
     return created
   }
 
+  /** ¿Hay otro turno aún abierto que comparte esta ronda? (Entonces no se cierra: es suya.) */
+  async #shared(tx: Tx, round: RoundRow): Promise<boolean> {
+    const [sharing] = await tx
+      .select({ turnId: turns.turnId })
+      .from(turns)
+      .where(and(eq(turns.roundId, round.id), isNull(turns.endedAt)))
+      .limit(1)
+    return sharing !== undefined
+  }
+
+  /**
+   * Tope diario (`dailySpinLimit`): tiradas jugadas hoy (en directo y pendientes gastadas; el día
+   * va de 00:00 a 00:00 en la zona horaria de la temporada). Devuelve cuándo reabre la mesa si ya
+   * se ha llegado, o null. Se llama con la cartera bloqueada.
+   */
+  async #dailyLimit(tx: Tx, userId: string, now: Date): Promise<Date | null> {
+    const day = dayAt(now, this.#d.game.season.timeZone)
+    const [row] = await tx
+      .select({ n: count() })
+      .from(rounds)
+      .where(
+        and(
+          eq(rounds.userId, userId),
+          eq(rounds.status, 'resolved'),
+          gte(rounds.resolvedAt, day.startsAt),
+          lt(rounds.resolvedAt, day.endsAt),
+        ),
+      )
+    return (row?.n ?? 0) >= this.#d.game.dailySpinLimit ? day.endsAt : null
+  }
+
+  /**
+   * ¿Sigue cayendo la bola de la última tirada del usuario? (su `revealAt`, el más reciente, aún
+   * no ha llegado). Es el ritmo de todo: ni GIRAR ni un turno en directo tiran otra antes.
+   * Se llama con la cartera ya bloqueada, para que la respuesta no cambie hasta el COMMIT.
+   */
+  async #ballRolling(tx: Tx, userId: string, now: Date): Promise<boolean> {
+    const [last] = await tx
+      .select({ revealAt: max(rounds.revealAt) })
+      .from(rounds)
+      .where(and(eq(rounds.userId, userId), eq(rounds.status, 'resolved')))
+    const revealAt = last?.revealAt
+    return revealAt ? revealAt.getTime() > now.getTime() : false
+  }
+
   /** Tiradas pendientes del usuario en una temporada. */
   async #pendingCount(db: Executor, userId: string, seasonId: string): Promise<number> {
     const [row] = await db
@@ -668,7 +784,8 @@ export class GameService {
   }
 
   /**
-   * Nadie mira: la ronda no se tira, se guarda como tirada pendiente con los datos de su turno.
+   * Nadie mira (o la bola de la anterior aún cae): la ronda no se tira, se guarda como tirada
+   * pendiente con los datos de su turno.
    * En el tope, el prompt se descarta (la ronda caduca sin tirada). Cartera ya bloqueada.
    */
   async #defer(

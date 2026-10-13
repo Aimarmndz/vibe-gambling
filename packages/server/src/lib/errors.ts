@@ -14,6 +14,7 @@ const STATUS: Readonly<Record<ErrorCode, number>> = Object.freeze({
   too_many_bets: 422,
   invalid_bet: 422,
   loan_not_allowed: 422,
+  daily_limit: 429,
   protocol_mismatch: 400,
   github_unavailable: 502,
   internal: 500,

@@ -7,6 +7,7 @@ import type { Rng } from '../lib/rng.ts'
 import { AchievementService } from './achievements.ts'
 import { AuthService } from './auth.ts'
 import { GameService } from './game.ts'
+import type { GameLogger } from './game.ts'
 import { GitHubClient } from './github.ts'
 import { LeaderboardService } from './leaderboard.ts'
 import type { Notifier } from './notifier.ts'
@@ -30,14 +31,14 @@ export interface ServiceDeps {
   clock: Clock
   rng: Rng
   notifier: Notifier
-  logger: SeasonJobLogger
+  logger: SeasonJobLogger & GameLogger
   userAgent: string
 }
 
 export function createServices(deps: ServiceDeps): Services {
   const { config, db, clock, rng, notifier } = deps
   const { env, game } = config
-  const views = new Views(env.GITHUB_WEB_BASE_URL, game)
+  const views = new Views(env.GITHUB_WEB_BASE_URL, game, clock)
   const github = new GitHubClient({
     clientId: env.GITHUB_CLIENT_ID,
     oauthBaseUrl: env.GITHUB_OAUTH_BASE_URL,
@@ -46,7 +47,16 @@ export function createServices(deps: ServiceDeps): Services {
     userAgent: deps.userAgent,
   })
   const achievements = new AchievementService(game)
-  const gameService = new GameService({ db, game, clock, rng, views, notifier, achievements })
+  const gameService = new GameService({
+    db,
+    game,
+    clock,
+    rng,
+    views,
+    notifier,
+    achievements,
+    logger: deps.logger,
+  })
   const stats = new StatsService({ db, game, currentSeason: () => gameService.currentSeason().id })
   const auth = new AuthService({
     db,
@@ -63,7 +73,12 @@ export function createServices(deps: ServiceDeps): Services {
       devicePollLeewayMs: env.DEVICE_POLL_LEEWAY_MS,
     },
   })
-  const leaderboard = new LeaderboardService(db, views)
+  const leaderboard = new LeaderboardService({
+    db,
+    views,
+    clock,
+    minAccountAgeDays: game.leaderboard.minAccountAgeDays,
+  })
   const seasons = new SeasonService({
     db,
     game,
