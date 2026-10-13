@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Pipeline PSX en tres pasadas:
-//   1. La escena 3D a un render target de 320×240 (sin antialias, filtro nearest).
-//   2. Compuesto con la capa de interfaz (canvas 2D de 320×240) y reducción a color de 15 bits
-//      (5 bits por canal) con dithering ordenado Bayer 4×4, como hacía la consola.
+//   1. La escena 3D a un render target de 320×240 (sin antialias, filtro nearest), y las capas 3D
+//      superpuestas (iconos de menú, fichas que llueven) a otros dos con alfa: una quieta y otra
+//      que tiembla con la sacudida (docs/DISENO-V2.md, "Orden de capas").
+//   2. Compuesto: mundo (con sacudida) → interfaz (canvas 2D) → 3D quieto → FX 2D (canvas 2D, con
+//      sacudida) → 3D que tiembla, y reducción a color de 15 bits (5 bits por canal) con dithering
+//      ordenado Bayer 4×4, como hacía la consola.
 //   3. Escalado al canvas real con relación 4:3 y bandas negras: nearest y entero si cabe, o el
 //      filtro CRT (scanlines, curvatura suave, aberración/sangrado de color y viñeta).
 import {
@@ -57,7 +60,17 @@ void main() {
 const composeFragment = /* glsl */ `
 uniform sampler2D uScene;
 uniform sampler2D uUi;
+uniform sampler2D uStill3d;
+uniform sampler2D uFx;
+uniform sampler2D uShake3d;
 uniform float uDither;
+uniform float uHasStill;
+uniform float uHasFx;
+uniform float uHasShake;
+/** Sacudida en fracción de pantalla (desplazamiento entero de píxeles ya dividido). */
+uniform vec2 uShake;
+/** Desaturado del mundo 3D (0–1), para BANCARROTA. */
+uniform float uDesaturate;
 in vec2 vUv;
 layout(location = 0) out highp vec4 outColor;
 
@@ -69,9 +82,25 @@ float bayer(ivec2 p) {
 }
 
 void main() {
-  vec3 scene = texture(uScene, vUv).rgb;
+  // La sacudida mueve el mundo y las capas FX; el HUD y los menús se quedan quietos.
+  vec2 suv = vUv - uShake;
+  vec3 scene = texture(uScene, clamp(suv, 0.0, 1.0)).rgb;
+  scene = mix(scene, vec3(dot(scene, vec3(0.299, 0.587, 0.114))), uDesaturate);
   vec4 ui = texture(uUi, vUv);
   vec3 c = mix(scene, ui.rgb, ui.a);
+  if (uHasStill > 0.5) {
+    vec4 still = texture(uStill3d, vUv);
+    c = mix(c, still.rgb, still.a);
+  }
+  bool inside = suv.x >= 0.0 && suv.x <= 1.0 && suv.y >= 0.0 && suv.y <= 1.0;
+  if (uHasFx > 0.5 && inside) {
+    vec4 fx = texture(uFx, suv);
+    c = mix(c, fx.rgb, fx.a);
+  }
+  if (uHasShake > 0.5 && inside) {
+    vec4 shaken = texture(uShake3d, suv);
+    c = mix(c, shaken.rgb, shaken.a);
+  }
   // 15 bits: 32 niveles por canal. El umbral de Bayer reparte el error en un patrón fijo.
   float t = uDither > 0.5 ? bayer(ivec2(gl_FragCoord.xy)) : 0.5;
   c = floor(clamp(c, 0.0, 1.0) * 31.0 + t) / 31.0;
@@ -137,6 +166,14 @@ function fullscreenQuad(material: ShaderMaterial): [Scene, Mesh] {
   return [scene, mesh]
 }
 
+/** Una escena 3D que se pinta encima de la interfaz (iconos de menú, fichas que llueven). */
+export interface Overlay3d {
+  scene: Scene
+  camera: Camera
+  /** Si tiembla con la sacudida (capa 5 de FX) o se queda quieta (iconos de los menús). */
+  shake: boolean
+}
+
 function lowResTarget(): WebGLRenderTarget {
   const rt = new WebGLRenderTarget(PSX_WIDTH, PSX_HEIGHT, {
     minFilter: NearestFilter,
@@ -153,13 +190,42 @@ export interface PipelineOptions {
   dither: boolean
 }
 
+function canvas2d(): [HTMLCanvasElement, CanvasRenderingContext2D, CanvasTexture] {
+  const canvas = document.createElement('canvas')
+  canvas.width = PSX_WIDTH
+  canvas.height = PSX_HEIGHT
+  const ctx = canvas.getContext('2d')
+  if (!ctx) throw new Error('canvas 2D no disponible')
+  ctx.imageSmoothingEnabled = false
+  const texture = new CanvasTexture(canvas)
+  texture.minFilter = texture.magFilter = NearestFilter
+  texture.generateMipmaps = false
+  texture.colorSpace = NoColorSpace
+  return [canvas, ctx, texture]
+}
+
 export class PsxPipeline {
   readonly renderer: WebGLRenderer
   readonly uiCanvas: HTMLCanvasElement
   readonly ui: CanvasRenderingContext2D
+  /** Capa FX 2D (flash, rayos, rótulos de espectáculo, llamas): tiembla con la sacudida. */
+  readonly fx: CanvasRenderingContext2D
+  /**
+   * Sacudida en píxeles enteros de 320×240 (x a la derecha, y hacia abajo). Mueve el mundo y las
+   * capas FX; la interfaz no.
+   */
+  readonly shake = { x: 0, y: 0 }
+  /** Si la capa FX 2D tiene algo este fotograma (si no, no se sube la textura). */
+  fxDirty = false
+  /** Desaturado del mundo 3D (0 = color, 1 = gris). */
+  desaturate = 0
   private readonly sceneTarget = lowResTarget()
   private readonly composeTarget = lowResTarget()
+  private readonly stillTarget = lowResTarget()
+  private readonly shakeTarget = lowResTarget()
+  private readonly overlays: Overlay3d[] = []
   private readonly uiTexture: CanvasTexture
+  private readonly fxTexture: CanvasTexture
   private readonly compose: ShaderMaterial
   private readonly display: ShaderMaterial
   private readonly composeScene: Scene
@@ -179,17 +245,8 @@ export class PsxPipeline {
     this.renderer.setClearColor(0x000000, 1)
     this.renderer.autoClear = false
 
-    this.uiCanvas = document.createElement('canvas')
-    this.uiCanvas.width = PSX_WIDTH
-    this.uiCanvas.height = PSX_HEIGHT
-    const ui = this.uiCanvas.getContext('2d')
-    if (!ui) throw new Error('canvas 2D no disponible')
-    ui.imageSmoothingEnabled = false
-    this.ui = ui
-    this.uiTexture = new CanvasTexture(this.uiCanvas)
-    this.uiTexture.minFilter = this.uiTexture.magFilter = NearestFilter
-    this.uiTexture.generateMipmaps = false
-    this.uiTexture.colorSpace = NoColorSpace
+    ;[this.uiCanvas, this.ui, this.uiTexture] = canvas2d()
+    ;[, this.fx, this.fxTexture] = canvas2d()
 
     this.compose = new ShaderMaterial({
       glslVersion: GLSL3,
@@ -198,7 +255,15 @@ export class PsxPipeline {
       uniforms: {
         uScene: { value: this.sceneTarget.texture },
         uUi: { value: this.uiTexture },
+        uStill3d: { value: this.stillTarget.texture },
+        uFx: { value: this.fxTexture },
+        uShake3d: { value: this.shakeTarget.texture },
         uDither: { value: 1 },
+        uHasStill: { value: 0 },
+        uHasFx: { value: 0 },
+        uHasShake: { value: 0 },
+        uShake: { value: new Vector2(0, 0) },
+        uDesaturate: { value: 0 },
       },
       depthTest: false,
       depthWrite: false,
@@ -236,15 +301,57 @@ export class PsxPipeline {
     return { x: v.x / pixelRatio, y: v.y / pixelRatio, w: v.z / pixelRatio, h: v.w / pixelRatio }
   }
 
+  /**
+   * Registra una escena 3D que se pinta encima de la interfaz (varias a la vez, en orden de
+   * registro). `shake: true` la mete en la capa que tiembla (FX); por defecto, quieta (menús).
+   */
+  addOverlay(scene: Scene, camera: Camera, opts: { shake?: boolean } = {}): void {
+    this.removeOverlay(scene)
+    this.overlays.push({ scene, camera, shake: opts.shake ?? false })
+  }
+
+  removeOverlay(scene: Scene): void {
+    const i = this.overlays.findIndex(o => o.scene === scene)
+    if (i >= 0) this.overlays.splice(i, 1)
+  }
+
+  /** Pinta las capas 3D de un tipo en su target (limpio, con alfa 0). Devuelve si hay alguna. */
+  private renderOverlays(target: WebGLRenderTarget, shake: boolean): boolean {
+    const list = this.overlays.filter(o => o.shake === shake)
+    if (list.length === 0) return false
+    const r = this.renderer
+    r.setRenderTarget(target)
+    r.setClearAlpha(0)
+    r.clear()
+    r.setClearAlpha(1)
+    for (const o of list) {
+      // Cada capa con su propio z-buffer limpio (no se tapan con la de debajo por profundidad).
+      r.clearDepth()
+      r.render(o.scene, o.camera)
+    }
+    return true
+  }
+
   render(scene: Scene, camera: Camera): void {
     const r = this.renderer
-    this.compose.uniforms.uDither!.value = this.options.dither ? 1 : 0
+    const u = this.compose.uniforms
+    u.uDither!.value = this.options.dither ? 1 : 0
     this.display.uniforms.uCrt!.value = this.options.crt ? 1 : 0
     this.uiTexture.needsUpdate = true
+    u.uHasFx!.value = this.fxDirty ? 1 : 0
+    u.uDesaturate!.value = Math.min(1, Math.max(0, this.desaturate))
+    if (this.fxDirty) this.fxTexture.needsUpdate = true
+    ;(u.uShake!.value as Vector2).set(
+      Math.round(this.shake.x) / PSX_WIDTH,
+      // En la textura, v crece hacia arriba: una sacudida hacia abajo resta.
+      -Math.round(this.shake.y) / PSX_HEIGHT,
+    )
 
     r.setRenderTarget(this.sceneTarget)
     r.clear()
     r.render(scene, camera)
+    u.uHasStill!.value = this.renderOverlays(this.stillTarget, false) ? 1 : 0
+    u.uHasShake!.value = this.renderOverlays(this.shakeTarget, true) ? 1 : 0
 
     r.setRenderTarget(this.composeTarget)
     r.render(this.composeScene, this.quadCamera)
