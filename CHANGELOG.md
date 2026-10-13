@@ -8,6 +8,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+The show release: every spin now gets the arcade treatment it deserves.
+
+### Added
+
+- **Spectacle animations** inside the PS1 framebuffer, each with synthesized sound, skippable and with a short, still version under `prefers-reduced-motion`: tiered prizes (BIG WIN, MEGA WIN, STRAIGHT UP!) with a low-poly coin shower, the whole table flashing GREEN! when the 0 comes up, a PUSH TO PROD rocket before the `git push` jackpot, a bank counter for the loan (contract, pixel signature, APPROVED stamp, coins into your balance), an arcade BANKRUPT · CONTINUE? 9… 8… screen, ON FIRE streaks and a gambler's-fallacy notice that always tells the honest odds.
+- **New in-game menus** in the same style: a 5×2 grid of spinning low-poly icons, block wipes between screens and pages for pending spins, season stats (net-worth chart with loans marked, latest spins, hottest number, biggest win), the 17 joke achievements with trophy pop-ups, the bank statement, the leaderboard with avatars and the Hall of Ruin, the memory card, settings, a how-to-play book and credits.
+- **Logo and identity**: a pixel-art casino chip with a `>_` prompt, used for the favicon and app icons, the title screen, the landing page, the Open Graph card and the GitHub social preview, generated from `docs/brand/`.
+- **README** rewritten in English with a separate Spanish `README.es.md`, a hero GIF recorded from a real Claude Code session next to the game window, and a screenshot gallery.
+- Plural forms with `Intl.PluralRules` in the window and the plugin, in all four languages.
+- The WebSocket protocol tells which request each `error` (`re`) and each pending-spin result (`requestId`) answers.
+
+### Fixed
+
+- The result is never revealed (in the window or in the plugin's toast) before the ball has finished landing, even when Claude takes longer than the minimum spin.
+- SPIN ALL no longer hangs when another screen's request fails at the same time, and no longer counts a spin from another window or a live prompt as its own.
+- Nothing spoils a spin while the ball is falling: achievements, stats, the bank statement and the leaderboard wait for the result.
+- Screen readers hear the number and colour on a straight-up win and on green.
+- Long labels in French and German fit their windows, and the felt keeps "2:1" readable.
+- The window's visibility reports are ignored once its session has expired.
+- The privacy page lists the achievements among the stored data.
+
 ## [0.1.0] - 2026-10-13
 
 First public version: every Claude Code prompt is a spin of a PS1-style European roulette, with fake coins only.
