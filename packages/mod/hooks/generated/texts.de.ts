@@ -61,6 +61,7 @@ export const modTextsDe: ModTexts = {
   balance: '🎰 Kontostand {balance} · Schulden {debt} · Vermögen {netWorth} · {rank}',
   rankHidden: 'aus der Rangliste ausgeblendet',
   rankNone: 'noch ohne Platz',
+  rankNewAccount: 'ab {date} in der Rangliste (neues GitHub-Konto)',
   alreadyLoggedIn: 'Du bist schon als @{login} angemeldet. Zum Wechseln erst /vibe-logout.',
   loginPrompt:
     '🎰 Geh auf {uri} und gib {code} ein. Du hast {minutes} Min.; ich prüfe im Hintergrund weiter.',
@@ -68,6 +69,8 @@ export const modTextsDe: ModTexts = {
   loginWelcome: '🎰 Willkommen am Tisch, @{login}.',
   loginPublicNotice:
     'Achtung: Du erscheinst in der öffentlichen Rangliste (Login und Avatar). Mit /vibe-hide verschwindest du.',
+  loginNewAccount:
+    'Dein GitHub-Konto ist jünger als {days} Tage: Du spielst ganz normal und erscheinst ab {date} in der öffentlichen Rangliste (Login und Avatar). Mit /vibe-hide bleibst du draußen.',
   loginExpired: 'Der Login-Code ist abgelaufen. Mit /vibe-login bekommst du einen neuen.',
   loginDenied: 'Der GitHub-Login wurde abgebrochen. Der Tisch wartet.',
   loginFailed:
@@ -96,4 +99,5 @@ export const modTextsDe: ModTexts = {
     'Das löscht dein Konto und jeden Dreh, für immer. Zum Bestätigen tippe: /vibe-delete-account {login}',
   deleteMismatch: 'Das ist nicht dein Login. Es wurde nichts gelöscht.',
   deleted: '🎰 Konto gelöscht. Alle Daten sind weg. Die Bank dankt für dein Spiel.',
+  dailyLimit: '🎰 Tageslimit an Drehungen erreicht · der Tisch öffnet wieder um {time}',
 }

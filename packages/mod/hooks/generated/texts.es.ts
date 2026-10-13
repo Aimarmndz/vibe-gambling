@@ -58,6 +58,7 @@ export const modTextsEs: ModTexts = {
   balance: '🎰 Saldo {balance} · Deuda {debt} · Patrimonio {netWorth} · {rank}',
   rankHidden: 'oculto del ranking',
   rankNone: 'aún sin puesto',
+  rankNewAccount: 'en el ranking desde el {date} (cuenta de GitHub nueva)',
   alreadyLoggedIn: 'Ya has entrado como @{login}. Usa /vibe-logout antes para cambiar.',
   loginPrompt:
     '🎰 Ve a {uri} y escribe {code}. Tienes {minutes} min; yo voy comprobando en segundo plano.',
@@ -65,6 +66,8 @@ export const modTextsEs: ModTexts = {
   loginWelcome: '🎰 Bienvenido a la mesa, @{login}.',
   loginPublicNotice:
     'Ojo: apareces en el ranking público (usuario y avatar). Usa /vibe-hide para desaparecer.',
+  loginNewAccount:
+    'Tu cuenta de GitHub tiene menos de {days} días: juegas igual y sales en el ranking público (usuario y avatar) desde el {date}. Usa /vibe-hide si no quieres salir.',
   loginExpired: 'El código ha caducado. Usa /vibe-login para pedir otro.',
   loginDenied: 'Has cancelado el login en GitHub. La mesa esperará.',
   loginFailed:
@@ -92,4 +95,5 @@ export const modTextsEs: ModTexts = {
     'Esto borra tu cuenta y todas tus tiradas para siempre. Para confirmarlo escribe: /vibe-delete-account {login}',
   deleteMismatch: 'Ese no es tu usuario. No he borrado nada.',
   deleted: '🎰 Cuenta borrada. No queda nada. La casa te agradece tu visita.',
+  dailyLimit: '🎰 Tope diario de tiradas alcanzado · la mesa reabre a las {time}',
 }

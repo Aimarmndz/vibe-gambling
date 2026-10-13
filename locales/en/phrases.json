@@ -84,5 +84,23 @@
     "You already have {max} pending spins. This prompt goes in the bin, like my New Year resolutions.",
     "Pending spin cap of {max} reached. The wheel stops lending: open the window and spend some.",
     "{max} pending spins and counting. This is not a habit anymore, it is a backlog."
+  ],
+  "dailyLimit": [
+    "The house is closing for today. Even the croupier went home.",
+    "{limit} spins today. Not even the RNG is this hooked.",
+    "Go touch grass. Grass has no APR.",
+    "If you made it this far, you're either a bot or you need a walk. Possibly both.",
+    "Table closed. The wheel asked for overtime and HR said no.",
+    "Daily quota reached. Even an infinite loop needs a break condition.",
+    "The ball took the rest of the day off. Approved.",
+    "429 Too Many Spins. Retry-After: tomorrow.",
+    "The casino is closed. Your git log misses you.",
+    "Tomorrow the wheel will still be round. Promise.",
+    "Even fake coins need to sleep.",
+    "Close the tab, drink some water, push that PR.",
+    "{limit} spins. At this point the wheel is spinning you.",
+    "Your streak is impressive. Your posture, less so. Go stretch.",
+    "Rien ne va plus. Seriously. Until midnight.",
+    "You've spun more than the office chair during a stand-up."
   ]
 }

@@ -52,11 +52,13 @@
   "balance": "🎰 Balance {balance} · Debt {debt} · Net worth {netWorth} · {rank}",
   "rankHidden": "hidden from the leaderboard",
   "rankNone": "not ranked yet",
+  "rankNewAccount": "on the leaderboard from {date} (new GitHub account)",
   "alreadyLoggedIn": "You're already logged in as @{login}. /vibe-logout first to switch.",
   "loginPrompt": "🎰 Go to {uri} and enter {code}. You have {minutes} min; I'll keep checking in the background.",
   "loginInProgress": "Still waiting: go to {uri} and enter {code}.",
   "loginWelcome": "🎰 Welcome to the table, @{login}.",
   "loginPublicNotice": "Heads-up: you appear on the public leaderboard (login and avatar). /vibe-hide to vanish.",
+  "loginNewAccount": "Your GitHub account is under {days} days old: you play as usual and show up on the public leaderboard (login and avatar) from {date}. /vibe-hide to stay off it.",
   "loginExpired": "The login code expired. Run /vibe-login to get a new one.",
   "loginDenied": "GitHub login was cancelled. The table will wait.",
   "loginFailed": "The login stopped: the server said \"{detail}\". Run /vibe-login to try again.",
@@ -79,5 +81,6 @@
   "selfHostedTag": "self-hosted",
   "deleteUsage": "This deletes your account and every spin, forever. To confirm, type: /vibe-delete-account {login}",
   "deleteMismatch": "That's not your login. Nothing was deleted.",
-  "deleted": "🎰 Account deleted. All data is gone. The house thanks you for playing."
+  "deleted": "🎰 Account deleted. All data is gone. The house thanks you for playing.",
+  "dailyLimit": "🎰 Daily spin limit reached · the table reopens at {time}"
 }

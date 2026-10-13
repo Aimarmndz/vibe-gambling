@@ -166,6 +166,7 @@
   "toast.seasonChanged": "New season {season}! Balance reset, debt forgiven.",
   "toast.expired": "Round expired. Claude took too long.",
   "toast.reconnected": "Back online.",
+  "toast.newAccount": "Your GitHub account is under {days} days old: you play as usual and join the leaderboard on {date}.",
   "toast.pendingQueued": "Spin saved for later: {n} pending.",
   "toast.pendingQueued.one": "Spin saved for later: {n} pending.",
   "toast.pendingDropped": "Pending spin limit ({n}) reached: that prompt was not saved.",
@@ -392,6 +393,7 @@
   "lb.spinsShort": "SPINS",
   "lb.me": "{login} (YOU)",
   "lb.hallEmpty": "No season has ended yet.",
+  "lb.newAccount": "New GitHub account: listed from {date}",
   "lb.a11y": "{board}: first is {login} with {net}.",
   "mc.titleShort": "MEMORY CARD",
   "mc.slot": "SLOT 1 · {used}/{total} BLOCKS",
@@ -445,5 +447,10 @@
   "spinAll.recent": "LATEST",
   "spinAll.stop": "STOP",
   "spinAll.autoStop": "STOPS BY ITSELF ON A BIG WIN",
-  "spinAll.a11y": "Spin {k} of {n}: {number} {color}, {net}."
+  "spinAll.a11y": "Spin {k} of {n}: {number} {color}, {net}.",
+  "dailyLimit.title": "TABLE CLOSED",
+  "dailyLimit.count": "{n} spins today: that's the daily limit.",
+  "dailyLimit.reopens": "REOPENS AT {time}",
+  "dailyLimit.help": "If it ever stops being a joke: {label}",
+  "dailyLimit.ok": "OK"
 }

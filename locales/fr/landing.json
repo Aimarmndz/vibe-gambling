@@ -26,6 +26,7 @@
   "landing.lb.empty": "Aucun joueur cette saison pour l’instant. La table t’attend.",
   "landing.lb.error": "Le classement est indisponible pour le moment.",
   "landing.lb.loading": "Chargement…",
+  "landing.lb.newAccounts": "Les comptes GitHub de moins de {days} jours peuvent jouer, mais n’apparaissent ici et au Panthéon de la Ruine qu’à partir de {days} jours. Créer des comptes en masse ne sert donc à rien.",
   "landing.hall.title": "PANTHÉON DE LA RUINE",
   "landing.hall.lede": "Les devs les plus fauchés de chaque saison terminée, pour toujours. Comme un musée, en plus triste.",
   "landing.hall.empty": "Aucune saison n’est encore terminée. L’histoire n’a pas fini de se perdre.",

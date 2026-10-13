@@ -26,6 +26,7 @@
   "landing.lb.empty": "Aún no hay jugadores esta temporada. La mesa espera.",
   "landing.lb.error": "La clasificación no está disponible ahora mismo.",
   "landing.lb.loading": "Cargando…",
+  "landing.lb.newAccounts": "Las cuentas de GitHub de menos de {days} días pueden jugar, pero no salen aquí ni en el Salón de la Ruina hasta cumplir {days} días. Así no compensa crear cuentas en masa.",
   "landing.hall.title": "SALÓN DE LA RUINA",
   "landing.hall.lede": "Los devs más arruinados de cada temporada cerrada, para siempre. Como un museo, pero más triste.",
   "landing.hall.empty": "Aún no se ha cerrado ninguna temporada. La historia se sigue perdiendo.",

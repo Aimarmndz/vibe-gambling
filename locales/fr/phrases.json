@@ -88,5 +88,23 @@
     "Tu as déjà {max} tours en attente. Ce prompt part à la corbeille, comme mes bonnes résolutions.",
     "Limite de {max} tours en attente atteinte. La roue ne fait plus crédit : ouvre la fenêtre et joues-en quelques-uns.",
     "{max} tours en attente et ça continue. Ce n’est plus une habitude, c’est un backlog."
+  ],
+  "dailyLimit": [
+    "La maison ferme pour aujourd’hui : même le croupier est rentré chez lui.",
+    "{limit} tours aujourd’hui. Même le RNG n’est pas aussi accro.",
+    "Va toucher de l’herbe : l’herbe n’a pas de TAEG.",
+    "Si tu es arrivé jusqu’ici, soit tu es un bot, soit il te faut une balade. Voire les deux.",
+    "Table fermée. La roulette a posé un RTT.",
+    "Quota du jour atteint. Même une boucle infinie a besoin d’une condition de sortie.",
+    "La bille est en grève. Préavis déposé ce matin.",
+    "Erreur 429 : trop de tours. Réessaie demain.",
+    "Le casino est fermé. Ton git log se sent délaissé.",
+    "Demain, la roulette sera toujours ronde. Promis.",
+    "Même les pièces imaginaires ont besoin de dormir.",
+    "Ferme l’onglet, bois un verre d’eau et merge cette PR.",
+    "{limit} tours. À ce stade, c’est la roulette qui te fait tourner.",
+    "Ta série impressionne. Ta posture, beaucoup moins. Étire-toi.",
+    "Rien ne va plus. Vraiment plus. Jusqu’à minuit.",
+    "Tu as plus tourné que la chaise du bureau pendant le stand-up."
   ]
 }

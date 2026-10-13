@@ -166,6 +166,7 @@
   "toast.seasonChanged": "Neue Saison {season}! Kontostand zurückgesetzt, Schulden erlassen.",
   "toast.expired": "Runde abgelaufen. Claude hat zu lange gebraucht.",
   "toast.reconnected": "Wieder online.",
+  "toast.newAccount": "Dein GitHub-Konto ist jünger als {days} Tage: Du spielst ganz normal und erscheinst am {date} in der Rangliste.",
   "toast.pendingQueued": "Dreh für später gespeichert: {n} offen.",
   "toast.pendingQueued.one": "Dreh für später gespeichert: {n} offen.",
   "toast.pendingDropped": "Limit offener Drehs ({n}) erreicht: Dieser Prompt wurde nicht gespeichert.",
@@ -392,6 +393,7 @@
   "lb.spinsShort": "DREHS",
   "lb.me": "{login} (DU)",
   "lb.hallEmpty": "Noch ist keine Saison zu Ende.",
+  "lb.newAccount": "Neues GitHub-Konto: gelistet ab {date}",
   "lb.a11y": "{board}: vorne liegt {login} mit {net}.",
   "mc.titleShort": "MEMORY CARD",
   "mc.slot": "STECKPLATZ 1 · {used}/{total} BLÖCKE",
@@ -445,5 +447,10 @@
   "spinAll.recent": "LETZTE",
   "spinAll.stop": "STOPP",
   "spinAll.autoStop": "STOPPT VON SELBST BEI GROSSEM GEWINN",
-  "spinAll.a11y": "Dreh {k} von {n}: {number} {color}, {net}."
+  "spinAll.a11y": "Dreh {k} von {n}: {number} {color}, {net}.",
+  "dailyLimit.title": "TISCH ZU",
+  "dailyLimit.count": "{n} Drehungen heute: das ist das Tageslimit.",
+  "dailyLimit.reopens": "WIEDER OFFEN UM {time}",
+  "dailyLimit.help": "Falls es mal kein Spaß mehr ist: {label}",
+  "dailyLimit.ok": "OK"
 }

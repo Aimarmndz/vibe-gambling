@@ -26,6 +26,7 @@
   "landing.lb.empty": "Diese Saison noch keine Spieler. Der Tisch wartet.",
   "landing.lb.error": "Die Rangliste ist gerade nicht verfügbar.",
   "landing.lb.loading": "Lade…",
+  "landing.lb.newAccounts": "GitHub-Konten, die jünger als {days} Tage sind, können spielen, erscheinen hier und in der Halle des Ruins aber erst, wenn sie {days} Tage alt sind. Massenhaft Konten anzulegen lohnt sich also nicht.",
   "landing.hall.title": "HALLE DES RUINS",
   "landing.hall.lede": "Die pleitesten Devs jeder abgeschlossenen Saison, für immer. Wie ein Museum, nur trauriger.",
   "landing.hall.empty": "Noch ist keine Saison abgeschlossen. Die Geschichte wird gerade erst verzockt.",

@@ -19,6 +19,7 @@ export const ERROR_CODES = [
   'too_many_bets',
   'invalid_bet',
   'loan_not_allowed',
+  'daily_limit',
   'protocol_mismatch',
   'github_unavailable',
   'internal',

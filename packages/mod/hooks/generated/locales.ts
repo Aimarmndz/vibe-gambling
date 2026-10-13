@@ -69,11 +69,13 @@ export type ModTextKey =
   | 'balance'
   | 'rankHidden'
   | 'rankNone'
+  | 'rankNewAccount'
   | 'alreadyLoggedIn'
   | 'loginPrompt'
   | 'loginInProgress'
   | 'loginWelcome'
   | 'loginPublicNotice'
+  | 'loginNewAccount'
   | 'loginExpired'
   | 'loginDenied'
   | 'loginFailed'
@@ -97,6 +99,7 @@ export type ModTextKey =
   | 'deleteUsage'
   | 'deleteMismatch'
   | 'deleted'
+  | 'dailyLimit'
 export type ModTexts = Readonly<Record<ModTextKey, string>>
 
 export interface LocaleInfo {

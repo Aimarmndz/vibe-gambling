@@ -87,5 +87,23 @@
     "Du hast schon {max} offene Drehs. Dieser Prompt fliegt in den Papierkorb, wie meine Neujahrsvorsätze.",
     "Limit von {max} offenen Drehs erreicht. Das Rad schreibt nicht mehr an: Öffne das Fenster und lös ein paar ein.",
     "{max} offene Drehs und es werden mehr. Das ist kein Laster mehr, das ist ein Backlog."
+  ],
+  "dailyLimit": [
+    "Die Bank macht für heute zu. Sogar der Croupier ist schon nach Hause.",
+    "{limit} Drehungen. Nicht mal der Zufallsgenerator ist so süchtig.",
+    "Geh Gras anfassen. Gras hat keinen Effektivzins.",
+    "Wer bis hierher kommt, ist ein Bot oder braucht einen Spaziergang. Oder beides.",
+    "Tisch geschlossen. Das Rad hat Feierabend.",
+    "Tageskontingent erreicht. Auch eine Endlosschleife braucht eine Abbruchbedingung.",
+    "Die Kugel hat für heute Urlaub eingereicht. Genehmigt.",
+    "Fehler 429: zu viele Drehungen. Morgen erneut versuchen.",
+    "Das Casino hat zu. Dein git log fühlt sich vernachlässigt.",
+    "Morgen ist das Rad immer noch rund. Versprochen.",
+    "Auch Spielgeld braucht mal Schlaf.",
+    "Tab zu, ein Glas Wasser, und dann den Pull Request mergen.",
+    "{limit} Drehungen. Inzwischen dreht das Rad dich.",
+    "Deine Serie ist beeindruckend, deine Haltung weniger. Mal strecken.",
+    "Nichts geht mehr. Wirklich nichts. Bis Mitternacht.",
+    "Ruhezeit nach Arbeitszeitgesetz. Gilt auch für Roulettekugeln."
   ]
 }

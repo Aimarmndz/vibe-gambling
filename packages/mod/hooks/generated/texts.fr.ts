@@ -62,6 +62,7 @@ export const modTextsFr: ModTexts = {
   balance: '🎰 Solde {balance} · Dette {debt} · Patrimoine {netWorth} · {rank}',
   rankHidden: 'masqué du classement',
   rankNone: 'pas encore classé',
+  rankNewAccount: 'au classement à partir du {date} (compte GitHub récent)',
   alreadyLoggedIn:
     'Tu es déjà connecté en tant que @{login}. Fais d’abord /vibe-logout pour changer.',
   loginPrompt:
@@ -70,6 +71,8 @@ export const modTextsFr: ModTexts = {
   loginWelcome: '🎰 Bienvenue à la table, @{login}.',
   loginPublicNotice:
     'Attention : tu apparais dans le classement public (identifiant et avatar). /vibe-hide pour disparaître.',
+  loginNewAccount:
+    'Ton compte GitHub a moins de {days} jours : tu joues normalement et tu apparaîtras dans le classement public (identifiant et avatar) à partir du {date}. /vibe-hide pour ne pas y figurer.',
   loginExpired: 'Le code de connexion a expiré. Lance /vibe-login pour en avoir un nouveau.',
   loginDenied: 'La connexion GitHub a été annulée. La table t’attendra.',
   loginFailed:
@@ -99,4 +102,5 @@ export const modTextsFr: ModTexts = {
   deleteMismatch: 'Ce n’est pas ton identifiant. Rien n’a été supprimé.',
   deleted:
     '🎰 Compte supprimé. Toutes les données ont disparu. La maison te remercie d’avoir joué.',
+  dailyLimit: '🎰 Limite quotidienne de tours atteinte · la table rouvre à {time}',
 }

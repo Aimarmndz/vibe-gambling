@@ -26,6 +26,7 @@
   "landing.lb.empty": "No players this season yet. The table is waiting.",
   "landing.lb.error": "The leaderboard is unavailable right now.",
   "landing.lb.loading": "Loading…",
+  "landing.lb.newAccounts": "GitHub accounts younger than {days} days can play, but only show up here and in the Hall of Ruin once they turn {days} days old. Mass-created accounts are not worth it.",
   "landing.hall.title": "HALL OF RUIN",
   "landing.hall.lede": "The most broke devs of every closed season, forever. Like a museum, but sadder.",
   "landing.hall.empty": "No season has closed yet. History is still being lost.",

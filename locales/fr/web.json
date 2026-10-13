@@ -166,6 +166,7 @@
   "toast.seasonChanged": "Nouvelle saison {season} ! Solde remis à zéro, dette effacée.",
   "toast.expired": "Tour expiré. Claude a mis trop de temps.",
   "toast.reconnected": "De retour en ligne.",
+  "toast.newAccount": "Ton compte GitHub a moins de {days} jours : tu joues normalement et tu entres au classement le {date}.",
   "toast.pendingQueued": "Tour mis de côté : {n} en attente.",
   "toast.pendingQueued.one": "Tour mis de côté : {n} en attente.",
   "toast.pendingDropped": "Limite de tours en attente ({n}) atteinte : ce prompt n’a pas été gardé.",
@@ -392,6 +393,7 @@
   "lb.spinsShort": "TOURS",
   "lb.me": "{login} (TOI)",
   "lb.hallEmpty": "Aucune saison n’est encore terminée.",
+  "lb.newAccount": "Compte GitHub récent : classé le {date}",
   "lb.a11y": "{board} : en tête {login} avec {net}.",
   "mc.titleShort": "MEMORY CARD",
   "mc.slot": "FENTE 1 · {used}/{total} BLOCS",
@@ -445,5 +447,10 @@
   "spinAll.recent": "DERNIERS",
   "spinAll.stop": "STOP",
   "spinAll.autoStop": "S’ARRÊTE SEUL SUR UN GROS GAIN",
-  "spinAll.a11y": "Tour {k} sur {n} : {number} {color}, {net}."
+  "spinAll.a11y": "Tour {k} sur {n} : {number} {color}, {net}.",
+  "dailyLimit.title": "TABLE FERMÉE",
+  "dailyLimit.count": "{n} tours aujourd’hui : c’est la limite du jour.",
+  "dailyLimit.reopens": "ROUVRE À {time}",
+  "dailyLimit.help": "Si un jour ce n’est plus un jeu : {label}",
+  "dailyLimit.ok": "OK"
 }

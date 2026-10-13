@@ -84,5 +84,23 @@
     "Ya tienes {max} tiradas pendientes. Este prompt se va a la papelera, como mis propósitos de año nuevo.",
     "Tope de {max} tiradas pendientes. La ruleta no fía más: abre la ventana y gasta alguna.",
     "{max} tiradas pendientes y subiendo. Esto ya no es un vicio, es un backlog."
+  ],
+  "dailyLimit": [
+    "La casa cierra por hoy: hasta el crupier se ha ido a casa.",
+    "{limit} tiradas. Ni el RNG está tan enganchado.",
+    "Ve a tocar césped; el césped no tiene TAE.",
+    "Si has llegado hasta aquí, o eres un bot o necesitas un paseo. O las dos cosas.",
+    "Mesa cerrada. La ruleta pidió horas extra y Recursos Humanos dijo que no.",
+    "Cupo diario agotado. Hasta un bucle infinito necesita condición de salida.",
+    "La bola se ha cogido el resto del día libre. Aprobado.",
+    "Error 429: demasiadas tiradas. Vuelve a intentarlo mañana.",
+    "El casino ha cerrado. Tu git log te echa de menos.",
+    "Mañana la ruleta seguirá siendo redonda. Palabra.",
+    "Hasta las monedas de mentira necesitan dormir.",
+    "Cierra la pestaña, bebe agua y haz ese commit que tienes pendiente.",
+    "{limit} tiradas. A estas alturas es la ruleta la que te gira a ti.",
+    "Tu racha impresiona. Tu postura, no tanto. Estira la espalda.",
+    "Has dado más vueltas que la silla de la oficina en una daily.",
+    "Hoy ya no se juega más. Ni aunque se lo pidas con un prompt muy educado."
   ]
 }

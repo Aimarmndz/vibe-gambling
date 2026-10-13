@@ -166,6 +166,7 @@
   "toast.seasonChanged": "¡Nueva temporada {season}! Saldo reiniciado y deuda perdonada.",
   "toast.expired": "La ronda ha caducado. Claude tardó demasiado.",
   "toast.reconnected": "Conexión recuperada.",
+  "toast.newAccount": "Tu cuenta de GitHub tiene menos de {days} días: juegas igual y sales en la clasificación el {date}.",
   "toast.pendingQueued": "Tirada guardada para luego: {n} pendientes.",
   "toast.pendingQueued.one": "Tirada guardada para luego: {n} pendiente.",
   "toast.pendingDropped": "Tope de tiradas pendientes ({n}): ese prompt no se ha guardado.",
@@ -392,6 +393,7 @@
   "lb.spinsShort": "TIR.",
   "lb.me": "{login} (TÚ)",
   "lb.hallEmpty": "Aún no ha terminado ninguna temporada.",
+  "lb.newAccount": "Cuenta de GitHub nueva: sales el {date}",
   "lb.a11y": "{board}: primero {login} con {net}.",
   "mc.titleShort": "MEMORY CARD",
   "mc.slot": "RANURA 1 · {used}/{total} BLOQUES",
@@ -445,5 +447,10 @@
   "spinAll.recent": "ÚLTIMAS",
   "spinAll.stop": "PARAR",
   "spinAll.autoStop": "SE PARA SOLA EN UN PREMIO GORDO",
-  "spinAll.a11y": "Tirada {k} de {n}: {number} {color}, {net}."
+  "spinAll.a11y": "Tirada {k} de {n}: {number} {color}, {net}.",
+  "dailyLimit.title": "MESA CERRADA",
+  "dailyLimit.count": "{n} tiradas hoy: es el tope diario.",
+  "dailyLimit.reopens": "REABRE A LAS {time}",
+  "dailyLimit.help": "Si alguna vez deja de ser broma: {label}",
+  "dailyLimit.ok": "VALE"
 }
