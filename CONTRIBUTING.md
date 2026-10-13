@@ -59,7 +59,7 @@ Assets (fonts, textures, sounds, models) must be your own work or under a compat
 Requirements:
 
 - **Node.js 26** (see `.nvmrc`; `nvm use` or `fnm use` picks it up).
-- **pnpm 11** via Corepack: `corepack enable` (the exact version comes from `packageManager` in `package.json`).
+- **pnpm 11**, the exact version in `packageManager` (`package.json`): `npm install -g pnpm@<that version>` (Node 26 no longer ships Corepack).
 - **Docker** with Compose, for Postgres and the server's integration tests.
 - **Claude Code** (`npm install -g @anthropic-ai/claude-code`) if you work on the mod.
 
@@ -193,7 +193,7 @@ The PSX pipeline (320×240 render target, vertex snapping, affine textures, 15-b
 
 - **Monedas falsas siempre**, privacidad por encima de todo y **nada hardcodeado** (todo en env o `config/*.json`).
 - Cada commit lleva **`Signed-off-by`** (DCO, [developercertificate.org](https://developercertificate.org/)): usa `git commit -s`. Con eso certificas que tienes derecho a aportar el cambio bajo la licencia del proyecto (AGPL-3.0-or-later con el término 7(b) de atribución).
-- Entorno: Node 26, pnpm 11 (`corepack enable`), Docker (o, sin instalar nada, el devcontainer en GitHub Codespaces: botón «Open in GitHub Codespaces» de arriba); `pnpm install` y `docker compose -f deploy/docker-compose.dev.yml up -d --build` (pila completa en http://localhost:8787 con un GitHub falso), o solo `postgres` en Docker y los scripts `dev:fake-github` y `dev` del servidor y `dev` de la web en modo watch. El mod se carga con `claude --plugin-dir packages/mod` y se apunta al servidor local con `/vibe-server http://localhost:8787`.
+- Entorno: Node 26, pnpm 11 (la versión exacta de `packageManager`: `npm install -g pnpm@<versión>`; Node 26 ya no trae Corepack), Docker (o, sin instalar nada, el devcontainer en GitHub Codespaces: botón «Open in GitHub Codespaces» de arriba); `pnpm install` y `docker compose -f deploy/docker-compose.dev.yml up -d --build` (pila completa en http://localhost:8787 con un GitHub falso), o solo `postgres` en Docker y los scripts `dev:fake-github` y `dev` del servidor y `dev` de la web en modo watch. El mod se carga con `claude --plugin-dir packages/mod` y se apunta al servidor local con `/vibe-server http://localhost:8787`.
 - Antes del PR: `pnpm lint`, `pnpm typecheck`, `pnpm test` y los tests de integración o E2E de lo que toques.
 - Versiones y CHANGELOG: no se tocan en los PR. Las releases las saca el mantenedor con `pnpm release`, como cuenta [docs/RELEASING.md](docs/RELEASING.md); el título de tu commit acaba en el borrador del CHANGELOG, así que cuídalo.
 - Estilo: Prettier y ESLint limpios; identificadores en inglés y **comentarios en español**; cabecera SPDX en cada archivo fuente; commits con **Conventional Commits en español** e imperativo.

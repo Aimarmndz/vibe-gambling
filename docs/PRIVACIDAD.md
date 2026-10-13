@@ -121,7 +121,7 @@ Both yes/no flags are computed **on your computer** by looking at Bash commands,
 | The game: wallet per season, rounds and turns (when each one started and ended, result, bets, turn duration and the two flags), loans, streaks, unlocked achievements, Hall of Ruin | To run the game and the leaderboard             |
 | Sessions: the **hash** of each token, its kind (plugin or window), usage and expiry dates                                                                                           | To keep you logged in                           |
 
-**Not stored:** the GitHub token (thrown away right after reading your profile; login asks for no permissions, only the public profile), the plugin version or the OS (checked and dropped), your IP (only kept in memory for a minute for rate limiting), and no URLs, headers or tokens in the logs.
+**Not stored:** the GitHub token (thrown away right after reading your profile; login asks for no permissions, only the public profile), the plugin version or the OS (checked and dropped), your IP (only kept in memory for a minute for rate limiting), whether the game window is visible or in the background (only in memory while it is connected, to decide if a prompt is played live or saved as a pending spin), and no URLs, headers or tokens in the logs.
 
 ### Legal basis (GDPR, art. 6)
 
