@@ -10,7 +10,7 @@ import { colorOf, coveredNumbers } from '@vibe-gambling/shared'
 import type { BetSelection } from '@vibe-gambling/shared'
 import type { CanvasTexture } from 'three'
 
-import { drawText, measure } from '../font/bitmap.ts'
+import { drawText, inkBounds, measure } from '../font/bitmap.ts'
 import type { Translator } from '../i18n/index.ts'
 import { LAYOUT_BOUNDS, OUTSIDE_ORDER, numberAt } from '../game/layout.ts'
 import { PALETTE, pocketHex } from '../ui/palette.ts'
@@ -25,11 +25,35 @@ export function labelRoom(cells: number): number {
   return cells * SX - 3
 }
 
-/** Ancho de un texto con las letras pegadas (sin el píxel de separación entre glifos). */
+/** Signos que conservan su píxel de separación aunque se aprieten las letras (si no, "2:1" se lee "21"). */
+const KEEP_GAP = /[:.,;·-]/
+
+/**
+ * Avance de cada glifo con las letras pegadas: solo cuenta su tinta (sin el aire de los lados) y
+ * no lleva separación, salvo junto a la puntuación.
+ */
+export function tightAdvances(text: string): number[] {
+  const chars = [...text]
+  return chars.map((ch, i) => {
+    const next = chars[i + 1]
+    const gap = next !== undefined && (KEEP_GAP.test(ch) || KEEP_GAP.test(next)) ? 1 : 0
+    return inkWidth(ch) + gap
+  })
+}
+
+/**
+ * Signos que se pintan con un píxel más de ancho al apretar: con 1 píxel, la textura reducida a
+ * 320×240 se los come y "2:1" se lee "21".
+ */
+const BOLD = new Set([':'])
+
+function inkWidth(ch: string): number {
+  return inkBounds(ch).width + (BOLD.has(ch) ? 1 : 0)
+}
+
+/** Ancho de un texto con las letras pegadas (ver `tightAdvances`). */
 export function tightWidth(text: string): number {
-  let width = 0
-  for (const ch of text) width += measure(ch)
-  return width
+  return tightAdvances(text).reduce((sum, w) => sum + w, 0)
 }
 /** Margen de paño alrededor del tapete (texels). */
 const MX = 11
@@ -147,11 +171,14 @@ export class FeltLayout {
         return
       }
       // No cabe (p. ej. IMPAIR en francés): letras pegadas, sin el píxel de separación.
+      const advances = tightAdvances(text)
       let cx = Math.round(px - tightWidth(text) / 2)
-      for (const ch of text) {
-        drawText(ctx, ch, cx, top, { color, shadow })
-        cx += measure(ch)
-      }
+      ;[...text].forEach((ch, i) => {
+        const x = cx - inkBounds(ch).left
+        drawText(ctx, ch, x, top, { color, shadow })
+        if (BOLD.has(ch)) drawText(ctx, ch, x + 1, top, { color, shadow })
+        cx += advances[i]!
+      })
     }
     // Las apuestas interiores (hasta 6 números) se rellenan de oro; las exteriores solo se enmarcan.
     const wide = lit.size > 6

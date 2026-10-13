@@ -47,6 +47,23 @@ function glyphsOf(text: string): GlyphData[] {
   return out
 }
 
+/**
+ * Columnas con tinta de un glifo: dónde empieza (`left`) y cuánto ocupa (`width`). Sirve para
+ * apretar rótulos sin que los glifos con aire a los lados (el "1") desperdicien sitio.
+ */
+export function inkBounds(ch: string): { left: number; width: number } {
+  const g = GLYPHS[ch]
+  if (!g) return { left: 0, width: 0 }
+  let left = g.w
+  let right = -1
+  for (const row of g.r) {
+    const first = row.indexOf('#')
+    if (first >= 0) left = Math.min(left, first)
+    right = Math.max(right, row.lastIndexOf('#'))
+  }
+  return right < 0 ? { left: 0, width: g.w } : { left, width: right - left + 1 }
+}
+
 /** Ancho en píxeles de un texto (sin el espacio final del último glifo). */
 export function measure(text: string, scale = 1): number {
   const glyphs = glyphsOf(text)

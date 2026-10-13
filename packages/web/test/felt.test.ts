@@ -13,10 +13,12 @@ import {
   TEX_W,
   feltGrid,
   labelRoom,
+  tightAdvances,
   tightWidth,
   toTex,
 } from '../src/render/feltLayout.ts'
 import { PSX_HEIGHT, PSX_WIDTH } from '../src/render/pipeline.ts'
+import { inkBounds, measure } from '../src/font/bitmap.ts'
 import { SHOTS, feltGeometry, layoutToWorld } from '../src/render/world.ts'
 import { CATALOGS } from './translators.ts'
 
@@ -97,5 +99,17 @@ describe('rótulos del tapete en todos los idiomas', () => {
         expect(tightWidth(text), `${locale}:${key}`).toBeLessThanOrEqual(labelRoom(n))
       }
     }
+  })
+
+  it('al apretar letras, la puntuación conserva su separación ("2:1" no se lee "21")', () => {
+    const advances = tightAdvances('2:1')
+    // Solo cuenta la tinta de cada glifo; el "2" y los dos puntos llevan su píxel de separación.
+    expect(advances[0]).toBe(inkBounds('2').width + 1)
+    // Los dos puntos se pintan con un píxel más de ancho para que la textura reducida no se los coma.
+    expect(advances[1]).toBe(inkBounds(':').width + 2)
+    expect(advances[2]).toBe(inkBounds('1').width)
+    // El "1" tiene aire a los lados: su tinta es más estrecha que su celda.
+    expect(inkBounds('1').width).toBeLessThan(measure('1'))
+    expect(tightWidth('IMPAIR')).toBe([...'IMPAIR'].reduce((w, c) => w + inkBounds(c).width, 0))
   })
 })
