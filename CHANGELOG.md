@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- **Every other text is satirical too**, in all four languages and adapted rather than translated: the game window (loan shark fine print, bankruptcy, achievements, menus, settings, how to play, credits, empty states), the plugin's replies and slash command descriptions, the READMEs, the plugin and marketplace descriptions and the page metadata now parody casino, crypto, MLM and growth-hacking marketing ("Risk: 100%. Upside: infinite."). Error messages still say what happened and what to do, with the joke as a short extra. There are new gambler phrases in every category. The privacy policy only changes its intro; its content is the same. The gambling-help notice and links stay as they were, without jokes, and every text still makes it clear that no real money is ever involved.
+
 ### Added
 
 - **The demo can be paused**: `/play?demo` still spins by itself, but `A` (L1 on a gamepad) toggles between AUTO and PAUSED and `G` (SELECT) spins once right away, as if you had just sent a prompt. Both live in a small panel under the streak box that you can also click or tap, the status sign says which mode you are in, spinning by hand switches to PAUSED, and the choice is remembered in this browser. Screen readers hear every switch.

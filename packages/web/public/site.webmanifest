@@ -1,7 +1,7 @@
 {
   "name": "vibe-gambling — every prompt is a spin",
   "short_name": "vibe-gambling",
-  "description": "A PS1-style roulette that pops up while Claude Code thinks. Fake coins, real addiction (not really). Global leaderboard of the most broke devs.",
+  "description": "A PS1-style roulette that pops up while Claude Code thinks. Risk: 100%. Upside: infinite. Fake coins only. Global leaderboard of the most broke devs.",
   "lang": "en",
   "start_url": "/",
   "scope": "/",

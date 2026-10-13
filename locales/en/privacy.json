@@ -1,6 +1,6 @@
 {
   "privacy.title": "Privacy",
-  "privacy.lede": "vibe-gambling knows nothing about your work. This page says exactly what this instance stores, why, where, for how long and how to delete it.",
+  "privacy.lede": "The only thing this casino never gambles with is your data. vibe-gambling knows nothing about your work. This page says exactly what this instance stores, why, where, for how long and how to delete it.",
   "privacy.instance.unknown": "The details of this instance (who runs it, where it is hosted, how to contact them) could not be loaded. Reload the page to try again.",
   "privacy.unit.day.one": "{n} day",
   "privacy.unit.day.other": "{n} days",

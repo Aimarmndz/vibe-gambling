@@ -1,6 +1,6 @@
 {
   "privacy.title": "Privacidad",
-  "privacy.lede": "vibe-gambling no sabe nada de tu trabajo. Esta página explica exactamente qué guarda esta instancia, para qué, dónde, cuánto tiempo y cómo borrarlo.",
+  "privacy.lede": "Lo único con lo que este casino no juega es con tus datos. vibe-gambling no sabe nada de tu trabajo. Esta página explica exactamente qué guarda esta instancia, para qué, dónde, cuánto tiempo y cómo borrarlo.",
   "privacy.instance.unknown": "No se han podido cargar los datos de esta instancia (quién la gestiona, dónde está alojada, cómo contactar). Recarga la página para volver a intentarlo.",
   "privacy.unit.day.one": "{n} día",
   "privacy.unit.day.other": "{n} días",

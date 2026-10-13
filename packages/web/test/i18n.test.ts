@@ -101,15 +101,15 @@ describe('idioma inicial', () => {
 describe('traducción', () => {
   it('traduce, rellena marcadores y formatea números', () => {
     const tr = translator('es')
-    expect(tr.t('status.thinking')).toBe('CLAUDE ESTÁ PENSANDO…')
+    expect(tr.t('status.thinking')).toBe('CLAUDE PIENSA… TÚ APUESTAS')
     expect(tr.t('loan.granted', { amount: tr.n(1000) })).toBe(
-      '+1.000 monedas. La deuda es problema de tu yo del futuro.',
+      '+1.000 monedas. La deuda es problema de tu yo del futuro, que está encantado.',
     )
     expect(tr.signed(25)).toBe('+25')
     expect(tr.signed(-1500)).toBe('-1.500')
     expect(tr.signed(0)).toBe('0')
     const enTr = translator('en')
-    expect(enTr.t('status.thinking')).toBe('CLAUDE IS THINKING…')
+    expect(enTr.t('status.thinking')).toBe('CLAUDE IS THINKING… YOU ARE BETTING')
     expect(enTr.n(1234567)).toBe('1,234,567')
     expect(translator('fr').n(1234567)).toBe('1 234 567')
     expect(translator('de').n(-98765)).toBe('-98.765')

@@ -12,7 +12,12 @@
     "Bei mir läuft's. Auf meiner Maschine und am Kessel.",
     "Ich kann jederzeit aufhören. Nur nicht jetzt, ich hab 'nen Lauf.",
     "Merge vom Universum genehmigt.",
-    "Glück gehabt? Nein. Können. Rein statistisch."
+    "Glück gehabt? Nein. Können. Rein statistisch.",
+    "Risiko: 100 %. Rendite: auch 100 %. Die Rechnung geht auf.",
+    "Kurs kennt nur eine Richtung. 🚀",
+    "10x-Entwickler, 35x-Zocker.",
+    "Mein Wettbewerbsvorteil sind Vibes. Und die performen.",
+    "Generationenvermögen. Eine Generation: ich, bis zum nächsten Dreh."
   ],
   "lose": [
     "Nächstes Mal ganz sicher.",
@@ -28,60 +33,78 @@
     "Das ist kein Verlust, das sind technische Schulden.",
     "In Produktion läuft's bestimmt besser.",
     "Rollback auf meinen Kontostand. Ach so, geht ja nicht.",
-    "Das Rad schuldet mir was."
+    "Das Rad schuldet mir was.",
+    "Du kannst 100 % verlieren, aber auch unendlich gewinnen. Heute war ein 100-%-Tag.",
+    "Kein Verlust. Ein Pivot.",
+    "Buy the Dip. Der Dip dippt weiter.",
+    "Wir sind noch früh dran.",
+    "Minus 100 %. Viel Luft nach oben.",
+    "Die Bank gewinnt immer. Mein Code kompiliert manchmal. Heute nicht mal das."
   ],
   "zero": [
     "Null. Immer Null. Wie meine Testabdeckung.",
     "Die Kugel liegt auf der 0: Die Bank gewinnt immer.",
     "Null. So viele Commits wie gestern.",
-    "Kosmischer Off-by-one-Fehler."
+    "Kosmischer Off-by-one-Fehler.",
+    "0. Auch der echte Wert dieser Münzen.",
+    "Die Null: die einzige Zahl, an die die Bank immer glaubt."
   ],
   "bigWin": [
     "PLEIN! Ich kündige. Morgen. Vielleicht.",
     "Das kommt in mein LinkedIn-Profil.",
-    "Den Markt geschlagen. Und den gesunden Menschenverstand gleich mit."
+    "Den Markt geschlagen. Und den gesunden Menschenverstand gleich mit.",
+    "Generationenvermögen freigeschaltet. In Spielgeld, aber immerhin.",
+    "Jetzt verkaufe ich einen Kurs: „Wie ich das Roulette schlug (einmal)“."
   ],
   "bigLoss": [
     "Alles unter Kontrolle. Alles. Unter. Kontrolle.",
     "Das war ein Designfehler, nicht meiner.",
     "Atmen. Ist nur Spielgeld. Tiefer atmen.",
-    "Nichts geht mehr. Auf dem Konto auch nicht."
+    "Nichts geht mehr. Auf dem Konto auch nicht.",
+    "Ich verliere nicht, ich mache einen Stresstest meines Portfolios."
   ],
   "jackpot": [
     "push to prod = Bonus 🚀",
     "Erfolgreicher git push: Gewinn ×{multiplier}. Deployen ist Glücksspiel.",
     "Grüner Push, grünes Rad. Na gut, eher {color}.",
-    "Freitags deployed und das Rad belohnt dich. Bitte nicht nachmachen."
+    "Freitags deployed und das Rad belohnt dich. Bitte nicht nachmachen.",
+    "In Produktion geschoben, ×{multiplier} in Spielgeld kassiert. Bester Sprint aller Zeiten."
   ],
   "testFailed": [
     "Auch die Tests zocken.",
     "Tests sind rot. Wenigstens hat jemand auf Rot gesetzt.",
     "Ein Test ist durchgefallen: Willkommen beim CI-Roulette.",
-    "Du und deine Tests habt was gemeinsam: Heute ist nicht euer Tag."
+    "Du und deine Tests habt was gemeinsam: Heute ist nicht euer Tag.",
+    "Tests rot, Konto rot. Wenigstens konsistent."
   ],
   "autoDefault": [
     "Auto-Einsatz: Dein Unterbewusstsein hat Rot gewählt.",
-    "Du hast nicht gesetzt, also hab ich's getan. Rot, wie es sich gehört."
+    "Du hast nicht gesetzt, also hab ich's getan. Rot, wie es sich gehört.",
+    "Standard-Einsatz platziert. Das Growth-Team nennt das „reibungsloses Onboarding“."
   ],
   "autoRepeat": [
     "Dein letzter Einsatz, noch einmal. Konsequenz ist alles (sagt man).",
     "Gleicher Einsatz wie vorhin. Hat's nicht geklappt, ist es jetzt fällig.",
-    "Einsatz wiederholt: Das Glück ist mit den Sturen."
+    "Einsatz wiederholt: Das Glück ist mit den Sturen.",
+    "Wieder derselbe Einsatz. Dasselbe tun und andere Ergebnisse erwarten heißt jetzt Strategie."
   ],
   "noBet": [
     "Keine Chips, also dreht sich das Rad ohne dich. Komisches Gefühl, oder?",
-    "Du kannst dir keinen einzigen Chip leisten. Der Ludo-Kredit Express wartet schon."
+    "Du kannst dir keinen einzigen Chip leisten. Der Ludo-Kredit Express wartet schon.",
+    "Null Chips auf dem Tisch, null Risiko. Seltsamerweise auch null Spaß."
   ],
   "streakWarning": [
     "{count}-mal {color} in Folge. Jetzt MUSS {pick} kommen.",
     "{count}-mal {color}. Statistisch ist {pick} fällig (nein, ist es nicht).",
-    "{count}-mal {color} hintereinander. Jetzt ist es persönlich."
+    "{count}-mal {color} hintereinander. Jetzt ist es persönlich.",
+    "{count}-mal {color}. {pick} ist „dran“. Spoiler: Das Rad hat kein Gedächtnis."
   ],
   "broke": [
     "Kontostand null. Perfekter Moment für einen Kredit zu fairen {apr} % effektivem Jahreszins.",
     "Du bist pleite. Aber aus der Pleite lernt man viel.",
     "Bankrott. Dein Vermögen ist jetzt eine negative Zahl mit viel Charakter.",
-    "Blank wie ein frisch geklontes Repo."
+    "Blank wie ein frisch geklontes Repo.",
+    "Vermögen: negativ. Vibes: makellos."
   ],
   "pendingDropped": [
     "Du hast schon {max} offene Drehs. Dieser Prompt fliegt in den Papierkorb, wie meine Neujahrsvorsätze.",
@@ -104,6 +127,7 @@
     "{limit} Drehungen. Inzwischen dreht das Rad dich.",
     "Deine Serie ist beeindruckend, deine Haltung weniger. Mal strecken.",
     "Nichts geht mehr. Wirklich nichts. Bis Mitternacht.",
-    "Ruhezeit nach Arbeitszeitgesetz. Gilt auch für Roulettekugeln."
+    "Ruhezeit nach Arbeitszeitgesetz. Gilt auch für Roulettekugeln.",
+    "Growth wollte unbegrenzte Drehs. Die Rechtsabteilung sagte Nein. Die Rechtsabteilung gewann."
   ]
 }
