@@ -136,10 +136,18 @@ test('la ventana juega una ronda de verdad contra el servidor', async ({
   let broke = false
   let stoppedAt = ''
   for (let i = 0; i < 6 && !broke; i++) {
-    await clickLayout(page, 5.5, 1.5)
-    await page.waitForFunction(
-      () => (window as unknown as { __vg: Hooks }).__vg.state().slip.total > 0,
-    )
+    // La cámara vuelve al tapete tras cada resultado: si el clic llega mientras se mueve, cae fuera
+    // de la casilla. Se repite (comprobando antes de cada clic) hasta que la apuesta está puesta.
+    await expect
+      .poll(
+        async () => {
+          if ((await vg(page)).slip.total > 0) return true
+          await clickLayout(page, 5.5, 1.5)
+          return false
+        },
+        { timeout: 30_000, intervals: [600] },
+      )
+      .toBe(true)
     await round(page, request, token)
     await page.waitForTimeout(700)
     stoppedAt = await settle(page, ['fx:bankrupt', 'loan'])
