@@ -16,8 +16,6 @@ import type { MenuHost, MenuPage } from '../page.ts'
 
 /** Zona por la que pasan los créditos (entre la cabecera y la ayuda). */
 export const VIEW = Object.freeze({ top: 26, bottom: 218 })
-/** Segundos quietos al entrar antes de empezar a subir. */
-const HOLD_S = 2
 const MANUAL_STEP = 11
 
 type Line =
@@ -25,17 +23,20 @@ type Line =
   | { kind: 'text'; text: string; color: string; h: number; url?: string }
   | { kind: 'gap'; h: number }
 
-/** Desplazamiento de los créditos: quietos `HOLD_S`, luego suben y vuelven a empezar. */
+/**
+ * Desplazamiento de los créditos: quietos `holdS` segundos al entrar, luego suben a `pxPerS` y
+ * vuelven a empezar.
+ */
 export function creditsOffset(
   elapsedS: number,
-  pxPerS: number,
+  scroll: { pxPerS: number; holdS: number },
   contentH: number,
   manual: number,
   still: boolean,
 ): number {
   const viewH = VIEW.bottom - VIEW.top
   const loop = contentH + viewH
-  const auto = still ? 0 : Math.max(0, elapsedS - HOLD_S) * pxPerS
+  const auto = still ? 0 : Math.max(0, elapsedS - scroll.holdS) * scroll.pxPerS
   const raw = auto + manual
   // Al dar la vuelta, entran por abajo.
   return ((((raw + viewH) % loop) + loop) % loop) - viewH
@@ -154,7 +155,10 @@ export class CreditsPage implements MenuPage {
     const contentH = lines.reduce((s, l) => s + l.h, 0)
     const offset = creditsOffset(
       t - this.enteredAt,
-      this.ctx.client.menu.creditsPxPerS,
+      {
+        pxPerS: this.ctx.client.menu.creditsPxPerS,
+        holdS: this.ctx.client.menu.creditsHoldMs / 1000,
+      },
       contentH,
       this.manual,
       this.host.still,

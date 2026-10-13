@@ -24,6 +24,9 @@ import {
 } from '../src/ui/menu/kit.ts'
 import { daysInDebt } from '../src/ui/menu/pages/bank.ts'
 import { creditsOffset, VIEW } from '../src/ui/menu/pages/credits.ts'
+
+/** Velocidad y espera de los créditos para estos tests (no los de config/web.json). */
+const SCROLL = { pxPerS: 20, holdS: 2 }
 import { turnedColumns } from '../src/ui/menu/pages/howTo.ts'
 import { scrollFor } from '../src/ui/menu/pages/achievements.ts'
 import { stackChips } from '../src/ui/menu/pages/pending.ts'
@@ -69,7 +72,7 @@ describe('banco', () => {
     const [interest, loan] = BANK.history.map(e => bankRow(e, es, 'UTC'))
     expect(interest).toEqual({
       date: '12 OCT',
-      label: 'INTERESES · 1 TIRADAS',
+      label: 'INTERESES · 1 TIRADA',
       amount: '+30',
       debtAfter: '330',
     })
@@ -192,12 +195,12 @@ describe('cálculos de las páginas', () => {
 
   it('créditos: quietos al entrar, suben y vuelven a entrar por abajo; ↑↓ a mano', () => {
     const viewH = VIEW.bottom - VIEW.top
-    expect(creditsOffset(1, 20, 400, 0, false)).toBe(0)
-    expect(creditsOffset(3, 20, 400, 0, false)).toBe(20)
+    expect(creditsOffset(1, SCROLL, 400, 0, false)).toBe(0)
+    expect(creditsOffset(3, SCROLL, 400, 0, false)).toBe(20)
     // Al acabar, entran desde abajo (desplazamiento negativo = por debajo del borde).
-    expect(creditsOffset(2 + (400 + viewH) / 20, 20, 400, 0, false)).toBe(0)
-    expect(creditsOffset(2 + 400 / 20 + 1, 20, 400, 0, false)).toBe(-viewH + 20)
-    expect(creditsOffset(100, 20, 400, -11, true)).toBe(-11)
+    expect(creditsOffset(2 + (400 + viewH) / 20, SCROLL, 400, 0, false)).toBe(0)
+    expect(creditsOffset(2 + 400 / 20 + 1, SCROLL, 400, 0, false)).toBe(-viewH + 20)
+    expect(creditsOffset(100, SCROLL, 400, -11, true)).toBe(-11)
   })
 })
 

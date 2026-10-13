@@ -2,6 +2,8 @@
 // Libro de logros de la ventana: el catálogo que llega en `hello.achievements`, actualizado con
 // cada `achievement.unlocked`, y qué conseguidos no se han visto aún en la pantalla de LOGROS (el
 // punto oro del menú). Lo visto se recuerda en este navegador (comodidad, no estado del juego).
+// Mientras cae la bola, lo que llega se aparta hasta que se enseña el resultado: un logro como
+// "Todo al 0" o "Primera ruina" (o el progreso de la mejor racha) destriparía la tirada.
 import type { Achievement, ServerMessage } from '@vibe-gambling/shared'
 
 import type { MessageKey, Translator } from '../i18n/index.ts'
@@ -53,14 +55,37 @@ export class AchievementBook {
   private list: Achievement[] | null = null
   private seen: Set<string>
   private readonly storage: SeenStorage | null
+  /** Mensajes apartados mientras cae la bola (se aplican en orden al enseñar el resultado). */
+  private held: ServerMessage[] = []
 
   constructor(storage: SeenStorage | null) {
     this.storage = storage
     this.seen = new Set(readSeen(storage))
   }
 
-  /** Mensaje del servidor. Devuelve true si cambió algo. */
-  receive(msg: ServerMessage): boolean {
+  /**
+   * Mensaje del servidor. Con `hold` (la bola está cayendo) los de logros se apartan hasta
+   * `release()`. Devuelve true si cambió algo.
+   */
+  receive(msg: ServerMessage, hold = false): boolean {
+    if (msg.type !== 'hello' && msg.type !== 'achievement.unlocked') return false
+    if (hold) {
+      this.held.push(msg)
+      return false
+    }
+    // Lo apartado va antes (llegó antes): si no, un `hello` más nuevo quedaría pisado.
+    const released = this.release()
+    return this.apply(msg) || released
+  }
+
+  /** La bola ha caído: se aplica lo apartado, en orden. Devuelve true si cambió algo. */
+  release(): boolean {
+    let changed = false
+    for (const msg of this.held.splice(0)) changed = this.apply(msg) || changed
+    return changed
+  }
+
+  private apply(msg: ServerMessage): boolean {
     if (msg.type === 'hello' && msg.achievements) {
       const first = this.list === null && this.seen.size === 0
       this.list = msg.achievements

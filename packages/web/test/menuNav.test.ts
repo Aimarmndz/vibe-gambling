@@ -4,6 +4,7 @@
 // con sus acciones, lo que se anuncia por `aria-live` y que todo lo que se pinta existe en la
 // fuente y no deja marcadores sin rellenar, en los cuatro idiomas.
 import { LOCALES } from '@vibe-gambling/shared/i18n'
+import type { LeaderboardResponse } from '@vibe-gambling/shared'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type * as Bitmap from '../src/font/bitmap.ts'
@@ -23,7 +24,14 @@ import { SpinAllHud } from '../src/ui/menu/spinAllHud.ts'
 import { MenuScreen } from '../src/ui/screens/menu.ts'
 import { PendingNoticeScreen } from '../src/ui/screens/pending.ts'
 import { msg, resolved, wallet } from './fixtures.ts'
-import { STATS, achievementsFixture, fakeCanvas2d, fakeContext, setState } from './menuFixtures.ts'
+import {
+  BANK,
+  STATS,
+  achievementsFixture,
+  fakeCanvas2d,
+  fakeContext,
+  setState,
+} from './menuFixtures.ts'
 import type { FakeContext } from './menuFixtures.ts'
 import { fakeHost } from './menuHost.ts'
 import { translator } from './translators.ts'
@@ -323,6 +331,66 @@ describe('datos del servidor', () => {
     stats.update(0, 0)
     bank.update()
     expect(ctx.progressCalls.map(c => c[0])).toEqual(['stats', 'bank'])
+  })
+
+  it('una respuesta que llega con la bola ya cayendo se descarta y se vuelve a pedir', async () => {
+    // Pedidas con la mesa quieta; el servidor resuelve la ronda antes de contestar.
+    const ctx = fakeContext()
+    const stats = new StatsPage(fakeHost(ctx))
+    const bank = new BankPage(fakeHost(ctx))
+    let answerStats: (s: typeof STATS) => void = () => undefined
+    let answerBank: (b: Awaited<FakeContext['progressReply']['bank']>) => void = () => undefined
+    ctx.progressReply.stats = new Promise(r => (answerStats = r))
+    ctx.progressReply.bank = new Promise(r => (answerBank = r))
+    stats.enter(0)
+    bank.enter()
+    const announced = ctx.announced.length
+    setState(ctx, { phase: 'landing' })
+    answerStats(STATS)
+    answerBank(BANK)
+    await Promise.resolve()
+    await Promise.resolve()
+    // Nada pintado ni anunciado con la bola cayendo.
+    expect(ctx.announced).toHaveLength(announced)
+    expect(stats.headerRight()).toBe('TEMPORADA 2026-10')
+    stats.update(0, 0)
+    bank.update()
+    expect(ctx.progressCalls).toHaveLength(2)
+    // Al caer, se vuelven a pedir (y ahora sí se enseñan).
+    ctx.progressReply.stats = Promise.resolve(STATS)
+    ctx.progressReply.bank = Promise.resolve(BANK)
+    setState(ctx, { phase: 'result' })
+    stats.update(0, 0)
+    bank.update()
+    expect(ctx.progressCalls.map(c => c[0])).toEqual(['stats', 'bank', 'stats', 'bank'])
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(ctx.announced.join(' ')).toMatch(/4 tiradas/)
+  })
+
+  it('el ranking y el puesto propio que llegan con la bola cayendo se vuelven a pedir', async () => {
+    const ctx = fakeContext()
+    let answerBoard: (b: LeaderboardResponse) => void = () => undefined
+    let answerRank: (r: number | null) => void = () => undefined
+    const board = vi.fn(() => new Promise<LeaderboardResponse>(r => (answerBoard = r)))
+    const rank = vi.fn(() => new Promise<number | null>(r => (answerRank = r)))
+    ctx.leaderboard = board
+    ctx.brokeRank = rank
+    const page = new RankingPage(fakeHost(ctx))
+    page.update()
+    expect(board).toHaveBeenCalledTimes(1)
+    setState(ctx, { phase: 'landing' })
+    answerBoard({ v: 1, board: 'broke', season: '2026-10', rows: [] } as never)
+    answerRank(7)
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(ctx.announced).toEqual([])
+    page.update()
+    expect(board).toHaveBeenCalledTimes(1)
+    setState(ctx, { phase: 'idle' })
+    page.update()
+    expect(board).toHaveBeenCalledTimes(2)
+    expect(rank).toHaveBeenCalledTimes(2)
   })
 
   it('si el servidor no contesta, lo dice', async () => {

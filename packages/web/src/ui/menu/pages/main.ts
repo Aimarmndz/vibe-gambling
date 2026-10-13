@@ -148,7 +148,7 @@ export class MainMenuPage implements MenuPage {
           name,
           line:
             n > 0
-              ? tr.t('menu.item.pending.line', { n: tr.n(n), days: tr.n(days) })
+              ? tr.plural('menu.item.pending.line', n, { n: tr.n(n), days: tr.n(days) })
               : tr.t('menu.item.pending.none'),
           hint: tr.t(n > 0 ? 'menu.item.pending.hint' : 'pending.emptyHint'),
         }
@@ -164,7 +164,7 @@ export class MainMenuPage implements MenuPage {
       case 'bank':
         return {
           name,
-          line: tr.t('menu.item.bank.line', {
+          line: tr.plural('menu.item.bank.line', w?.loans ?? 0, {
             debt: tr.n(w?.debt ?? 0),
             loans: tr.n(w?.loans ?? 0),
           }),
@@ -174,7 +174,7 @@ export class MainMenuPage implements MenuPage {
         return {
           name,
           line: tr.t('menu.item.stats.line'),
-          hint: tr.t('menu.item.stats.hint', { n: tr.n(w?.spins ?? 0) }),
+          hint: tr.plural('menu.item.stats.hint', w?.spins ?? 0, { n: tr.n(w?.spins ?? 0) }),
         }
       default:
         return {

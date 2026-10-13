@@ -67,7 +67,8 @@ interface Row {
 
 const LIST = Object.freeze({ x: 8, y: 43, w: 304, h: 173 })
 const ROW_H = 15
-const MAX_ROWS = 10
+/** Filas que caben en la lista. */
+const FIT_ROWS = 10
 
 export class RankingPage implements MenuPage {
   readonly id = 'leaderboard'
@@ -136,13 +137,27 @@ export class RankingPage implements MenuPage {
     if (!this.rankLoaded) {
       this.rankLoaded = true
       this.ctx.brokeRank().then(
-        rank => (this.rank = rank),
+        rank => {
+          // Con la bola cayendo, el puesto ya contaría la ronda: se vuelve a pedir al caer.
+          if (this.ctx.state().phase === 'landing') {
+            this.rankLoaded = false
+            this.deferred = true
+            return
+          }
+          this.rank = rank
+        },
         (error: unknown) => console.warn('[ranking] sin puesto propio', error),
       )
     }
     const fail = (error: unknown) => {
       console.warn('[ranking] no se pudo cargar', error)
       if (id === this.request) this.error = true
+    }
+    // Una respuesta que llega con la bola ya cayendo podría contar la ronda: se vuelve a pedir.
+    const late = () => {
+      if (this.ctx.state().phase !== 'landing') return false
+      this.deferred = true
+      return true
     }
     if (this.tab === 'hall') {
       this.ctx.hallOfRuin().then(hall => {
@@ -151,10 +166,15 @@ export class RankingPage implements MenuPage {
       return
     }
     this.ctx.leaderboard(this.tab, this.ctx.client.leaderboard.inGameLimit).then(data => {
-      if (id !== this.request) return
+      if (id !== this.request || late()) return
       this.board = data
       this.ctx.announce(this.summary())
     }, fail)
+  }
+
+  /** Filas que se enseñan: las que caben, sin pasar de las que se piden al servidor. */
+  private get maxRows(): number {
+    return Math.min(FIT_ROWS, this.ctx.client.leaderboard.inGameLimit)
   }
 
   private rows(): Row[] {
@@ -163,7 +183,7 @@ export class RankingPage implements MenuPage {
       return (season?.rows ?? []).map(r => ({ ...r, streak: null }))
     }
     const rows: Row[] = (this.board?.rows ?? [])
-      .slice(0, MAX_ROWS)
+      .slice(0, this.maxRows)
       .map(r => ({ ...r, streak: r.currentStreak }))
     // En ARRUINADOS, si no sales entre los primeros, tu fila sustituye a la última.
     const user = this.ctx.state().user
@@ -173,10 +193,10 @@ export class RankingPage implements MenuPage {
       this.rank !== null &&
       user &&
       w &&
-      rows.length === MAX_ROWS &&
+      rows.length === this.maxRows &&
       !rows.some(r => r.login === user.login)
     ) {
-      rows[MAX_ROWS - 1] = {
+      rows[this.maxRows - 1] = {
         rank: this.rank,
         login: user.login,
         avatarUrl: user.avatarUrl,
@@ -212,7 +232,7 @@ export class RankingPage implements MenuPage {
   }
 
   action(e: ActionEvent): boolean {
-    const rows = this.rows().slice(0, MAX_ROWS)
+    const rows = this.rows().slice(0, this.maxRows)
     switch (e.action) {
       case 'left':
       case 'right':
@@ -285,7 +305,7 @@ export class RankingPage implements MenuPage {
     g.fillStyle = PALETTE.frameInner
     g.fillRect(14, y0 + 8, 292, 1)
 
-    const rows = this.rows().slice(0, MAX_ROWS)
+    const rows = this.rows().slice(0, this.maxRows)
     if (this.error) {
       drawText(g, tr.t('lb.error'), 160, 120, { color: PALETTE.loss, align: 'center' })
       return

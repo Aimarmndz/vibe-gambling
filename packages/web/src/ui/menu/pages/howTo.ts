@@ -11,6 +11,7 @@ import { fillCircle } from '../../draw.ts'
 import { PALETTE } from '../../palette.ts'
 import type { HelpItem } from '../kit.ts'
 import type { MenuHost, MenuPage } from '../page.ts'
+import { interestPercent } from '../format.ts'
 
 export const BOOK = Object.freeze({ x: 10, y: 28, w: 300, h: 172 })
 const SPINE = Object.freeze({ light: '#b8a77e', dark: '#8a7a55' })
@@ -81,7 +82,7 @@ export class HowToPage implements MenuPage {
       ...this.ctx.buttons(),
       max: tr.n(web.game.pendingSpins.max),
       amount: tr.n(web.game.loan.amount),
-      interest: Math.round(web.game.loan.interestPerSpin * 1000) / 10,
+      interest: interestPercent(web.game.loan, tr),
       multiplier: web.game.jackpot.gitPushMultiplier,
     }
     return {

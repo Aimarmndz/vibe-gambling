@@ -49,11 +49,18 @@ export class PendingNoticeScreen implements Screen {
       tilt: 0.3,
     })
     drawText(g, tr.t('pending.noticeLine1'), 100, 82, { color: PALETTE.cream, shadow: PALETTE.ink })
-    drawGradientText(g, tr.t('pending.noticeLine2', { n: tr.n(count) }), 100, 95, GRADIENTS.gold, {
-      scale: 2,
-      shadow: PALETTE.ink,
-    })
-    drawGradientText(g, tr.t('pending.noticeLine3'), 100, 114, GRADIENTS.gold, {
+    drawGradientText(
+      g,
+      tr.plural('pending.noticeLine2', count, { n: tr.n(count) }),
+      100,
+      95,
+      GRADIENTS.gold,
+      {
+        scale: 2,
+        shadow: PALETTE.ink,
+      },
+    )
+    drawGradientText(g, tr.plural('pending.noticeLine3', count), 100, 114, GRADIENTS.gold, {
       scale: 2,
       shadow: PALETTE.ink,
     })

@@ -7,6 +7,16 @@ import type { BankEntry, Bet, PublicGameConfig, SeasonStats, Slip } from '@vibe-
 
 import type { Translator } from '../../i18n/index.ts'
 
+/**
+ * Interés por tirada del préstamo en porcentaje, con un decimal como mucho y la coma del idioma
+ * ("2", "2,5"): lo enseñan la oferta, el BANCO y CÓMO SE JUEGA.
+ */
+export function interestPercent(loan: PublicGameConfig['loan'], tr: Translator): string {
+  return new Intl.NumberFormat(tr.meta.bcp47, { maximumFractionDigits: 1 }).format(
+    Math.round(loan.interestPerSpin * 1000) / 10,
+  )
+}
+
 /** "12 d" o "5 h": lo que le queda a algo (la temporada). */
 export function timeLeft(ms: number, tr: Translator): string {
   const hours = Math.max(0, Math.floor(ms / 3_600_000))
@@ -67,7 +77,7 @@ export function bankRow(entry: BankEntry, tr: Translator, timeZone: string): Ban
   }
   return {
     date: shortDate(entry.day, tr.locale, timeZone),
-    label: tr.t('bank.interestRow', { n: tr.n(entry.spins) }),
+    label: tr.plural('bank.interestRow', entry.spins, { n: tr.n(entry.spins) }),
     amount: tr.signed(entry.amount),
     debtAfter: tr.n(entry.debtAfter),
   }

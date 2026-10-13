@@ -9,7 +9,7 @@ import { drawText, wrap } from '../../../font/bitmap.ts'
 import { swingAngle } from '../../../render/menuIcons/layer.ts'
 import { drawWindow } from '../../draw.ts'
 import { PALETTE } from '../../palette.ts'
-import { bankRow } from '../format.ts'
+import { bankRow, interestPercent } from '../format.ts'
 import type { BankRow } from '../format.ts'
 import { GRADIENTS, SECONDARY, drawCorners, drawGradientText, fit } from '../kit.ts'
 import type { HelpItem } from '../kit.ts'
@@ -79,6 +79,11 @@ export class BankPage implements MenuPage {
     this.ctx.progress('bank').then(
       bank => {
         if (id !== this.request) return
+        // Llegado con la bola cayendo: podría traer ya los intereses de la ronda. Se vuelve a pedir.
+        if (this.ctx.state().phase === 'landing') {
+          this.deferred = true
+          return
+        }
         this.bank = bank
         this.scroll = 0
         this.ctx.announce(this.summary(bank))
@@ -94,7 +99,7 @@ export class BankPage implements MenuPage {
 
   summary(bank: BankStatement): string {
     const { tr } = this.ctx
-    return tr.t('bank.a11y', {
+    return tr.plural('bank.a11y', bank.loans, {
       debt: tr.n(bank.debt),
       loans: tr.n(bank.loans),
       next: tr.n(bank.nextInterest),
@@ -184,7 +189,7 @@ export class BankPage implements MenuPage {
       [tr.t('bank.apr'), `${tr.n(web.game.loan.displayApr)} %`, PALETTE.gold],
       [
         tr.t('bank.interest'),
-        tr.t('bank.perSpin', { pct: Math.round(web.game.loan.interestPerSpin * 1000) / 10 }),
+        tr.t('bank.perSpin', { pct: interestPercent(web.game.loan, tr) }),
         PALETTE.cream,
       ],
     ]

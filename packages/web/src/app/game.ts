@@ -196,6 +196,7 @@ export class Game implements AppContext {
       loanOffered: () => this.markLoanOffered(),
       tableVisible: () =>
         this.top() === this.table && this.shot === SHOTS.table && this.camera === null,
+      zeroGlow: on => this.world.wheel.glow(on ? 0 : null, PALETTE.greenGlow),
     })
     this.motion = new WheelMotion({
       launch: () => this.sfx.play('launch'),
@@ -246,6 +247,7 @@ export class Game implements AppContext {
           queued: this.fx.queued,
           coins: this.fx.coins.coinCount,
           notice: this.fx.notice,
+          notices: this.fx.noticesPending,
           shake: { ...this.pipeline.shake },
         }),
         layoutToClient: (x: number, y: number) => this.layoutToClient(x, y),
@@ -254,6 +256,12 @@ export class Game implements AppContext {
           snap: this.world.uniforms.uSnap.value === 1,
           muted: !this.prefs.sound,
           audio: this.sfx.started,
+          // Recursos de GPU vivos (fugas al repetir animaciones o abrir y cerrar pantallas).
+          gl: {
+            geometries: this.pipeline.renderer.info.memory.geometries,
+            textures: this.pipeline.renderer.info.memory.textures,
+            programs: this.pipeline.renderer.info.programs?.length ?? 0,
+          },
         }),
       },
     })
@@ -515,8 +523,8 @@ export class Game implements AppContext {
       this.announce(
         [
           this.tr.t('pending.noticeLine1'),
-          this.tr.t('pending.noticeLine2', { n: this.tr.n(count) }),
-          this.tr.t('pending.noticeLine3'),
+          this.tr.plural('pending.noticeLine2', count, { n: this.tr.n(count) }),
+          this.tr.plural('pending.noticeLine3', count),
         ].join(' '),
       )
     }
@@ -554,10 +562,12 @@ export class Game implements AppContext {
     // Respuestas de ESTADÍSTICAS y BANCO (y el `not_found` de una temporada pedida): solo para
     // la pantalla que preguntó.
     if (this.progressRequests.receive(msg) && msg.type === 'error') return
-    this.book.receive(msg)
     const before = this.game.slip.total
     const step = reduce(this.game, msg, Date.now())
     this.game = step.state
+    // Logros: mientras cae la bola (también si el `hello` de una reconexión la deja cayendo) se
+    // apartan hasta enseñar el resultado; el menú abierto no puede destripar la tirada.
+    this.book.receive(msg, this.game.phase === 'landing')
     if (msg.type === 'round.resolved') this.spinLoop.resolved()
     // Los logros se encolan: el aviso sale cuando la bola ya ha caído (nunca destripa nada).
     if (msg.type === 'achievement.unlocked') this.fx.achievement(msg.achievement)
@@ -610,9 +620,9 @@ export class Game implements AppContext {
       }
       case 'pending':
         this.toast(
-          tr.t(effect.event === 'queued' ? 'toast.pendingQueued' : 'toast.pendingDropped', {
-            n: tr.n(effect.count),
-          }),
+          effect.event === 'queued'
+            ? tr.plural('toast.pendingQueued', effect.count, { n: tr.n(effect.count) })
+            : tr.t('toast.pendingDropped', { n: tr.n(effect.count) }),
           effect.event === 'queued' ? 'money' : 'error',
         )
         return
@@ -687,6 +697,7 @@ export class Game implements AppContext {
 
   private onSettled(): void {
     this.game = reveal(this.game)
+    this.book.release()
     const round = this.game.lastRound
     const wallet = this.game.shown
     if (!round || !wallet) return

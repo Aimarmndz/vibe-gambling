@@ -87,6 +87,12 @@ export class StatsPage implements MenuPage {
     this.ctx.progress('stats', this.season).then(
       stats => {
         if (id !== this.request) return
+        // Pedidas antes de que el servidor resolviera la ronda, pero llegadas con la bola cayendo:
+        // podrían traerla ya. Se descartan y se vuelven a pedir cuando caiga.
+        if (this.ctx.state().phase === 'landing') {
+          this.deferred = true
+          return
+        }
         this.seasons = stats.seasons
         this.season = stats.seasonId
         this.load = {
@@ -110,7 +116,7 @@ export class StatsPage implements MenuPage {
   summary(stats: SeasonStats): string {
     const { tr } = this.ctx
     const parts = [
-      tr.t('stats.a11y', {
+      tr.plural('stats.a11y', stats.spins, {
         season: stats.seasonId,
         spins: tr.n(stats.spins),
         peak: tr.signed(stats.peakNetWorth),
@@ -119,7 +125,7 @@ export class StatsPage implements MenuPage {
     ]
     if (stats.mostFrequent) {
       parts.push(
-        tr.t('stats.a11yFrequent', {
+        tr.plural('stats.a11yFrequent', stats.mostFrequent.count, {
           number: stats.mostFrequent.result,
           n: tr.n(stats.mostFrequent.count),
         }),

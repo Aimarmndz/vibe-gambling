@@ -255,7 +255,11 @@ export class PendingPage implements MenuPage {
             ? tr.t('pending.spinSub', { cost: tr.n(play.cost) })
             : tr.t('pending.spinSubFree'),
       },
-      { key: b.sq, name: tr.t('pending.all'), sub: tr.t('pending.allSub', { n: tr.n(count) }) },
+      {
+        key: b.sq,
+        name: tr.t('pending.all'),
+        sub: tr.plural('pending.allSub', count, { n: tr.n(count) }),
+      },
     ]
     const hover = this.ctx.hoverId()
     BUTTONS.forEach((r, i) => {

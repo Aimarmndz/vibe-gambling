@@ -1,7 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Datos del menú v2: el libro de logros (bloqueado, oculto, con progreso y conseguido; lo visto
 // se recuerda), las peticiones de ESTADÍSTICAS y BANCO por WebSocket y los de la demo.
-import { ACHIEVEMENTS, accrueInterest } from '@vibe-gambling/shared'
+import {
+  ACHIEVEMENTS,
+  accrueInterest,
+  gameConfigSchema,
+  spinAllStopReason,
+  toPublicGameConfig,
+} from '@vibe-gambling/shared'
 import type { ServerMessage } from '@vibe-gambling/shared'
 import { LOCALES as LOCALE_LIST } from '@vibe-gambling/shared/i18n'
 import { serverMessageSchema } from '@vibe-gambling/shared'
@@ -25,6 +31,8 @@ import {
 import { withVersion } from '../src/net/link.ts'
 import { ProgressError, ProgressRequests } from '../src/net/progress.ts'
 import { shortDate } from '../src/ui/menu/format.ts'
+import { clientConfig } from '../src/config.ts'
+import rawGame from '../../../config/game.json'
 import { BANK, STATS, achievementsFixture } from './menuFixtures.ts'
 import { msg, testGame, testWebConfig, user, wallet } from './fixtures.ts'
 import { translator } from './translators.ts'
@@ -109,6 +117,40 @@ describe('libro de logros', () => {
     book.markAllSeen()
     expect(book.hasUnseen()).toBe(false)
     expect(JSON.parse(storage.data.get(SEEN_KEY)!)).toEqual(['first_spin', 'big_win'])
+  })
+
+  it('con la bola cayendo aparta los logros (sueltos o en un hello de reconexión) hasta soltarlos', () => {
+    const book = new AchievementBook(memoryStorage({ [SEEN_KEY]: JSON.stringify(['first_spin']) }))
+    book.receive(hello())
+    const before = book.count()
+    const zero = {
+      ...achievementsFixture([]).find(a => a.id === 'big_win')!,
+      unlockedAt: '2026-10-12T10:00:00.000Z',
+      seasonId: '2026-10',
+    }
+    // "Todo al 0" o "Primera ruina" dirían el resultado: ni el contador, ni el punto oro, ni la fila.
+    expect(book.receive(msg({ type: 'achievement.unlocked', achievement: zero }), true)).toBe(false)
+    const reconnect = hello(achievementsFixture(['first_spin', 'big_win', 'first_ruin']))
+    expect(book.receive(reconnect, true)).toBe(false)
+    expect(book.count()).toEqual(before)
+    expect(book.hasUnseen()).toBe(false)
+    expect(book.all()!.find(a => a.id === 'big_win')!.unlockedAt).toBeNull()
+    // Otros mensajes no se apartan ni cambian nada.
+    expect(book.receive(msg({ type: 'pong', t: 1 }), true)).toBe(false)
+    // Cae la bola: se aplica todo en orden.
+    expect(book.release()).toBe(true)
+    expect(book.count().unlocked).toBe(3)
+    expect(book.hasUnseen()).toBe(true)
+    expect(book.release()).toBe(false)
+  })
+
+  it('lo apartado se aplica antes que un mensaje nuevo sin apartar', () => {
+    const book = new AchievementBook(null)
+    book.receive(hello(achievementsFixture(['first_spin', 'first_ruin'])), true)
+    expect(book.all()).toBeNull()
+    // Un hello más nuevo (sin el de antes) manda.
+    expect(book.receive(hello(achievementsFixture(['first_spin'])))).toBe(true)
+    expect(book.count().unlocked).toBe(1)
   })
 
   it('la primera vez en este navegador lo ya conseguido no cuenta como nuevo', () => {
@@ -309,6 +351,38 @@ describe('demo: estadísticas, banco y logros', () => {
     )
     link.stop()
     vi.useRealTimers()
+  })
+})
+
+describe('capturas de GIRAR TODAS (demo, temporada de ejemplo)', () => {
+  it('tras la temporada de ejemplo las pendientes salen siempre igual y las dos primeras no paran', async () => {
+    // Con la configuración de verdad: es la que usan las capturas de docs/screenshots (E2E).
+    const pub = toPublicGameConfig(gameConfigSchema.parse(rawGame))
+    const play = async () => {
+      vi.useFakeTimers()
+      const link = new DemoLink(pub, clientConfig.demo, false, testWebConfig.publicUrl)
+      const got: ServerMessage[] = []
+      link.onMessage(m => got.push(serverMessageSchema.parse(m)))
+      link.onStatus(() => undefined)
+      link.start()
+      vi.advanceTimersByTime(1)
+      link.controls.showcase()
+      for (let i = 0; i < 3; i++) {
+        link.send(
+          withVersion({ type: 'spin.pending', quick: true, requestId: crypto.randomUUID() }),
+        )
+        await vi.advanceTimersByTimeAsync(pub.pendingSpins.quickSpinMs + 50)
+      }
+      link.stop()
+      vi.useRealTimers()
+      return got.flatMap(m => (m.type === 'round.resolved' ? [m] : []))
+    }
+    const a = await play()
+    const b = await play()
+    expect(a.map(m => m.round.result)).toEqual(b.map(m => m.round.result))
+    expect(a).toHaveLength(3)
+    // La captura espera a la tercera cayendo: ni premio gordo, ni verde, ni bancarrota antes.
+    for (const m of a.slice(0, 2)) expect(spinAllStopReason(m.round, m.wallet, pub)).toBeNull()
   })
 })
 
