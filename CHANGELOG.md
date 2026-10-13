@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-10-13
+
 ### Changed
 
 - **The landing page is more satirical** in all four languages: it now pitches itself as "the most honest casino on the internet" (you win nothing, you lose nothing, and you still can't stop), the demo is free "because the first one always is", and the fake-money notice says it with a joke instead of a dry "fake coins only", while still saying clearly that no real money is ever involved, next to the gambling-help links.
@@ -87,7 +89,8 @@ First public version: every Claude Code prompt is a spin of a PS1-style European
 - Logs never contain IPs, headers, tokens, query strings or database details; GitHub tokens are discarded right after login and only session-token hashes are stored.
 - The plugin only talks to `https` servers (plain `http` only to localhost), never puts server text in a shell command, and only accepts `http(s)` URLs anywhere in the protocol.
 
-[Unreleased]: https://github.com/Aimarmndz/vibe-gambling/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/Aimarmndz/vibe-gambling/compare/v0.3.2...HEAD
+[0.3.2]: https://github.com/Aimarmndz/vibe-gambling/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/Aimarmndz/vibe-gambling/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/Aimarmndz/vibe-gambling/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Aimarmndz/vibe-gambling/compare/v0.1.0...v0.2.0

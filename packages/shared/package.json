@@ -1,6 +1,6 @@
 {
   "name": "@vibe-gambling/shared",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "private": true,
   "description": "Contrato común de vibe-gambling: esquemas zod del protocolo y lógica pura de la ruleta.",
   "license": "AGPL-3.0-or-later",
