@@ -96,6 +96,8 @@ type TurnOutcome =
       fresh: boolean
       /** Logros desbloqueados al guardarla (se anuncian después de `pending`). */
       unlocked: Achievement[]
+      /** Tiradas pendientes después de guardarla (null en un reintento: se cuentan aparte). */
+      pending: number | null
     }
 
 /** Ronda tirada y liquidada. */
@@ -106,6 +108,10 @@ interface Resolution {
   fresh: boolean
   /** Logros desbloqueados por esta tirada (se anuncian después de `round.resolved`). */
   unlocked: Achievement[]
+  /** Tiradas pendientes después de tirarla (null en un reintento: se cuentan aparte). */
+  pending: number | null
+  /** La ronda ya vista por el protocolo (null en un reintento: se lee de la base de datos). */
+  view: ResolvedRound | null
 }
 
 /** Resultado de gastar una tirada pendiente. */
@@ -235,8 +241,9 @@ export class GameService {
         }
         return settle(tx, wallet, round)
       })()
-      // El contador de pendientes, leído con la cartera aún bloqueada.
-      const pending = await this.#pendingCount(tx, userId, outcome.wallet.seasonId)
+      // El contador de pendientes, con la cartera aún bloqueada (si no lo trae ya el desenlace).
+      const known = outcome.kind === 'no_round' ? null : outcome.pending
+      const pending = known ?? (await this.#pendingCount(tx, userId, outcome.wallet.seasonId))
       return { outcome, pending }
     })
 
@@ -255,8 +262,9 @@ export class GameService {
       this.#flush(outbox)
       return { v: V, status: 'queued', dropped: outcome.dropped, wallet }
     }
-    const roundBets = await this.#betsOf(this.#d.db, outcome.round.id)
-    const resolved = this.#d.views.resolvedRound(outcome.round, roundBets)
+    const resolved =
+      outcome.view ??
+      this.#d.views.resolvedRound(outcome.round, await this.#betsOf(this.#d.db, outcome.round.id))
     if (outcome.fresh) {
       outbox.push({ userId, message: { v: V, type: 'round.resolved', round: resolved, wallet } })
       pushUnlocked(outbox, userId, outcome.unlocked)
@@ -291,7 +299,14 @@ export class GameService {
         .from(rounds)
         .where(and(eq(rounds.userId, userId), eq(rounds.spendRequestId, opts.requestId)))
       if (done) {
-        return { round: done, wallet, fresh: false, pending: await pendingNow(), unlocked: [] }
+        return {
+          round: done,
+          view: null,
+          wallet,
+          fresh: false,
+          pending: await pendingNow(),
+          unlocked: [],
+        }
       }
 
       if (await this.#freshOpenRound(tx, userId, season.id, now, outbox)) {
@@ -338,15 +353,17 @@ export class GameService {
       )
       return {
         round: spun.round,
+        view: spun.view,
         wallet: spun.wallet,
         fresh: true,
-        pending: await pendingNow(),
+        pending: spun.pending ?? (await pendingNow()),
         unlocked: spun.unlocked,
       }
     })
 
-    const roundBets = await this.#betsOf(this.#d.db, result.round.id)
-    const round = this.#d.views.resolvedRound(result.round, roundBets)
+    const round =
+      result.view ??
+      this.#d.views.resolvedRound(result.round, await this.#betsOf(this.#d.db, result.round.id))
     const wallet = this.#d.views.wallet(result.wallet, result.wallet.seasonId, result.pending)
     if (result.fresh) {
       outbox.push({
@@ -668,13 +685,14 @@ export class GameService {
           : { status: 'deferred', deferredAt: now, ...turnData },
       )
       .where(eq(rounds.id, round.id))
+    const after = dropped ? pending : pending + 1
     const unlocked = await this.#unlock(tx, wallet, now, {
       event: 'queue',
       round: null,
-      pending: dropped ? pending : pending + 1,
+      pending: after,
       wasBankrupt: wallet.brokeAt !== null,
     })
-    return { kind: 'queued', wallet, dropped, fresh: true, unlocked }
+    return { kind: 'queued', wallet, dropped, fresh: true, unlocked, pending: after }
   }
 
   /** Evalúa y guarda los logros de un evento (con la cartera ya bloqueada). */
@@ -834,6 +852,7 @@ export class GameService {
         payout: o.payout,
       })),
     )
+    const pending = await this.#pendingCount(tx, wallet.userId, wallet.seasonId)
     const unlocked = await this.#unlock(tx, walletRow, now, {
       event: 'round',
       round: {
@@ -848,12 +867,20 @@ export class GameService {
         },
         previousColorStreak,
       },
-      pending: await this.#pendingCount(tx, wallet.userId, wallet.seasonId),
+      pending,
       wasBankrupt: wallet.brokeAt !== null,
       // Una tirada pendiente se guardó al terminar su turno: "Push el viernes" mira ese día.
       turnAt: round.deferredAt,
     })
-    return { kind: 'resolved', round: resolvedRow, wallet: walletRow, fresh: true, unlocked }
+    return {
+      kind: 'resolved',
+      round: resolvedRow,
+      wallet: walletRow,
+      fresh: true,
+      unlocked,
+      pending,
+      view,
+    }
   }
 
   async #betsOf(db: Executor, roundId: string) {
@@ -882,13 +909,21 @@ export function replayTurnEnd(round: RoundRow, turnId: string, wallet: WalletRow
   if (round.resolvedByTurnId !== turnId) return { kind: 'no_round', wallet }
   // Se guardó como pendiente (aunque después se haya gastado o haya caducado con la temporada).
   if (round.deferredAt !== null)
-    return { kind: 'queued', wallet, dropped: false, fresh: false, unlocked: [] }
+    return { kind: 'queued', wallet, dropped: false, fresh: false, unlocked: [], pending: null }
   if (round.status === 'resolved') {
-    return { kind: 'resolved', round, wallet, fresh: false, unlocked: [] }
+    return {
+      kind: 'resolved',
+      round,
+      wallet,
+      fresh: false,
+      unlocked: [],
+      pending: null,
+      view: null,
+    }
   }
   // Caducada por este mismo turno: era un prompt descartado por el tope.
   if (round.status === 'expired')
-    return { kind: 'queued', wallet, dropped: true, fresh: false, unlocked: [] }
+    return { kind: 'queued', wallet, dropped: true, fresh: false, unlocked: [], pending: null }
   return { kind: 'no_round', wallet }
 }
 
