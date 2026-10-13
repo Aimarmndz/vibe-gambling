@@ -22,7 +22,7 @@
 - [ ] Nothing configurable is hardcoded (URLs, ports, timeouts, limits, texts… come from env or `config/*.json`), and new env vars are documented in the `.env.example` files.
 - [ ] If it's visual: screenshots or a clip are included, and `prefers-reduced-motion` and the CRT toggle still work.
 - [ ] User-facing texts are in the i18n files, in English and Spanish.
-- [ ] Docs updated if needed (README, `docs/`, `ASSETS.md` for new assets with their license).
+- [ ] Docs updated if needed (`README.md` and `README.es.md` together, `docs/`, `ASSETS.md` for new assets with their license).
 
 ## Privacy
 

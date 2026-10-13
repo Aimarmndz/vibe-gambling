@@ -36,7 +36,7 @@ Set them in `/config` (or `pluginConfigs["vibe-gambling"].options` in your setti
 | ------------------------ | ------------------------ | ----------------------------------------------------------- |
 | `serverUrl`              | `https://vibe.aimar.dev` | Server to play on (`/vibe-server` changes it)               |
 | `autoOpen`               | `true`                   | Open the window on each prompt if it is not open            |
-| `language`               | `auto`                   | `auto` (system locale), `en` or `es`                        |
+| `language`               | `auto`                   | `auto` (system locale), `en`, `es`, `fr` or `de`            |
 | `turnTimeoutMs`          | `1500`                   | Timeout of the requests made during a turn (100–1500)       |
 | `commandTimeoutMs`       | `5000`                   | Timeout of the slash commands' requests (500–30000)         |
 | `windowReopenCooldownMs` | `60000`                  | Wait for an opened window to connect before opening another |

@@ -44,7 +44,7 @@ Every source file starts with an SPDX header (CI checks it with `pnpm lint:spdx`
 | `.css`               | `/* SPDX-License-Identifier: AGPL-3.0-or-later */`                                    |
 | `.html`              | `<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->` (right after `<!doctype html>`) |
 
-Assets (fonts, textures, sounds, models) must be your own work or under a compatible license, and are listed with their origin and license in `ASSETS.md`. No copyrighted samples, logos or trademarks of others (see "Trademarks" in the README).
+Assets (fonts, textures, sounds, models) must be your own work or under a compatible license, and are listed with their origin and license in `ASSETS.md`. No copyrighted samples, logos or trademarks of others (see [Trademarks](README.md#trademarks) in the README).
 
 ## Setting up the environment
 
@@ -92,21 +92,22 @@ Every value (ports, URLs, the fake GitHub for local logins…) is documented in 
 
 At the root:
 
-| Command              | What it does                                                                                        |
-| -------------------- | --------------------------------------------------------------------------------------------------- |
-| `pnpm lint`          | ESLint + Prettier check + SPDX headers + version sync + protocol docs check                         |
-| `pnpm lint:spdx`     | Only the SPDX header check (`scripts/check-spdx.ts`)                                                |
-| `pnpm lint:versions` | Only the version sync check: every manifest and `CHANGELOG.md` agree (`scripts/check-versions.ts`)  |
-| `pnpm format`        | Prettier write on the whole repo                                                                    |
-| `pnpm typecheck`     | `tsc` in every package                                                                              |
-| `pnpm test`          | Unit tests in every package (`pnpm -r test`)                                                        |
-| `pnpm build`         | Production build of the server and the web                                                          |
-| `pnpm package`       | Release artifacts in `dist-release/` (mod zip, server tarball, SBOM, checksums), reproducible       |
-| `pnpm release`       | Maintainers: bump the version, close the changelog, commit and tag locally ([RELEASING][releasing]) |
-| `pnpm test:scripts`  | Tests of the release scripts (`node --test`)                                                        |
-| `pnpm sync:mod`      | Regenerate the mod's copy of `shared` (`packages/mod/hooks/generated`)                              |
-| `pnpm gen:locales`   | Regenerate the language registry from `locales/` (protocol list, the mod's copy, plugin options)    |
-| `pnpm docs:protocol` | Regenerate the schema sections of `docs/PROTOCOLO.md` (`--check` only checks; part of `pnpm lint`)  |
+| Command              | What it does                                                                                             |
+| -------------------- | -------------------------------------------------------------------------------------------------------- |
+| `pnpm lint`          | ESLint + Prettier check + SPDX headers + version sync + Markdown links + locales and protocol docs check |
+| `pnpm lint:spdx`     | Only the SPDX header check (`scripts/check-spdx.ts`)                                                     |
+| `pnpm lint:versions` | Only the version sync check: every manifest and `CHANGELOG.md` agree (`scripts/check-versions.ts`)       |
+| `pnpm lint:links`    | Only the Markdown check: every relative link, image and anchor exists (`scripts/check-links.ts`)         |
+| `pnpm format`        | Prettier write on the whole repo                                                                         |
+| `pnpm typecheck`     | `tsc` in every package                                                                                   |
+| `pnpm test`          | Unit tests in every package (`pnpm -r test`)                                                             |
+| `pnpm build`         | Production build of the server and the web                                                               |
+| `pnpm package`       | Release artifacts in `dist-release/` (mod zip, server tarball, SBOM, checksums), reproducible            |
+| `pnpm release`       | Maintainers: bump the version, close the changelog, commit and tag locally ([RELEASING][releasing])      |
+| `pnpm test:scripts`  | Tests of the repo scripts (`node --test`)                                                                |
+| `pnpm sync:mod`      | Regenerate the mod's copy of `shared` (`packages/mod/hooks/generated`)                                   |
+| `pnpm gen:locales`   | Regenerate the language registry from `locales/` (protocol list, the mod's copy, plugin options)         |
+| `pnpm docs:protocol` | Regenerate the schema sections of `docs/PROTOCOLO.md` (`--check` only checks; part of `pnpm lint`)       |
 
 Per package (`pnpm --filter @vibe-gambling/<package> <script>`):
 
