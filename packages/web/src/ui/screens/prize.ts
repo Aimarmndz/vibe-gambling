@@ -12,7 +12,7 @@ import type { FxKit } from '../../render/fx/kit.ts'
 import { shakeAt } from '../../render/fx/kit.ts'
 import { progress, rollValue, stepScale } from '../../render/fx/easing.ts'
 import { fillScreen } from '../../render/fx/rays.ts'
-import { GRADIENTS, drawFancyText } from '../../render/fx/text.ts'
+import { GRADIENTS, drawFancyText, fitScale } from '../../render/fx/text.ts'
 import type { Bands } from '../../render/fx/text.ts'
 import { drawHelpBar, drawWindow, fillCircle } from '../draw.ts'
 import { PALETTE, pocketHex } from '../palette.ts'
@@ -30,6 +30,10 @@ export interface PrizeView {
 
 /** Centro de los rayos (docs/DISENO-V2.md). */
 export const RAYS_CENTER = { x: 160, y: 96 } as const
+/** Ancho máximo de los rótulos y del contador (la pantalla menos el contorno y la sombra). */
+const FIT_W = 308
+/** Ancho de la ventana fija del movimiento reducido. */
+const REDUCED_W = 240
 
 interface TierLook {
   labelKey: 'fx.prize.big' | 'fx.prize.mega' | 'fx.prize.straight'
@@ -113,7 +117,17 @@ export class PrizeScreen extends FxScreen {
     }
     this.timeline(final, this.times.hold, cues)
     const label = kit.ctx.tr.t(this.look.labelKey)
-    kit.announce(kit.ctx.tr.t('a11y.fx.prize', { label, net: kit.ctx.tr.signed(view.net) }))
+    // El lector de pantalla oye también el número y su color: el anuncio del resultado llega
+    // después de la animación, y el del premio no puede dejarlo sin decir.
+    const { tr } = kit.ctx
+    kit.announce(
+      tr.t('a11y.fx.prize', {
+        label,
+        number: view.number,
+        color: tr.t(`color.${colorOf(view.number)}.one`),
+        net: tr.signed(view.net),
+      }),
+    )
   }
 
   protected override onSkip(): void {
@@ -184,8 +198,12 @@ export class PrizeScreen extends FxScreen {
     const counter = `+${tr.n(this.counterValue())}`
     if (this.kit.reduced) {
       // Ventana fija, rótulo ×4 y el contador en tres saltos.
-      drawWindow(fx, 40, 50, 240, 120, { top: PALETTE.goldDark, bottom: PALETTE.carpet })
-      drawFancyText(fx, label, 160, 64, { scale: 4, bands: look.bands, align: 'center' })
+      drawWindow(fx, 40, 50, REDUCED_W, 120, { top: PALETTE.goldDark, bottom: PALETTE.carpet })
+      drawFancyText(fx, label, 160, 64, {
+        scale: fitScale(label, 4, REDUCED_W - 8),
+        bands: look.bands,
+        align: 'center',
+      })
       if (v.tier === 'mega') {
         drawText(fx, `×${v.netMultiple}`, 160, 100, {
           color: PALETTE.cream,
@@ -194,7 +212,11 @@ export class PrizeScreen extends FxScreen {
           shadow: PALETTE.ink,
         })
       }
-      drawFancyText(fx, counter, 160, 124, { scale: 3, bands: GRADIENTS.green, align: 'center' })
+      drawFancyText(fx, counter, 160, 124, {
+        scale: fitScale(counter, 3, REDUCED_W - 8),
+        bands: GRADIENTS.green,
+        align: 'center',
+      })
       this.drawHelp(fx)
       return true
     }
@@ -223,9 +245,14 @@ export class PrizeScreen extends FxScreen {
         align: 'center',
         shadow: PALETTE.ink,
       })
-      drawFancyText(fx, label, 160, 118, { scale: 5, bands: look.bands, align: 'center', sheen })
+      drawFancyText(fx, label, 160, 118, {
+        scale: fitScale(label, 5, FIT_W),
+        bands: look.bands,
+        align: 'center',
+        sheen,
+      })
     } else {
-      const scale = stepScale(ms - impact, 7, 5, stepMs)
+      const scale = Math.min(stepScale(ms - impact, 7, 5, stepMs), fitScale(label, 7, FIT_W))
       // El rótulo crece desde su centro (y = 75), a escalones.
       const top = Math.round(75.5 - (7 * scale) / 2)
       drawFancyText(fx, label, 160, top, {
@@ -246,7 +273,11 @@ export class PrizeScreen extends FxScreen {
     }
     if (ms >= settle) {
       const y = v.tier === 'straight' ? 162 : 150
-      drawFancyText(fx, counter, 160, y, { scale: 3, bands: GRADIENTS.green, align: 'center' })
+      drawFancyText(fx, counter, 160, y, {
+        scale: fitScale(counter, 3, FIT_W),
+        bands: GRADIENTS.green,
+        align: 'center',
+      })
     }
     this.drawHelp(fx)
     return true

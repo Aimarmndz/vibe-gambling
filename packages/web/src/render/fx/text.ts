@@ -177,9 +177,14 @@ export function drawFancyText(
   return { x: left, y: top, w: width, h: FONT_ROWS * scale }
 }
 
-/** Ancho de un rótulo (sin contorno ni sombra). */
-export function fancyWidth(text: string, scale: number): number {
-  return measure(text, scale)
+/**
+ * La escala entera más grande (de `scale` hacia abajo, mínimo 1) a la que `text` cabe en `maxW`
+ * píxeles. Los rótulos de algunos idiomas ("VOLLTREFFER!") no caben a la escala del diseño.
+ */
+export function fitScale(text: string, scale: number, maxW: number): number {
+  let s = Math.max(1, Math.floor(scale))
+  while (s > 1 && measure(text, s) > maxW) s--
+  return s
 }
 
 /**

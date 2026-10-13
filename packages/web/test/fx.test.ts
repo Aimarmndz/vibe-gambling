@@ -554,6 +554,18 @@ describe('pantallas de espectáculo', () => {
     expect(f.popped).toContain(s)
   })
 
+  it('el anuncio de aria-live del premio y del verde dice el número (y el color del pleno)', () => {
+    const f = fakeKit()
+    const said: string[] = []
+    const kit = { ...f.kit, announce: (text: string) => void said.push(text) }
+    new PrizeScreen(kit, { tier: 'straight', net: 1750, netMultiple: 35, number: 17 }, vi.fn())
+    expect(said.at(-1)).toBe('¡PLENO! 17 negro. +1.750.')
+    new PrizeScreen(kit, { tier: 'big', net: 400, netMultiple: 8, number: 21 }, vi.fn())
+    expect(said.at(-1)).toBe('BIG WIN 21 rojo. +400.')
+    new GreenScreen(kit, false, vi.fn())
+    expect(said.at(-1)).toMatch(/^¡VERDE! 0 /)
+  })
+
   it('✕ lleva al final de golpe (con toda la lluvia) y otra ✕ cierra', () => {
     const f = fakeKit()
     const done = vi.fn()

@@ -53,7 +53,8 @@ export class GreenScreen extends FxScreen {
     this.timeline(this.times.final, this.times.hold, cues)
     const tr = kit.ctx.tr
     kit.announce(
-      [tr.t('fx.green.title'), tr.t('fx.green.band'), chain ? tr.t('fx.green.chain') : '']
+      // El número va dicho (el verde es el 0): el resultado de siempre llega después.
+      [`${tr.t('fx.green.title')} 0`, tr.t('fx.green.band'), chain ? tr.t('fx.green.chain') : '']
         .filter(Boolean)
         .join(' '),
     )
