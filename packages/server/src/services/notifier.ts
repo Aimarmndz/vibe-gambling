@@ -21,13 +21,3 @@ export interface Notifier {
   /** Despide y cierra las ventanas abiertas con una sesión concreta. */
   closeSession(sessionId: string, reason: ByeReason): void
 }
-
-/** Notificador que no hace nada (para tests de servicios sin WebSocket). */
-export const nullNotifier: Notifier = {
-  send: () => {},
-  isConnected: () => false,
-  isAttentive: () => false,
-  connectedUsers: () => [],
-  closeUser: () => {},
-  closeSession: () => {},
-}
