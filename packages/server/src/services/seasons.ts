@@ -5,7 +5,7 @@
 // Corre bajo `pg_try_advisory_xact_lock`: si hubiera dos instancias, solo una hace el trabajo.
 // Las carteras de la temporada nueva se crean de forma perezosa con la primera tirada.
 import type { GameConfig, SeasonBounds } from '@vibe-gambling/shared'
-import { and, asc, eq, gt, isNull, lte, sql } from 'drizzle-orm'
+import { and, asc, eq, isNull, lte, sql } from 'drizzle-orm'
 
 import type { Database } from '../db/client.ts'
 import { SEASON_JOB_LOCK_KEY } from '../db/locks.ts'
@@ -13,7 +13,7 @@ import { hallOfRuin, rounds, seasons, users, wallets } from '../db/schema.ts'
 import type { Clock } from '../lib/clock.ts'
 import type { AuthService } from './auth.ts'
 import type { GameService } from './game.ts'
-import { boardOrder } from './leaderboard.ts'
+import { boardOrder, ranked } from './leaderboard.ts'
 import type { Notifier } from './notifier.ts'
 import { ensureSeason } from './game.ts'
 
@@ -123,9 +123,8 @@ export class SeasonService {
           .select({ userId: wallets.userId, netWorth: wallets.netWorth, spins: wallets.spins })
           .from(wallets)
           .innerJoin(users, eq(users.id, wallets.userId))
-          .where(
-            and(eq(wallets.seasonId, season.id), eq(users.hidden, false), gt(wallets.spins, 0)),
-          )
+          // Los mismos que salen en el ranking en este instante (ni ocultos ni cuentas nuevas).
+          .where(ranked(season.id, this.#d.game.leaderboard.minAccountAgeDays, now))
           .orderBy(...boardOrder('broke'))
           .limit(this.#d.game.hallOfRuinSize)
         if (top.length > 0) {

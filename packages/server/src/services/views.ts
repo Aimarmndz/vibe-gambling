@@ -14,6 +14,8 @@ import type {
 } from '@vibe-gambling/shared'
 
 import type { RoundRow, UserRow, WalletRow } from '../db/schema.ts'
+import type { Clock } from '../lib/clock.ts'
+import { pendingRankedFrom } from './accountAge.ts'
 
 export interface BetResultRow {
   selection: Bet['selection']
@@ -26,10 +28,12 @@ export class Views {
   readonly #githubWebBaseUrl: string
   readonly #game: GameConfig
   readonly #spectacle: SpectacleRules
+  readonly #clock: Clock
 
-  constructor(githubWebBaseUrl: string, game: GameConfig) {
+  constructor(githubWebBaseUrl: string, game: GameConfig, clock: Clock) {
     this.#githubWebBaseUrl = githubWebBaseUrl
     this.#game = game
+    this.#clock = clock
     this.#spectacle = {
       bigWin: game.bigWin,
       onFireAt: game.streak.onFireAt,
@@ -52,7 +56,15 @@ export class Views {
       // Un idioma que ya no está registrado (se quitó su carpeta de locales/) se trata como sin elegir.
       locale: localeSchema.safeParse(user.locale).data ?? null,
       createdAt: user.createdAt.toISOString(),
+      newAccount: this.#newAccount(user),
     }
+  }
+
+  /** Si la cuenta de GitHub aún es demasiado nueva para el ranking, desde cuándo saldrá. */
+  #newAccount(user: UserRow): SelfUser['newAccount'] {
+    const minAgeDays = this.#game.leaderboard.minAccountAgeDays
+    const from = pendingRankedFrom(user.githubCreatedAt, minAgeDays, this.#clock.now())
+    return from === null ? null : { minAgeDays, rankedFrom: from.toISOString() }
   }
 
   /**

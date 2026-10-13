@@ -219,6 +219,11 @@ export const fakeGitHubEnvSchema = z.object({
   FAKE_GITHUB_CLIENT_ID: z.string().min(1),
   FAKE_GITHUB_USER_ID: int(1),
   FAKE_GITHUB_USER_LOGIN: z.string().regex(/^[A-Za-z0-9-]{1,39}$/),
+  /**
+   * `created_at` de la cuenta falsa (ISO 8601). Una fecha antigua la deja salir en el ranking; una
+   * reciente sirve para probar la regla antiabuso de `leaderboard.minAccountAgeDays`.
+   */
+  FAKE_GITHUB_USER_CREATED_AT: z.iso.datetime({ offset: true }),
   FAKE_GITHUB_INTERVAL_SECONDS: int(1, 60),
   FAKE_GITHUB_EXPIRES_IN_SECONDS: int(10, 3600),
   LOG_LEVEL: z.enum(LOG_LEVELS),

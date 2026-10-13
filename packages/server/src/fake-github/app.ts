@@ -95,6 +95,7 @@ export function buildFakeGitHub(
       id: env.FAKE_GITHUB_USER_ID,
       login: env.FAKE_GITHUB_USER_LOGIN,
       avatar_url: `${env.FAKE_GITHUB_PUBLIC_URL}/avatars/${env.FAKE_GITHUB_USER_ID}.svg`,
+      created_at: env.FAKE_GITHUB_USER_CREATED_AT,
     }
   })
 

@@ -34,6 +34,8 @@ export interface GitHubProfile {
   id: number
   login: string
   avatarUrl: string
+  /** Cuándo se creó la cuenta de GitHub (regla antiabuso del ranking). */
+  createdAt: Date
 }
 
 const deviceCodeSchema = z.object({
@@ -53,6 +55,9 @@ const profileSchema = z.object({
   id: z.number().int().positive(),
   login: z.string().min(1).max(39),
   avatar_url: httpUrlSchema,
+  // GitHub la manda en ISO 8601 con `Z` ("2011-01-25T18:44:36Z"); se acepta también con desfase.
+  // Sin una fecha válida no se puede aplicar la regla antiabuso: el login falla.
+  created_at: z.iso.datetime({ offset: true }),
 })
 
 /** Lo que GitHub añade al intervalo con cada `slow_down` (regla del propio Device Flow). */
@@ -124,7 +129,12 @@ export class GitHubClient {
     })
     const parsed = profileSchema.safeParse(await this.#json(response))
     if (!parsed.success) throw new AppError('github_unavailable', 'Unexpected GitHub profile.')
-    return { id: parsed.data.id, login: parsed.data.login, avatarUrl: parsed.data.avatar_url }
+    return {
+      id: parsed.data.id,
+      login: parsed.data.login,
+      avatarUrl: parsed.data.avatar_url,
+      createdAt: new Date(parsed.data.created_at),
+    }
   }
 
   async #post(path: string, form: Record<string, string>): Promise<unknown> {

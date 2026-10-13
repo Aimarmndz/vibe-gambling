@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD COLUMN "github_created_at" timestamp with time zone;

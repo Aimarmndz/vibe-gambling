@@ -38,6 +38,12 @@ export const users = pgTable(
     githubId: bigint('github_id', { mode: 'number' }).notNull(),
     login: text('login').notNull(),
     avatarUrl: text('avatar_url').notNull(),
+    /**
+     * Cuándo se creó la cuenta de GitHub (`created_at` del perfil público), para la regla
+     * antiabuso de `leaderboard.minAccountAgeDays`. Se rellena en cada login; `null` en las
+     * cuentas de antes de la regla que aún no han vuelto a entrar (cuentan como antiguas).
+     */
+    githubCreatedAt: ts('github_created_at'),
     hidden: boolean('hidden').notNull().default(false),
     locale: text('locale'),
     /** Última apuesta resuelta (para repetirla si no apuesta). */

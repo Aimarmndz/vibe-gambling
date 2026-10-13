@@ -244,12 +244,20 @@ export class AuthService {
               githubId: profile.id,
               login: profile.login,
               avatarUrl: profile.avatarUrl,
+              githubCreatedAt: profile.createdAt,
               createdAt: now,
               updatedAt: now,
             })
             .onConflictDoUpdate({
               target: users.githubId,
-              set: { login: profile.login, avatarUrl: profile.avatarUrl, updatedAt: now },
+              // La fecha de creación de GitHub no cambia, pero se reescribe en cada login: así la
+              // tienen también las cuentas de antes de la regla antiabuso en cuanto vuelven a entrar.
+              set: {
+                login: profile.login,
+                avatarUrl: profile.avatarUrl,
+                githubCreatedAt: profile.createdAt,
+                updatedAt: now,
+              },
             })
             .returning({ id: users.id, inserted: sql<boolean>`(xmax = 0)` })
           await tx.delete(deviceAuths).where(eq(deviceAuths.pollIdHash, pollIdHash))
