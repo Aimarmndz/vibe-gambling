@@ -7,6 +7,7 @@ import {
   hallOfRuinResponseSchema,
   leaderboardResponseSchema,
   meResponseSchema,
+  okResponseSchema,
   redeemResponseSchema,
 } from '@vibe-gambling/shared'
 import type {
@@ -76,6 +77,20 @@ export function redeemCode(code: string, fetchImpl?: typeof fetch) {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ v: PROTOCOL_VERSION, code }),
+    },
+    fetchImpl,
+  )
+}
+
+/** Cierra la sesión de esta ventana (la cookie). El servidor avisa por el WebSocket con `bye`. */
+export function logout(fetchImpl?: typeof fetch) {
+  return request(
+    API_ROUTES.logout.path,
+    okResponseSchema,
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ v: PROTOCOL_VERSION }),
     },
     fetchImpl,
   )
