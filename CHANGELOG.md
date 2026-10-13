@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-10-13
+
 ### Added
 
 - **Deploying with [Noust](https://github.com/Perkybeet/noust)**: `compose.noust.yml` builds the server image on the VPS from the tagged source (no GHCR token needed for a private package), and `docs/DESPLIEGUE.md` explains the whole setup step by step.
@@ -77,7 +79,8 @@ First public version: every Claude Code prompt is a spin of a PS1-style European
 - Logs never contain IPs, headers, tokens, query strings or database details; GitHub tokens are discarded right after login and only session-token hashes are stored.
 - The plugin only talks to `https` servers (plain `http` only to localhost), never puts server text in a shell command, and only accepts `http(s)` URLs anywhere in the protocol.
 
-[Unreleased]: https://github.com/Aimarmndz/vibe-gambling/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/Aimarmndz/vibe-gambling/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/Aimarmndz/vibe-gambling/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/Aimarmndz/vibe-gambling/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Aimarmndz/vibe-gambling/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/Aimarmndz/vibe-gambling/releases/tag/v0.1.0

@@ -1,7 +1,7 @@
 {
   "name": "vibe-gambling",
   "private": true,
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "🎰 Every prompt is a spin. A PS1-style roulette that pops up while Claude Code thinks. Fake coins, real addiction (not really).",
   "license": "AGPL-3.0-or-later",
   "author": "Aimar (https://github.com/Aimarmndz)",
