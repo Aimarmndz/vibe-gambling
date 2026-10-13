@@ -12,7 +12,7 @@ import {
   webConfigSchema,
 } from '@vibe-gambling/shared'
 
-import { linkUrl, modLogin, round, screens, shot, waitPhase } from './support.ts'
+import { freshLogin, linkUrl, round, screens, shot, waitPhase } from './support.ts'
 import type { Hooks } from './support.ts'
 
 const htmlLang = (page: Page) => page.locator('html')
@@ -50,7 +50,7 @@ test('Ajustes: las banderas cambian la ventana a francés y alemán al momento y
   page,
   request,
 }) => {
-  const token = await modLogin(request)
+  const token = await freshLogin(request)
   const headers = { authorization: `Bearer ${token}` }
   const serverLocale = async () =>
     meResponseSchema.parse(await (await request.get(API_ROUTES.me.path, { headers })).json()).user

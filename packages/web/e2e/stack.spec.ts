@@ -13,12 +13,15 @@ import {
 } from '@vibe-gambling/shared'
 import {
   clickLayout,
+  continueToLoan,
+  freshLogin,
   linkUrl,
-  modLogin,
   playTurn,
   round,
   screens,
+  settle,
   shot,
+  skipToResult,
   vg,
   waitPhase,
 } from './support.ts'
@@ -30,7 +33,7 @@ test('la ventana juega una ronda de verdad contra el servidor', async ({
   browser,
   baseURL,
 }) => {
-  const token = await modLogin(request)
+  const token = await freshLogin(request)
 
   // Sin sesión: pantalla que explica cómo entrar.
   // Contexto nuevo (sin cookies) con la misma configuración que el principal.
@@ -100,8 +103,8 @@ test('la ventana juega una ronda de verdad contra el servidor', async ({
   await round(page, request, token, 'round')
   await page.waitForTimeout(600)
   await shot(page, 'result')
-  await page.keyboard.press('x')
-  await waitPhase(page, 'idle')
+  // Cierra el resultado y espera a lo que vaya después sobre la mesa (falacia, ON FIRE).
+  await settle(page)
 
   // Memory card (menú → MEMORY CARD) y ranking (menú → CLASIFICACIÓN).
   await page.keyboard.press('p')
@@ -127,9 +130,11 @@ test('la ventana juega una ronda de verdad contra el servidor', async ({
   await page.keyboard.press('o')
   await page.keyboard.press('o')
 
-  // Arruinarse: todo al 17 hasta perder; entonces aparece el Ludo-Crédito Express.
+  // Arruinarse: todo al 17 hasta perder (si sale el 17, ¡PLENO! y otra vez). Con la cuenta nueva
+  // es la primera ruina de la temporada: BANCARROTA — CONTINUE? y ✕ lleva al Ludo-Crédito Express.
   await page.keyboard.press('6')
   let broke = false
+  let stoppedAt = ''
   for (let i = 0; i < 6 && !broke; i++) {
     await clickLayout(page, 5.5, 1.5)
     await page.waitForFunction(
@@ -137,23 +142,20 @@ test('la ventana juega una ronda de verdad contra el servidor', async ({
     )
     await round(page, request, token)
     await page.waitForTimeout(700)
-    await page.keyboard.press('x')
-    await page.waitForTimeout(800)
+    stoppedAt = await settle(page, ['fx:bankrupt', 'loan'])
     broke = (await vg(page)).shown!.balance < 10
   }
   expect(broke).toBe(true)
-  await page.waitForFunction(() =>
-    (window as unknown as { __vg: Hooks }).__vg.screens().includes('loan'),
-  )
+  expect(stoppedAt).toBe('fx:bankrupt')
+  // Sin esperar los 9 s de la cuenta atrás.
+  await continueToLoan(page)
   await page.waitForTimeout(300)
   await shot(page, 'loan')
-  // El usuario del GitHub falso es el mismo en toda la ejecución (otro E2E puede haber pedido
-  // ya un préstamo): se espera a que la deuda suba respecto a la de antes de aceptar.
-  const loansBefore = (await vg(page)).shown!.loans
+  // Cuenta nueva: es su primer préstamo.
+  expect((await vg(page)).shown!.loans).toBe(0)
   await page.keyboard.press('x')
   await page.waitForFunction(
-    n => ((window as unknown as { __vg: Hooks }).__vg.state().shown?.loans ?? 0) > n,
-    loansBefore,
+    () => ((window as unknown as { __vg: Hooks }).__vg.state().shown?.loans ?? 0) === 1,
   )
   const after = await vg(page)
   expect(after.shown!.balance).toBeGreaterThanOrEqual(10)
@@ -193,7 +195,7 @@ test('tiradas pendientes: se acumulan con la ventana cerrada y se gastan con GIR
   page,
   request,
 }) => {
-  const token = await modLogin(request)
+  const token = await freshLogin(request)
   const headers = { authorization: `Bearer ${token}` }
   const web = webConfigSchema.parse(await (await request.get('/config.json')).json())
   const me = async () =>
@@ -240,18 +242,16 @@ test('tiradas pendientes: se acumulan con la ventana cerrada y se gastan con GIR
   await waitPhase(page, 'landing')
   expect((await vg(page)).wallet?.pendingSpins).toBe(pending - 1)
   await waitPhase(page, 'result')
+  await skipToResult(page)
   await page.waitForTimeout(400)
   await shot(page, 'pending-result')
-  await page.keyboard.press('x')
-  await waitPhase(page, 'idle')
+  await settle(page)
   expect((await me()).wallet).toMatchObject({ pendingSpins: pending - 1, spins: before.spins + 1 })
 
-  const closeLoan = async () => {
-    if ((await screens(page)).includes('loan')) await page.keyboard.press('o')
-  }
   const spinAll = () => page.evaluate(() => (window as unknown as { __vg: Hooks }).__vg.spinAll())
   const startSpinAll = async () => {
-    await closeLoan()
+    // Desde la mesa quieta (sin resultado, falacia, BANCARROTA ni oferta del préstamo encima).
+    await settle(page)
     // Menú → TIRADAS → □ TODAS.
     await page.keyboard.press('p')
     await page.keyboard.press('ArrowRight')
@@ -281,9 +281,7 @@ test('tiradas pendientes: se acumulan con la ventana cerrada y se gastan con GIR
     const vgh = (window as unknown as { __vg: Hooks }).__vg
     return vgh.state().phase === 'idle' || vgh.state().phase === 'result'
   })
-  await page.waitForTimeout(300)
-  if ((await vg(page)).phase === 'result') await page.keyboard.press('x')
-  await waitPhase(page, 'idle')
+  await settle(page)
   let left = (await vg(page)).wallet?.pendingSpins ?? 0
   while (left > 0) {
     await startSpinAll()
@@ -301,13 +299,10 @@ test('tiradas pendientes: se acumulan con la ventana cerrada y se gastan con GIR
       const last = (state.pending ?? state.lastRound)!
       expect(spinAllStopReason(last, state.wallet!, web.game)).toBe(status.ended)
     }
-    await waitPhase(page, 'result', 30_000).catch(() => undefined)
-    await page.waitForTimeout(300)
-    if ((await vg(page)).phase === 'result') await page.keyboard.press('x')
-    await waitPhase(page, 'idle')
+    await settle(page)
     left = (await vg(page)).wallet?.pendingSpins ?? 0
   }
-  await closeLoan()
+  await settle(page)
 
   // 6. El servidor está de acuerdo: ninguna pendiente y todas cuentan como tiradas.
   const after = (await me()).wallet

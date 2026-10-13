@@ -11,7 +11,16 @@ import {
   meResponseSchema,
 } from '@vibe-gambling/shared'
 
-import { linkUrl, modLogin, playTurn, screens, shot, vg, waitPhase } from './support.ts'
+import {
+  continueToLoan,
+  freshLogin,
+  linkUrl,
+  playTurn,
+  screens,
+  settle,
+  shot,
+  waitPhase,
+} from './support.ts'
 import type { Hooks } from './support.ts'
 
 const live = (page: Page) => page.locator('#live')
@@ -49,7 +58,7 @@ async function waitUser(page: Page) {
 }
 
 test('menú con datos del servidor: estadísticas, logros y banco', async ({ page, request }) => {
-  const token = await modLogin(request)
+  const token = await freshLogin(request)
   const headers = { authorization: `Bearer ${token}` }
   const me = async () =>
     meResponseSchema.parse(await (await request.get(API_ROUTES.me.path, { headers })).json())
@@ -73,16 +82,14 @@ test('menú con datos del servidor: estadísticas, logros y banco', async ({ pag
     const end = await turn.end()
     expect(end.status).toBe('resolved')
     await waitPhase(page, 'result', 30_000)
-    for (let k = 0; k < 4 && (await vg(page)).phase !== 'idle'; k++) {
-      await page.keyboard.press('x')
-      await page.waitForTimeout(400)
-    }
-    await waitPhase(page, 'idle')
+    // Premio, falacia o ON FIRE se cierran; la primera ruina de la temporada (cuenta nueva) se
+    // para en BANCARROTA.
+    if ((await settle(page, ['fx:bankrupt'])) === 'fx:bankrupt') break
   }
   const broke = await me()
   expect(broke.wallet.balance).toBeLessThan(10)
-  // La mesa ofrece el préstamo sola (una vez por situación): se rechaza para pedirlo desde el banco.
-  await waitScreen(page, 'loan')
+  // BANCARROTA desemboca en la oferta del préstamo: se rechaza para pedirlo desde el banco.
+  await continueToLoan(page)
   await page.keyboard.press('o')
   await page.waitForFunction(
     () => !(window as unknown as { __vg: Hooks }).__vg.screens().includes('loan'),
@@ -104,12 +111,15 @@ test('menú con datos del servidor: estadísticas, logros y banco', async ({ pag
 
   // De nuevo en el banco: el historial del servidor trae el préstamo.
   await openTile(page, ['ArrowDown'], 'bank')
-  await expect(live(page)).toContainText(`${loaned.wallet.loans} préstamos`)
+  // Cuenta nueva: su primer préstamo, en singular.
+  expect(loaned.wallet.loans).toBe(1)
+  await expect(live(page)).toContainText('1 préstamo.')
   await closeMenu(page)
 
   // ESTADÍSTICAS: las tiradas de la temporada, según el servidor.
   await openTile(page, ['ArrowRight', 'ArrowRight'], 'stats')
-  await expect(live(page)).toContainText(`${loaned.wallet.spins} tiradas`)
+  const spins = loaned.wallet.spins
+  await expect(live(page)).toContainText(`${spins} ${spins === 1 ? 'tirada' : 'tiradas'},`)
   await expect(live(page)).toContainText('Número más repetido')
   await closeMenu(page)
 

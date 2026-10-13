@@ -14,6 +14,7 @@ import {
   deviceStartResponseSchema,
   devicePollResponseSchema,
   linkResponseSchema,
+  meResponseSchema,
   turnEndResponseSchema,
   turnStartResponseSchema,
 } from '@vibe-gambling/shared'
@@ -31,6 +32,8 @@ export interface Hooks {
   screens(): string[]
   spinAll(): SpinAllStatus
   layoutToClient(x: number, y: number): { x: number; y: number }
+  /** Animación de espectáculo en curso (`fx:…`, `wait:…`) y pasos que quedan de la secuencia. */
+  fx(): { current: string | null; queued: string[] }
 }
 
 export const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
@@ -55,6 +58,33 @@ export async function modLogin(request: APIRequestContext): Promise<string> {
       throw new Error(`login ${poll.status}`)
   }
   throw new Error('el Device Flow no terminó')
+}
+
+/**
+ * Login del "mod" con una cuenta recién creada. El GitHub falso da el mismo usuario en toda la
+ * ejecución, así que lo que deja un E2E (deuda, la bancarrota de la temporada, rachas de color,
+ * logros, idioma) cambiaba lo que veía el siguiente: se borra la cuenta (como el jugador, con
+ * `POST /api/me/delete`) y se vuelve a entrar. Cada test empieza con el saldo inicial y limpio.
+ */
+export async function freshLogin(request: APIRequestContext): Promise<string> {
+  const old = await modLogin(request)
+  const headers = { authorization: `Bearer ${old}` }
+  const me = meResponseSchema.parse(
+    await (await request.get(API_ROUTES.me.path, { headers })).json(),
+  )
+  const deleted = await request.post(API_ROUTES.deleteAccount.path, {
+    headers,
+    data: { v: PROTOCOL_VERSION, confirm: me.user.login },
+  })
+  expect(deleted.ok()).toBe(true)
+  const token = await modLogin(request)
+  const fresh = meResponseSchema.parse(
+    await (
+      await request.get(API_ROUTES.me.path, { headers: { authorization: `Bearer ${token}` } })
+    ).json(),
+  )
+  expect(fresh.wallet).toMatchObject({ spins: 0, debt: 0, loans: 0, pendingSpins: 0 })
+  return token
 }
 
 export async function linkUrl(request: APIRequestContext, token: string): Promise<string> {
@@ -127,6 +157,75 @@ export async function shot(page: Page, name: string, fullPage = false) {
   await page.screenshot({ path: resolve(shots, `${name}.png`), fullPage })
 }
 
+const top = async (page: Page) => (await screens(page)).at(-1) ?? ''
+
+/**
+ * Espera a la pantalla de resultado: PUSH TO PROD, ¡VERDE! y los premios gordos van antes y se
+ * saltan con ✕, como haría el jugador (la primera pulsación lleva al final, la segunda cierra).
+ */
+export async function skipToResult(page: Page) {
+  await expect
+    .poll(
+      async () => {
+        const id = await top(page)
+        if (id === 'result') return true
+        if (id.startsWith('fx:')) await page.keyboard.press('x')
+        return false
+      },
+      { timeout: 30_000, intervals: [250] },
+    )
+    .toBe(true)
+}
+
+/**
+ * Vuelve a la mesa quieta: cierra el resultado y espera a que acabe lo que va después sobre la
+ * mesa (falacia, ON FIRE). Se para (y lo devuelve) si sale una de las pantallas de `stopAt`
+ * (p. ej. BANCARROTA o la oferta del préstamo); si no, ✕ cierra el espectáculo y ○ sale de
+ * BANCARROTA y de la oferta sin pedir el préstamo.
+ */
+export async function settle(page: Page, stopAt: readonly string[] = []): Promise<string> {
+  let stoppedAt = ''
+  await expect
+    .poll(
+      async () => {
+        const now = await page.evaluate(() => {
+          const v = (window as unknown as { __vg: Hooks }).__vg
+          return { phase: v.state().phase, screens: v.screens(), fx: v.fx() }
+        })
+        const id = now.screens.at(-1) ?? ''
+        if (stopAt.includes(id)) {
+          stoppedAt = id
+          return true
+        }
+        if (id === 'fx:bankrupt' || id === 'loan') await page.keyboard.press('o')
+        else if (id === 'result' || id.startsWith('fx:')) await page.keyboard.press('x')
+        return (
+          now.phase === 'idle' &&
+          id === 'table' &&
+          now.fx.current === null &&
+          now.fx.queued.length === 0
+        )
+      },
+      { timeout: 60_000, intervals: [300] },
+    )
+    .toBe(true)
+  return stoppedAt
+}
+
+/** BANCARROTA — CONTINUE?: ✕ salta a la cuenta atrás y otra ✕ abre la oferta del préstamo. */
+export async function continueToLoan(page: Page) {
+  await expect
+    .poll(
+      async () => {
+        if ((await screens(page)).includes('loan')) return true
+        await page.keyboard.press('x')
+        return false
+      },
+      { timeout: 20_000, intervals: [400] },
+    )
+    .toBe(true)
+}
+
 /** Juega una ronda completa: abre turno, comprueba que gira, la cierra y espera el resultado. */
 export async function round(
   page: Page,
@@ -149,6 +248,7 @@ export async function round(
   const state = await vg(page)
   expect(state.lastRound?.result).toBe(end.round.result)
   expect(state.shown?.balance).toBe(end.wallet.balance)
+  await skipToResult(page)
   await expect(page.locator('#live')).toContainText(String(end.round.result))
   return end
 }

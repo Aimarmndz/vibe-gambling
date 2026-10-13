@@ -35,7 +35,7 @@ import type {
 import type { WebClientConfig } from '../config.ts'
 import { demoScenario } from './demoFx.ts'
 import type { DemoFx } from './demoFx.ts'
-import { DemoProgress, showcaseSeason } from './demoProgress.ts'
+import { DemoProgress, seededRandom, showcaseSeason } from './demoProgress.ts'
 import type { Link, LinkStatus } from './link.ts'
 
 export interface DemoTurnOptions {
@@ -127,6 +127,11 @@ export class DemoLink implements Link {
   private wentBroke = false
   /** Animación que se fuerza al arrancar (`?demo&fx=…`). */
   private readonly startFx: DemoFx | null
+  /**
+   * De dónde salen los números: azar criptográfico, salvo tras la temporada de ejemplo, que sigue
+   * con su azar fijo (las tiradas pendientes de las capturas salen siempre igual).
+   */
+  private pocket: () => number = randomPocket
 
   /** `origin`: el de la página (de ahí salen el avatar y el "perfil" del jugador de la demo). */
   constructor(
@@ -407,6 +412,9 @@ export class DemoLink implements Link {
     this.history.splice(0, this.history.length, ...played.history)
     this.lastBets = played.lastBets
     this.lastRound = played.lastRound
+    // La semilla siguiente a la de la temporada: GIRAR TODAS de las capturas, determinista.
+    const rnd = seededRandom(this.client.showcase.seed + 1)
+    this.pocket = () => Math.floor(rnd() * 37) % 37
     this.emit(this.hello())
   }
 
@@ -428,7 +436,7 @@ export class DemoLink implements Link {
   private resolve(openedAt: Date, options: DemoTurnOptions): void {
     const round = this.round
     if (!round) return
-    const result = options.result ?? randomPocket()
+    const result = options.result ?? this.pocket()
     const choice = chooseRoundBets({
       slip: this.slip,
       lastBets: this.lastBets,

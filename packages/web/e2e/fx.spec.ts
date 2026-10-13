@@ -12,7 +12,14 @@ import { shot } from './support.ts'
 interface FxHooks {
   state(): GameState
   screens(): string[]
-  fx(): { current: string | null; queued: string[]; coins: number; notice: string | null }
+  fx(): {
+    current: string | null
+    queued: string[]
+    coins: number
+    notice: string | null
+    /** Avisos de logro en pantalla o esperando. */
+    notices: number
+  }
 }
 
 const hooks = (page: Page) =>
@@ -264,5 +271,92 @@ test.describe('espectáculo', () => {
       expect((await hooks(page))!.fx.coins).toBe(0)
       await done(page)
     }
+  })
+
+  test('sin fugas: repetir el premio y abrir y cerrar el menú no deja recursos de GPU', async ({
+    browser,
+  }) => {
+    const page = await open(browser, 'mega')
+    type Gl = { geometries: number; textures: number; programs: number }
+    const gl = () =>
+      page.evaluate(
+        () => (window as unknown as { __vg: { render(): { gl: Gl } } }).__vg.render().gl,
+      )
+    /** El premio entero: ✕ al final, ✕ cierra, ✕ quita el resultado; hasta la mesa quieta. */
+    const prize = async () => {
+      await waitFx(page, 'fx:prize')
+      // Coste por fotograma con la lluvia de fichas al máximo (GL por software en el E2E).
+      const deltas = await page.evaluate(
+        () =>
+          new Promise<number[]>(resolve => {
+            const out: number[] = []
+            let last = performance.now()
+            const step = (now: number) => {
+              out.push(now - last)
+              last = now
+              if (out.length < 90) requestAnimationFrame(step)
+              else resolve(out)
+            }
+            requestAnimationFrame(step)
+          }),
+      )
+      const sorted = deltas.slice(5).sort((a, b) => a - b)
+      const median = sorted[Math.floor(sorted.length / 2)]!
+      console.log(`[fx] MEGA WIN: mediana ${median.toFixed(1)} ms por fotograma`)
+      expect(median).toBeLessThan(50)
+      await expect
+        .poll(
+          async () => {
+            const h = (await hooks(page))!
+            // Y sin el aviso de logro de esta ronda (si no, saldría con la siguiente girando).
+            const still = h.fx.current === null && h.fx.notices === 0
+            if (h.state.phase === 'idle' && h.screens.length === 1 && still) return true
+            await page.keyboard.press('x')
+            return false
+          },
+          { timeout: 30_000, intervals: [300] },
+        )
+        .toBe(true)
+      // Las fichas que quedaban en el aire terminan de caer y se devuelven al depósito.
+      await expect.poll(async () => (await hooks(page))!.fx.coins, { timeout: 5_000 }).toBe(0)
+    }
+    const again = () =>
+      page.evaluate(() => {
+        void (window as unknown as { __vgDemo: { fx(k: string): Promise<void> } }).__vgDemo.fx(
+          'mega',
+        )
+      })
+    const menuRound = async () => {
+      await page.keyboard.press('p')
+      await page.waitForFunction(() =>
+        (window as unknown as { __vg: FxHooks }).__vg.screens().includes('menu'),
+      )
+      // Con el barrido terminado: los iconos 3D de la rejilla ya se han pintado.
+      await page.waitForTimeout(600)
+      for (const key of ['ArrowRight', 'ArrowRight', 'x']) await page.keyboard.press(key)
+      await page.waitForFunction(() =>
+        (window as unknown as { __vg: FxHooks }).__vg.screens().includes('stats'),
+      )
+      await page.waitForTimeout(600)
+      await page.keyboard.press('o')
+      await page.keyboard.press('o')
+      await page.waitForFunction(
+        () => (window as unknown as { __vg: FxHooks }).__vg.screens().length === 1,
+      )
+    }
+    // Calentamiento: todo lo que se crea una vez (materiales, iconos, rótulos) ya existe.
+    await prize()
+    await menuRound()
+    await menuRound()
+    await again()
+    await prize()
+    const base = await gl()
+    for (let i = 0; i < 3; i++) {
+      await again()
+      await prize()
+    }
+    for (let i = 0; i < 15; i++) await menuRound()
+    expect(await gl()).toEqual(base)
+    await done(page)
   })
 })
