@@ -26,6 +26,12 @@ export const shots = resolve(here, '../../../docs/screenshots')
 const pluginVersion = (
   JSON.parse(readFileSync(resolve(here, '../package.json'), 'utf8')) as { version: string }
 ).version
+/** Duración mínima de un turno: la pila del E2E usa `config/game.json` (playwright.config.ts). */
+const minTurnMs = (
+  JSON.parse(readFileSync(resolve(here, '../../../config/game.json'), 'utf8')) as {
+    turn: { minDurationMs: number }
+  }
+).turn.minDurationMs
 
 export interface Hooks {
   state(): GameState
@@ -108,10 +114,14 @@ export async function playTurn(request: APIRequestContext, token: string) {
       })
     ).json(),
   )
+  const startedAt = Date.now()
   return {
     start,
-    end: async () =>
-      turnEndResponseSchema.parse(
+    end: async () => {
+      // Como un prompt de verdad: un turno más corto que el mínimo no da tirada.
+      const left = startedAt + minTurnMs - Date.now()
+      if (left > 0) await sleep(left)
+      return turnEndResponseSchema.parse(
         await (
           await request.post(API_ROUTES.turnEnd.path, {
             headers,
@@ -126,7 +136,8 @@ export async function playTurn(request: APIRequestContext, token: string) {
             },
           })
         ).json(),
-      ),
+      )
+    },
   }
 }
 

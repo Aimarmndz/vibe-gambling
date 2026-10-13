@@ -73,6 +73,9 @@ const env: Record<string, string> = {
   FAKE_GITHUB_PUBLIC_URL: fakeGitHub,
   FAKE_GITHUB_USER_ID: fakeUserId,
   FAKE_GITHUB_USER_LOGIN: `e2e-${runId}`,
+  // Cuenta de GitHub antigua: el usuario del E2E es nuevo en el servidor en cada ejecución, pero
+  // tiene que salir en el ranking (la regla de leaderboard.minAccountAgeDays no se aplica).
+  FAKE_GITHUB_USER_CREATED_AT: '2015-06-01T00:00:00Z',
   LOG_LEVEL: 'warn',
   E2E_ADMIN_DATABASE: e2e.E2E_ADMIN_DATABASE,
 }

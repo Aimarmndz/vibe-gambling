@@ -322,6 +322,12 @@ test('landing con el ranking y página de privacidad', async ({ page }) => {
   await page.goto('/')
   await expect(page.locator('#install-command')).not.toBeEmpty()
   await expect(page.locator('#board-rows tr').first()).toBeVisible()
+  // Antiabuso: la regla de las cuentas de GitHub nuevas, con los días de config/game.json.
+  const web0 = webConfigSchema.parse(await (await page.request.get('/config.json')).json())
+  await expect(page.locator('#board-note')).toBeVisible()
+  await expect(page.locator('#board-note')).toContainText(
+    `menos de ${web0.game.minAccountAgeDays} días pueden jugar`,
+  )
   await expect(page.locator('#footer')).toContainText('Aimar')
   await page.waitForTimeout(2500)
   await shot(page, 'landing', true)
