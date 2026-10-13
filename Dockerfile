@@ -29,6 +29,8 @@ COPY tsconfig.base.json ./
 COPY config ./config
 # Textos y banderas de cada idioma: la web los empaqueta (import.meta.glob) en la build.
 COPY locales ./locales
+# La web importa el logo de docs/brand (fuente única de la marca).
+COPY docs/brand ./docs/brand
 COPY packages/shared ./packages/shared
 COPY packages/server ./packages/server
 COPY packages/web ./packages/web

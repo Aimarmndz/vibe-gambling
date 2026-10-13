@@ -11,6 +11,8 @@
 .plan
 .claude
 docs
+# El logo (docs/brand) lo importa la build de la web.
+!docs/brand
 deploy
 scripts
 *.log
