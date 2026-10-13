@@ -2,7 +2,7 @@
   "name": "vibe-gambling",
   "owner": { "name": "Aimar", "url": "https://github.com/Aimarmndz" },
   "metadata": {
-    "version": "0.2.0",
+    "version": "0.3.0",
     "description": "🎰 Every prompt is a spin. A PS1-style roulette for Claude Code. Fake coins only."
   },
   "plugins": [

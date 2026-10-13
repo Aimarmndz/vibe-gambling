@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-13
+
 ### Security
 
 - **New GitHub accounts stay off the leaderboard**: accounts younger than 30 days (`leaderboard.minAccountAgeDays` in `config/game.json`) play as usual but only appear on the leaderboards and in the Hall of Ruin once they turn 30 days old, so mass-creating accounts to inflate the leaderboard is not worth it. The plugin (at login and in `/balance`), the game window and the landing page say so, with the date you will appear. The server now stores your GitHub account's creation date (from the public profile, no new permissions), deleted with your account; accounts from before the rule count as old until their next login.
@@ -69,6 +71,7 @@ First public version: every Claude Code prompt is a spin of a PS1-style European
 - Logs never contain IPs, headers, tokens, query strings or database details; GitHub tokens are discarded right after login and only session-token hashes are stored.
 - The plugin only talks to `https` servers (plain `http` only to localhost), never puts server text in a shell command, and only accepts `http(s)` URLs anywhere in the protocol.
 
-[Unreleased]: https://github.com/Aimarmndz/vibe-gambling/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/Aimarmndz/vibe-gambling/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/Aimarmndz/vibe-gambling/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Aimarmndz/vibe-gambling/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/Aimarmndz/vibe-gambling/releases/tag/v0.1.0

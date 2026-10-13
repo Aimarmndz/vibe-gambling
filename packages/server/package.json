@@ -1,6 +1,6 @@
 {
   "name": "@vibe-gambling/server",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "Servidor de vibe-gambling: API HTTP, WebSocket, Device Flow de GitHub, temporadas y estáticos de la web.",
   "license": "AGPL-3.0-or-later",
