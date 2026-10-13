@@ -33,6 +33,45 @@ test(
 )
 
 test(
+  '/balance with a brand-new GitHub account says when it joins the leaderboard, not a fake rank',
+  { options: TEST_OPTIONS },
+  async ($, on) => {
+    const me = meReply({ brokeRank: null }).json as { user: object }
+    const newAccount = { minAgeDays: 30, rankedFrom: '2026-11-12T12:00:00.000Z' }
+    const w = world(on, {
+      routes: { '/api/me': { json: { ...me, user: { ...me.user, newAccount } } } },
+      store: LOGGED_IN,
+    })
+    await startSession($, w)
+    const { text } = await command($, 'balance')
+    expect(text).toBe(
+      '🎰 Balance 1,000 · Debt 0 · Net worth 1,000 · on the leaderboard from Nov 12, 2026 (new GitHub account)',
+    )
+  },
+)
+
+test(
+  '/saldo con cuenta de GitHub nueva, en español; oculto manda más que la cuenta nueva',
+  { options: { ...TEST_OPTIONS, language: 'auto' } },
+  async ($, on) => {
+    const me = meReply({ brokeRank: null }).json as { user: object }
+    const newAccount = { minAgeDays: 30, rankedFrom: '2026-11-12T12:00:00.000Z' }
+    let hidden = false
+    const w = world(on, {
+      routes: { '/api/me': () => ({ json: { ...me, user: { ...me.user, hidden, newAccount } } }) },
+      store: LOGGED_IN,
+      env: { LANG: 'es_ES.UTF-8' },
+    })
+    await startSession($, w)
+    expect((await command($, 'saldo')).text).toBe(
+      '🎰 Saldo 1.000 · Deuda 0 · Patrimonio 1.000 · en el ranking desde el 12 nov 2026 (cuenta de GitHub nueva)',
+    )
+    hidden = true
+    expect((await command($, 'saldo')).text).toMatch(/oculto/)
+  },
+)
+
+test(
   '/saldo speaks Spanish when the system does',
   { options: { ...TEST_OPTIONS, language: 'auto' } },
   async ($, on) => {

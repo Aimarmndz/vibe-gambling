@@ -116,10 +116,13 @@ async function poll(
           login: cleanText(answer.user.login, TEXT_LIMITS.login),
         }
         await saveSession(io, flow.serverUrl, session)
-        toast(
-          io,
-          `${runtime.messages.loginWelcome(session.login)} ${runtime.messages.loginPublicNotice}`,
-        )
+        // Cuenta de GitHub nueva: juega igual, pero sale en el ranking más tarde (y se dice cuándo).
+        const wait = answer.user.hidden ? null : (answer.user.newAccount ?? null)
+        const notice =
+          wait === null
+            ? runtime.messages.loginPublicNotice
+            : runtime.messages.loginNewAccount(wait.minAgeDays, wait.rankedFrom)
+        toast(io, `${runtime.messages.loginWelcome(session.login)} ${notice}`)
         await refreshMe(io, runtime, config, session, config.commandTimeoutMs)
         return
       }

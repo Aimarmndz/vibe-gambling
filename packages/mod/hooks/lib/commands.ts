@@ -154,11 +154,15 @@ export async function balance(ctx: CommandContext): Promise<string> {
     const stillThere = await requireSession(ctx)
     return stillThere === null ? m.sessionExpired : m.offline
   }
+  // Cuenta de GitHub aún demasiado nueva: ni puesto ni "sin puesto", sino desde cuándo sale.
+  const wait = me.user.newAccount ?? null
   const rank = me.user.hidden
     ? m.rankHidden
-    : me.brokeRank === null
-      ? m.rankNone
-      : `#${me.brokeRank}`
+    : wait !== null
+      ? m.rankNewAccount(wait.rankedFrom)
+      : me.brokeRank === null
+        ? m.rankNone
+        : `#${me.brokeRank}`
   const coins = (n: number): string => formatCoins(n, runtime.locale)
   const text = m.balance(
     coins(me.wallet.balance),

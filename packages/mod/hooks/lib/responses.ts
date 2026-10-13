@@ -109,18 +109,41 @@ export type TurnEndView =
   | { readonly status: 'no_round'; readonly wallet: WalletView }
   /** Sin ventana visible: tirada guardada como pendiente (o descartada por el tope). */
   | { readonly status: 'queued'; readonly dropped: boolean; readonly wallet: WalletView }
+  /** Tope diario: ni tira ni se guarda; la mesa reabre en `reopensAt`. */
+  | {
+      readonly status: 'daily_limit'
+      readonly limit: number
+      readonly reopensAt: string
+      readonly wallet: WalletView
+    }
 export const isTurnEnd: Guard<TurnEndView> = (v): v is TurnEndView =>
   isObj(v) &&
   isWallet(v.wallet) &&
   ((v.status === 'resolved' && isResolvedRound(v.round)) ||
     v.status === 'no_round' ||
-    (v.status === 'queued' && isBool(v.dropped)))
+    (v.status === 'queued' && isBool(v.dropped)) ||
+    (v.status === 'daily_limit' && isInt(v.limit) && v.limit > 0 && isIso(v.reopensAt)))
+
+/**
+ * Antiabuso: cuenta de GitHub aún demasiado nueva para el ranking público (juega igual). Un
+ * servidor anterior a la regla no lo manda; `null` si ya sale.
+ */
+export interface NewAccountView {
+  readonly minAgeDays: number
+  readonly rankedFrom: string
+}
+const isNewAccount = (v: unknown): v is NewAccountView | null | undefined =>
+  v === undefined ||
+  v === null ||
+  (isObj(v) && isInt(v.minAgeDays) && v.minAgeDays > 0 && isIso(v.rankedFrom))
 
 export interface UserView {
   readonly login: string
   readonly hidden: boolean
+  readonly newAccount?: NewAccountView | null
 }
-const isUser = (v: unknown): v is UserView => isObj(v) && isStr(v.login) && isBool(v.hidden)
+const isUser = (v: unknown): v is UserView =>
+  isObj(v) && isStr(v.login) && isBool(v.hidden) && isNewAccount(v.newAccount)
 
 export interface MeView {
   readonly user: UserView

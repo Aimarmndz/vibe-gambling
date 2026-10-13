@@ -27,6 +27,8 @@ export interface Messages {
   readonly spinSaved: (count: number, formatted: string) => string
   /** Toast: tope de tiradas pendientes alcanzado, este prompt se descarta. */
   readonly spinDropped: (count: number, formatted: string) => string
+  /** Toast: tope diario de tiradas; recibe el instante (ISO) en que reabre la mesa. */
+  readonly dailyLimit: (reopensAt: string) => string
   /** `/balance`: cuántas hay y cómo se gastan. */
   readonly pendingHint: (count: number, formatted: string) => string
 
@@ -58,12 +60,16 @@ export interface Messages {
   readonly balance: (balance: string, debt: string, netWorth: string, rank: string) => string
   readonly rankHidden: string
   readonly rankNone: string
+  /** `/balance` con la cuenta de GitHub aún demasiado nueva: desde cuándo sale en el ranking. */
+  readonly rankNewAccount: (rankedFrom: string) => string
 
   readonly alreadyLoggedIn: (login: string) => string
   readonly loginPrompt: (uri: string, code: string, minutes: number) => string
   readonly loginInProgress: (uri: string, code: string) => string
   readonly loginWelcome: (login: string) => string
   readonly loginPublicNotice: string
+  /** En lugar de `loginPublicNotice` si la cuenta de GitHub aún es demasiado nueva. */
+  readonly loginNewAccount: (minAgeDays: number, rankedFrom: string) => string
   readonly loginExpired: string
   readonly loginDenied: string
   readonly loginFailed: (detail: string) => string
@@ -128,6 +134,12 @@ export function buildMessages(t: ModTexts, bcp47: string): Messages {
       })
   const hintOf = (id: CommandId): string | undefined =>
     (t as Readonly<Record<string, string>>)[`command.${id}.argumentHint`]
+  // Día del instante en el formato medio del idioma ("Nov 12, 2026"), en la zona del sistema.
+  const day = new Intl.DateTimeFormat(bcp47, { dateStyle: 'medium' })
+  const date = (iso: string) => day.format(new Date(iso))
+  const integer = new Intl.NumberFormat(bcp47)
+  // Hora de pared del instante ("00:00"), en la zona del sistema: la del que lo lee.
+  const clock = new Intl.DateTimeFormat(bcp47, { hour: '2-digit', minute: '2-digit' })
   const state = (official: boolean | null) =>
     official === null
       ? t['serverState.unreachable']
@@ -148,6 +160,8 @@ export function buildMessages(t: ModTexts, bcp47: string): Messages {
     spinSaved: counted('spinSaved'),
     spinDropped: counted('spinDropped'),
     pendingHint: counted('pendingHint'),
+    dailyLimit: reopensAt =>
+      fillTemplate(t.dailyLimit, { time: clock.format(new Date(reopensAt)) }),
 
     commands: Object.fromEntries(
       COMMAND_IDS.map(id => {
@@ -185,12 +199,18 @@ export function buildMessages(t: ModTexts, bcp47: string): Messages {
       fillTemplate(t.balance, { balance, debt, netWorth, rank }),
     rankHidden: t.rankHidden,
     rankNone: t.rankNone,
+    rankNewAccount: rankedFrom => fillTemplate(t.rankNewAccount, { date: date(rankedFrom) }),
 
     alreadyLoggedIn: login => fillTemplate(t.alreadyLoggedIn, { login }),
     loginPrompt: (uri, code, minutes) => fillTemplate(t.loginPrompt, { uri, code, minutes }),
     loginInProgress: (uri, code) => fillTemplate(t.loginInProgress, { uri, code }),
     loginWelcome: login => fillTemplate(t.loginWelcome, { login }),
     loginPublicNotice: t.loginPublicNotice,
+    loginNewAccount: (minAgeDays, rankedFrom) =>
+      fillTemplate(t.loginNewAccount, {
+        days: integer.format(minAgeDays),
+        date: date(rankedFrom),
+      }),
     loginExpired: t.loginExpired,
     loginDenied: t.loginDenied,
     loginFailed: detail => fillTemplate(t.loginFailed, { detail }),

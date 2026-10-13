@@ -59,6 +59,30 @@ export function queuedToast(
   return { text: parts.join(' · '), phrase: phrase?.template ?? null }
 }
 
+/**
+ * Toast del tope diario: la mesa cierra hasta `reopensAt` y una frase de la batería `dailyLimit`
+ * (sin repetir la anterior; el {limit} se rellena con el tope que manda el servidor).
+ */
+export function dailyLimitToast(
+  limit: number,
+  reopensAt: string,
+  locale: Locale,
+  messages: Messages,
+  previousPhrase: string | null,
+  random: () => number = Math.random,
+): ResultToast {
+  const phrase = pickFilledPhrase(
+    PHRASES[locale],
+    'dailyLimit',
+    { limit: formatCoins(limit, locale) },
+    previousPhrase,
+    random,
+  )
+  const parts = [messages.dailyLimit(reopensAt)]
+  if (phrase !== null) parts.push(`“${phrase.text}”`)
+  return { text: parts.join(' · '), phrase: phrase?.template ?? null }
+}
+
 /** Categoría de frase para una ronda resuelta. */
 export function phraseCategory(
   round: ResolvedRoundView,

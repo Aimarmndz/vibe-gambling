@@ -5,7 +5,7 @@
 import type { Io } from './io.ts'
 import { callApi, debug, isUnauthorized } from './api.ts'
 import type { ModConfig } from './config.ts'
-import { queuedToast, resultToast } from './format.ts'
+import { dailyLimitToast, queuedToast, resultToast } from './format.ts'
 import { turnEndBody, turnStartBody } from './payloads.ts'
 import { isTurnEnd, isTurnStart } from './responses.ts'
 import type { TurnEndView } from './responses.ts'
@@ -101,6 +101,20 @@ export function beginTurn(
 /** Enseña el resultado cuando la ventana ya lo ha enseñado (`revealAt`), sin destripar nada. */
 function revealResult(io: Io, runtime: Runtime, config: ModConfig, response: TurnEndView): void {
   if (response.status === 'no_round') {
+    showWallet(io, runtime, response.wallet)
+    return
+  }
+  if (response.status === 'daily_limit') {
+    // Tampoco hay nada que destripar: este prompt no ha tirado.
+    const shown = dailyLimitToast(
+      response.limit,
+      response.reopensAt,
+      runtime.locale,
+      runtime.messages,
+      runtime.lastPhrase,
+    )
+    if (shown.phrase !== null) runtime.lastPhrase = shown.phrase
+    toast(io, shown.text)
     showWallet(io, runtime, response.wallet)
     return
   }

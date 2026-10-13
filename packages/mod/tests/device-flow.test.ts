@@ -87,6 +87,65 @@ test(
 )
 
 test(
+  'a brand-new GitHub account is told it plays now and joins the leaderboard on a date',
+  { options: TEST_OPTIONS },
+  async ($, on) => {
+    const newAccount = { minAgeDays: 30, rankedFrom: '2026-11-12T12:00:00.000Z' }
+    const w = world(on, {
+      routes: {
+        '/api/auth/device/start': deviceStart,
+        '/api/auth/device/poll': pollScript([
+          {
+            json: {
+              v: 1,
+              status: 'ok',
+              token: NEW_TOKEN,
+              user: { ...(user as object), newAccount },
+              isNew: true,
+            },
+          },
+        ]),
+        '/api/me': meReply(),
+      },
+    })
+    await startSession($, w)
+    await command($, 'vibe-login')
+    await w.clock.advance(5_000)
+    expect(w.store.get(SESSION_KEY)).toEqual({ token: NEW_TOKEN, login: LOGIN })
+    expect(w.toasts.at(-1)).toBe(
+      `🎰 Welcome to the table, @${LOGIN}. Your GitHub account is under 30 days old: you play as usual and show up on the public leaderboard (login and avatar) from Nov 12, 2026. /vibe-hide to stay off it.`,
+    )
+  },
+)
+
+test(
+  'a malformed newAccount from the server is not trusted (the login answer is ignored)',
+  { options: TEST_OPTIONS },
+  async ($, on) => {
+    const w = world(on, {
+      routes: {
+        '/api/auth/device/start': deviceStart,
+        '/api/auth/device/poll': pollScript([
+          {
+            json: {
+              v: 1,
+              status: 'ok',
+              token: NEW_TOKEN,
+              user: { ...(user as object), newAccount: { minAgeDays: 30, rankedFrom: 'soon' } },
+              isNew: true,
+            },
+          },
+        ]),
+      },
+    })
+    await startSession($, w)
+    await command($, 'vibe-login')
+    await w.clock.advance(5_000)
+    expect(w.store.get(SESSION_KEY)).toBeUndefined()
+  },
+)
+
+test(
   'a network hiccup does not end the login; expiry does',
   { options: TEST_OPTIONS },
   async ($, on) => {
