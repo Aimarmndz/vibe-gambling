@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Actualiza el fragmento de nginx con los rangos de Cloudflare (deploy/cloudflare-nginx.sh).
+# Va en /etc/systemd/system/ junto con su .timer; el script, en /usr/local/sbin/.
+[Unit]
+Description=vibe-gambling: rangos de Cloudflare para nginx
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/vibe-cloudflare-nginx

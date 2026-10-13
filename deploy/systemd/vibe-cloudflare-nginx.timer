@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Cada semana (y al arrancar si se perdió una), con un margen aleatorio.
+[Unit]
+Description=vibe-gambling: rangos de Cloudflare para nginx, cada semana
+
+[Timer]
+OnCalendar=Mon *-*-* 05:00:00
+RandomizedDelaySec=1h
+Persistent=true
+
+[Install]
+WantedBy=timers.target
