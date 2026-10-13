@@ -78,11 +78,6 @@ export function drawSprite(
   })
 }
 
-/** Ancho y alto de una rejilla. */
-export function spriteSize(rows: SpriteRows): { w: number; h: number } {
-  return { w: Math.max(0, ...rows.map(r => r.length)), h: rows.length }
-}
-
 /** Bocanada de humo: círculos grises a escalones que crecen y se apagan (k = 0–1). */
 export function drawSmoke(
   g: CanvasRenderingContext2D,

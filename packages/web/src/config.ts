@@ -115,6 +115,8 @@ const fxSchema = z
       .object({
         /** Intro: franja de fuego y "ON FIRE". */
         introMs: span,
+        /** Tras la intro, lo que tarda el fuego en consumirse sin fuente. */
+        outroMs: span,
         /** Fotogramas por segundo del fuego y las llamitas (bucles de sprites). */
         spriteFps: z.number().int().min(1).max(60),
       })
@@ -209,6 +211,8 @@ export const webClientConfigSchema = z
         pageTurnMs: ms,
         /** Velocidad a la que suben los créditos solos (píxeles por segundo). */
         creditsPxPerS: z.number().min(0).max(240),
+        /** Tiempo que los créditos se quedan quietos al entrar antes de empezar a subir. */
+        creditsHoldMs: ms,
         /** Parpadeo del "_" del icono de guardado de la MEMORY CARD. */
         saveBlinkMs: ms.min(50),
         /** Espera máxima a la respuesta de `stats.request` / `bank.request`. */

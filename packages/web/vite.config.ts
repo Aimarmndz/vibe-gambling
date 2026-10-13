@@ -137,6 +137,10 @@ export default defineConfig(({ command, mode }) => {
       assetsInlineLimit: 0,
       // Sin mapas de fuentes en producción: el código ya es libre y está en el repo.
       sourcemap: false,
+      // El chunk `three` (solo lo carga /play) ocupa ~530 kB minificado y ~132 kB con gzip: es
+      // Three.js ya podado por el bundler. El aviso de 500 kB solo era ruido; si otro chunk pasa
+      // de este tope, sí avisa.
+      chunkSizeWarningLimit: 560,
       rolldownOptions: {
         input: {
           index: resolve(here, 'index.html'),

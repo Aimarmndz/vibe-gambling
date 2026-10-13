@@ -26,6 +26,7 @@ import { drawRotated } from '../../render/fx/text.ts'
 import { HELP_BAR_TOP, drawHelpBar, drawWindow } from '../draw.ts'
 import { ListMenu } from '../listMenu.ts'
 import { PALETTE } from '../palette.ts'
+import { interestPercent } from '../menu/format.ts'
 
 /** Contrato (180×150, papel). */
 const CONTRACT = { x: 70, w: 180, h: 150, top: 40 } as const
@@ -259,7 +260,7 @@ export class LoanScreen implements Screen {
     const terms = wrap(
       tr.t('loan.terms', {
         apr: tr.n(loan.displayApr),
-        interest: String(Math.round(loan.interestPerSpin * 1000) / 10),
+        interest: interestPercent(loan, tr),
       }),
       272,
     )

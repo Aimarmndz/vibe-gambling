@@ -115,7 +115,9 @@ export class BankruptScreen extends FxScreen {
     const w = this.kit.ctx.state().shown
     if (!w) return
     drawWindow(g, 4, 4, 116, 40)
-    const blink = Math.floor(this.ms / 150) % 2 === 0 && this.ms < 600
+    // Dos parpadeos (encendido/apagado) repartidos en el desaturado: 150/150 ms con 600 ms.
+    const half = this.times.glitch / 4
+    const blink = this.ms < this.times.glitch && Math.floor(this.ms / half) % 2 === 0
     if (blink) {
       g.fillStyle = PALETTE.alertTop
       g.fillRect(6, 28, 112, 11)

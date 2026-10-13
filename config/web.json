@@ -37,6 +37,7 @@
     "chartDrawMs": 600,
     "pageTurnMs": 160,
     "creditsPxPerS": 20,
+    "creditsHoldMs": 2000,
     "saveBlinkMs": 500,
     "requestTimeoutMs": 8000
   },
@@ -68,7 +69,7 @@
       "finePrintPxPerS": 400
     },
     "bankrupt": { "desaturateMs": 600, "glitchMs": 600, "countFrom": 9, "tickMs": 1000 },
-    "onFire": { "introMs": 1500, "spriteFps": 15 },
+    "onFire": { "introMs": 1500, "outroMs": 600, "spriteFps": 15 },
     "fallacy": { "holdMs": 3200 },
     "achievement": { "inMs": 220, "holdMs": 2800, "outMs": 200, "gapMs": 150 },
     "pending": { "rollMs": 180, "floatMs": 600, "flyMs": 400 }
