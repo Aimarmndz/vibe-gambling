@@ -1,11 +1,19 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Lo que comparten todas las pantallas de la ventana: traducción, configuración, estado, envío
 // de mensajes, sonido, preferencias y la pila de pantallas.
-import type { LeaderboardBoard, LeaderboardResponse, WebConfig } from '@vibe-gambling/shared'
+import type {
+  HallOfRuinResponse,
+  LeaderboardBoard,
+  LeaderboardResponse,
+  WebConfig,
+} from '@vibe-gambling/shared'
 
 import type { Sfx } from '../audio/sfx.ts'
 import type { WebClientConfig } from '../config.ts'
+import type { AchievementBook } from '../game/achievements.ts'
 import type { SpinAllStatus } from '../game/spinAll.ts'
+import type { ProgressData, ProgressKind } from '../net/progress.ts'
+import type { IconSink } from '../render/menuIcons/layer.ts'
 import type { GameState } from '../game/state.ts'
 import type { Translator } from '../i18n/index.ts'
 import type { LinkStatus, Outgoing } from '../net/link.ts'
@@ -31,6 +39,11 @@ export interface Screen {
    * Sin ella, encima de la barra inferior de la mesa.
    */
   toastBand?(): { top: number; bottom: number }
+  /**
+   * Capa FX 2D (docs/DISENO-V2.md, capa 4): flash, rayos y rótulos de espectáculo. Se pinta encima
+   * de la interfaz y tiembla con la sacudida. Devuelve si ha pintado algo.
+   */
+  drawFx?(fx: CanvasRenderingContext2D, t: number): boolean
 }
 
 export interface ButtonLabels {
@@ -86,4 +99,18 @@ export interface AppContext {
   spinAll(): SpinAllStatus
   /** Abre la pantalla de tiradas pendientes. */
   showPending(): void
+  /** Llamitas de ON FIRE detrás de la racha (las pinta la mesa bajo el texto del HUD). */
+  hudFlames?(g: CanvasRenderingContext2D): void
+  /** Escribe en la región `aria-live` (lo importante para lectores de pantalla). */
+  announce(text: string): void
+  /** Iconos 3D del menú (capa encima de la interfaz). */
+  menuIcons(): IconSink
+  /** Estadísticas o banco de una temporada (sin `seasonId`, la en curso). */
+  progress<K extends ProgressKind>(kind: K, seasonId?: string): Promise<ProgressData[K]>
+  /** Logros: catálogo, conseguidos y si hay alguno sin ver. */
+  achievements(): AchievementBook
+  /** Salón de la Ruina (los más arruinados de las temporadas pasadas). */
+  hallOfRuin(): Promise<HallOfRuinResponse>
+  /** Cierra la sesión de esta ventana. */
+  logout(): void
 }

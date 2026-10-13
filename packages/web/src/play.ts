@@ -58,18 +58,22 @@ async function main(): Promise<void> {
     }
   }
 
-  const [{ Game }, { WsLink, wsUrl }, { DemoLink }] = await Promise.all([
+  const [{ Game }, { WsLink, wsUrl }, { DemoLink }, { isDemoFx }] = await Promise.all([
     import('./app/game.ts'),
     import('./net/link.ts'),
     import('./net/demo.ts'),
+    import('./net/demoFx.ts'),
   ])
   let link
   if (demo) {
+    // `?demo&fx=mega`: fuerza una animación de espectáculo (capturas, GIF y E2E).
+    const fx = params.get('fx')
     const demoLink = new DemoLink(
       web.game,
       clientConfig.demo,
       params.get('demo') !== 'manual',
       window.location.origin,
+      isDemoFx(fx) ? fx : null,
     )
     Object.assign(window, { __vgDemo: demoLink.controls })
     link = demoLink

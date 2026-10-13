@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // La ventana del juego: une red, estado, animación de la ruleta, pantallas, sonido y render PSX.
 // El servidor manda: aquí solo se pinta lo que llega y se envían las intenciones del jugador.
+import { PROTOCOL_VERSION } from '@vibe-gambling/shared'
 import type {
+  HallOfRuinResponse,
   LeaderboardBoard,
   LeaderboardResponse,
   Locale,
@@ -11,7 +13,7 @@ import type {
 
 import { Sfx } from '../audio/sfx.ts'
 import type { WebClientConfig } from '../config.ts'
-import { drawText, measure, printable, wrap } from '../font/bitmap.ts'
+import { drawText, printable, wrap } from '../font/bitmap.ts'
 import { betReadyHint } from '../game/hints.ts'
 import { PhraseMemory, describeOutcome } from '../game/outcome.ts'
 import type { OutcomeView } from '../game/outcome.ts'
@@ -28,23 +30,31 @@ import {
   reveal,
 } from '../game/state.ts'
 import type { Effect, GameState } from '../game/state.ts'
+import { AchievementBook } from '../game/achievements.ts'
 import { WheelMotion } from '../game/wheelMotion.ts'
 import { applyDocumentLanguage, loadTranslator } from '../i18n/index.ts'
 import type { Translator } from '../i18n/index.ts'
-import { fetchLeaderboard, fetchMe } from '../net/api.ts'
+import { fetchHallOfRuin, fetchLeaderboard, fetchMe, logout } from '../net/api.ts'
+import { ProgressRequests } from '../net/progress.ts'
+import type { ProgressData, ProgressKind } from '../net/progress.ts'
+import { MenuIconLayer } from '../render/menuIcons/layer.ts'
+import type { IconSink } from '../render/menuIcons/layer.ts'
 import { withVersion } from '../net/link.ts'
 import { webUrl } from '../net/urls.ts'
 import type { Link, LinkStatus, Outgoing } from '../net/link.ts'
+import { FxDirector } from '../render/fx/director.ts'
+import { planRound } from '../render/fx/plan.ts'
 import { PSX_HEIGHT, PSX_WIDTH, PsxPipeline } from '../render/pipeline.ts'
 import { SHOTS, World, layoutToWorld } from '../render/world.ts'
 import type { Shot } from '../render/world.ts'
 import { Hits, drawMemoryCardIcon, drawWindow } from '../ui/draw.ts'
 import { PALETTE } from '../ui/palette.ts'
-import { STATUS_BOX, STATUS_LOOKS, statusColor } from '../ui/status.ts'
 import { BootScreen } from '../ui/screens/boot.ts'
 import { LoanScreen } from '../ui/screens/loan.ts'
 import { MessageScreen } from '../ui/screens/message.ts'
-import { PendingNoticeScreen, PendingScreen } from '../ui/screens/pending.ts'
+import { SpinAllHud } from '../ui/menu/spinAllHud.ts'
+import { MenuScreen } from '../ui/screens/menu.ts'
+import { PendingNoticeScreen } from '../ui/screens/pending.ts'
 import { ResultScreen } from '../ui/screens/result.ts'
 import { TableScreen } from '../ui/screens/table.ts'
 import { TipScreen } from '../ui/screens/tip.ts'
@@ -53,7 +63,7 @@ import { Input } from './input.ts'
 import type { ActionEvent } from './input.ts'
 import { bootSeen, markBootSeen, markTipSeen, tipSeen } from './onboarding.ts'
 import { isVisible, watchPresence } from './presence.ts'
-import { loadPrefs, safeStorage, savePrefs } from './prefs.ts'
+import { loadPrefs, safeStorage, savePrefs, volumeGain } from './prefs.ts'
 import type { Prefs } from './prefs.ts'
 import { demoLeaderboard } from './demoBoard.ts'
 
@@ -115,6 +125,16 @@ export class Game implements AppContext {
   private readonly motion: WheelMotion
   private readonly input: Input
   private readonly phrases = new PhraseMemory()
+  /** Iconos 3D del menú (capa propia encima de la interfaz). */
+  private readonly icons: MenuIconLayer
+  /** Peticiones de ESTADÍSTICAS y BANCO. */
+  private readonly progressRequests: ProgressRequests
+  /** GIRAR TODAS a pantalla completa: progreso y últimas tiradas. */
+  private readonly spinAllHud = new SpinAllHud()
+  /** Logros: catálogo del servidor y cuáles no se han visto aún. */
+  private readonly book = new AchievementBook(safeStorage('local'))
+  /** Animaciones de espectáculo (render/fx): premio, verde, push, bancarrota, logros, fuego. */
+  private readonly fx: FxDirector
   private screens: Screen[] = []
   private boot: BootScreen | null = null
   private loanScreen: LoanScreen | null = null
@@ -159,6 +179,24 @@ export class Game implements AppContext {
 
     this.pipeline = new PsxPipeline(this.canvas)
     this.world = new World(PSX_WIDTH, PSX_HEIGHT)
+    this.icons = new MenuIconLayer(PSX_WIDTH, PSX_HEIGHT)
+    this.pipeline.addOverlay(this.icons.scene, this.icons.camera)
+    this.progressRequests = new ProgressRequests(
+      msg => this.link.send(withVersion(msg)),
+      this.client.menu.requestTimeoutMs,
+    )
+    this.fx = new FxDirector({
+      ctx: this,
+      pipeline: this.pipeline,
+      cfg: this.client.fx,
+      game: this.web.game,
+      reduced: this.reducedMotion,
+      trophySpinMs: this.client.menu.trophySpinMs,
+      announce: text => this.announce(text),
+      loanOffered: () => this.markLoanOffered(),
+      tableVisible: () =>
+        this.top() === this.table && this.shot === SHOTS.table && this.camera === null,
+    })
     this.motion = new WheelMotion({
       launch: () => this.sfx.play('launch'),
       bounce: i => this.sfx.play('bounce', 1 - i * 0.18),
@@ -203,6 +241,13 @@ export class Game implements AppContext {
         state: () => this.game,
         screens: () => this.screens.map(s => s.id),
         spinAll: () => this.spinLoop.status(),
+        fx: () => ({
+          current: this.fx.current,
+          queued: this.fx.queued,
+          coins: this.fx.coins.coinCount,
+          notice: this.fx.notice,
+          shake: { ...this.pipeline.shake },
+        }),
         layoutToClient: (x: number, y: number) => this.layoutToClient(x, y),
         render: () => ({
           crt: this.pipeline.options.crt,
@@ -338,7 +383,7 @@ export class Game implements AppContext {
 
   offerLoan(): void {
     if (this.loanScreen || !this.loanAvailable()) return
-    this.loanScreen = new LoanScreen(this)
+    this.loanScreen = new LoanScreen(this, this.fx.kit)
     this.push(this.loanScreen)
     this.sfx.play('accept')
   }
@@ -354,6 +399,33 @@ export class Game implements AppContext {
     return me.brokeRank
   }
 
+  hallOfRuin(): Promise<HallOfRuinResponse> {
+    // La demo no tiene temporadas pasadas.
+    if (this.demo) return Promise.resolve({ v: PROTOCOL_VERSION, seasons: [] })
+    return fetchHallOfRuin()
+  }
+
+  logout(): void {
+    if (this.demo) return
+    // El servidor cierra esta sesión y avisa por el WebSocket (`bye`), que enseña el mensaje.
+    logout().catch((error: unknown) => {
+      console.warn('[auth] no se pudo cerrar la sesión', error)
+      this.toast(this.tr.t('error.generic', { message: String(error) }), 'error')
+    })
+  }
+
+  menuIcons(): IconSink {
+    return this.icons
+  }
+
+  progress<K extends ProgressKind>(kind: K, seasonId?: string): Promise<ProgressData[K]> {
+    return this.progressRequests.request(kind, seasonId)
+  }
+
+  achievements(): AchievementBook {
+    return this.book
+  }
+
   // ------------------------------------------------------------------ tiradas pendientes
 
   spinPending(): boolean {
@@ -361,7 +433,7 @@ export class Game implements AppContext {
   }
 
   spinAllPending(): boolean {
-    if (this.demo || !canSpinPending(this.game)) {
+    if (!canSpinPending(this.game)) {
       this.refusePendingSpin()
       return false
     }
@@ -377,21 +449,15 @@ export class Game implements AppContext {
     return this.spinLoop.status()
   }
 
+  /** Tiradas pendientes directamente (sin pasar por el menú principal: ○ vuelve a la mesa). */
   showPending(): void {
-    if (this.demo) return
-    if (this.screens.some(s => s instanceof PendingScreen)) return
-    this.push(new PendingScreen(this))
-    const count = pendingSpins(this.game)
-    this.announce(
-      count > 0
-        ? this.tr.t('status.pending', { n: this.tr.n(count), ...this.buttons() })
-        : this.tr.t('pending.none'),
-    )
+    if (this.screens.some(s => s instanceof MenuScreen && s.id === 'pending')) return
+    this.push(new MenuScreen(this, 'pending'))
   }
 
   /** Pide gastar una tirada pendiente. El servidor la tira y llega como cualquier ronda. */
   private requestPendingSpin(quick: boolean): boolean {
-    if (this.demo || !canSpinPending(this.game)) {
+    if (!canSpinPending(this.game)) {
       this.refusePendingSpin()
       return false
     }
@@ -463,7 +529,10 @@ export class Game implements AppContext {
     this.conn = status
     // Nada más conectar (y al reconectar): ¿se ve esta ventana?
     if (status === 'open') this.sendPresence(isVisible(document))
-    else this.onSpinAllEnd(this.spinLoop.stop('error'))
+    else {
+      this.onSpinAllEnd(this.spinLoop.stop('error'))
+      this.progressRequests.failAll()
+    }
     if (status === 'unauthorized') {
       this.showMessage({
         title: this.tr.t('login.title'),
@@ -482,10 +551,16 @@ export class Game implements AppContext {
   }
 
   private onMessage(msg: ServerMessage): void {
+    // Respuestas de ESTADÍSTICAS y BANCO (y el `not_found` de una temporada pedida): solo para
+    // la pantalla que preguntó.
+    if (this.progressRequests.receive(msg) && msg.type === 'error') return
+    this.book.receive(msg)
     const before = this.game.slip.total
     const step = reduce(this.game, msg, Date.now())
     this.game = step.state
     if (msg.type === 'round.resolved') this.spinLoop.resolved()
+    // Los logros se encolan: el aviso sale cuando la bola ya ha caído (nunca destripa nada).
+    if (msg.type === 'achievement.unlocked') this.fx.achievement(msg.achievement)
     // Primera ficha sin ronda abierta: se explica que se jugará con el próximo prompt.
     if (msg.type === 'slip' && betReadyHint(before, this.game.slip.total, this.game.phase)) {
       this.toast(this.tr.t(this.demo ? 'toast.betReadyDemo' : 'toast.betReady'))
@@ -525,7 +600,9 @@ export class Game implements AppContext {
         const untilReveal = localRevealAt(this.game, effect.round) - Date.now()
         this.motion.land(effect.round.result, Math.max(minMs, untilReveal) / 1000)
         this.world.setWinner(null)
-        // Si había un resultado en pantalla, se cierra para ver caer la bola.
+        // Si había un resultado (o una animación de espectáculo) en pantalla, se cierra para ver
+        // caer la bola.
+        this.fx.abort()
         this.screens.filter(s => s instanceof ResultScreen).forEach(s => this.pop(s))
         this.moveCamera(SHOTS.wheel, quick ? 0.4 : 0.9)
         this.announce(tr.t('status.landing'))
@@ -548,13 +625,17 @@ export class Game implements AppContext {
       case 'slip':
         return
       case 'loan':
-        if (this.loanScreen) this.pop(this.loanScreen)
+        // Con la ventanilla abierta, la secuencia del banco (contrato, firma, sello, monedas).
+        if (this.loanScreen && this.game.wallet) {
+          this.loanScreen.granted(effect.amount, this.game.wallet)
+          return
+        }
         this.sfx.play('loan')
         this.toast(tr.t('loan.granted', { amount: tr.n(effect.amount) }), 'money')
         return
       case 'rejected':
       case 'error': {
-        if (this.loanScreen) this.pop(this.loanScreen)
+        if (this.loanScreen && !this.loanScreen.granting) this.pop(this.loanScreen)
         if (effect.type === 'error' && this.spinLoop.active) {
           // Un `rate_limited` en GIRAR TODAS solo retrasa la siguiente: no merece un aviso.
           const end = this.spinLoop.failed(effect.error, Date.now())
@@ -622,41 +703,61 @@ export class Game implements AppContext {
     if (stopped) this.onSpinAllEnd(stopped)
     const quick = this.spinLoop.active
     this.sfx.play('settle')
+    // Con espectáculo (push, verde, premio) suenan sus fanfarrias; si no, los sonidos de siempre.
+    const steps = planRound(round, this.web.game, { quick })
+    const spectacle = steps.some(s => s.kind === 'push' || s.kind === 'green' || s.kind === 'prize')
     const straightWin = round.bets.some(b => b.won && b.selection.kind === 'straight')
-    if (view.jackpot) this.sfx.play('jackpot')
-    else if (view.net > 0) this.sfx.play(straightWin ? 'bigWin' : 'win')
-    else if (view.net < 0) this.sfx.play('lose')
-    this.push(
-      new ResultScreen(
-        this,
-        view,
-        () => {
-          this.game = dismissResult(this.game)
-          this.moveCamera(SHOTS.table, quick ? 0.3 : 0.7)
-          if (this.game.phase === 'spinning') this.motion.orbit()
-        },
-        quick ? this.client.ui.quickResultHoldMs : this.client.ui.resultHoldMs,
-      ),
-    )
-    // "Guardando en MEMORY CARD…" tras cada tirada (en GIRAR TODAS, solo al final: si no, el
-    // aviso taparía la ruleta en cada vuelta).
-    if (!quick) {
-      this.toast(`${this.tr.t('mc.saving')}\n${this.tr.t('mc.noPowerOff')}`, 'save')
-      this.sfx.play('save')
+    if (!spectacle) {
+      if (view.jackpot) this.sfx.play('jackpot')
+      else if (view.net > 0) this.sfx.play(straightWin ? 'bigWin' : 'win')
+      else if (view.net < 0) this.sfx.play('lose')
     }
-    this.announce(
-      this.tr.t('a11y.result', {
-        number: round.result,
-        color: this.tr.t(`color.${round.color}`),
-        net: this.tr.signed(round.net),
-      }),
-    )
+    // La secuencia empieza ya: la bola se ha asentado, que nunca es antes de `revealAt`.
+    this.fx.reveal(round, quick, done => {
+      this.push(
+        new ResultScreen(
+          this,
+          view,
+          () => {
+            this.game = dismissResult(this.game)
+            this.moveCamera(SHOTS.table, quick ? 0.3 : 0.7)
+            if (this.game.phase === 'spinning') this.motion.orbit()
+            done()
+          },
+          quick ? this.client.ui.quickResultHoldMs : this.client.ui.resultHoldMs,
+        ),
+      )
+      // "Guardando en MEMORY CARD…" tras cada tirada (en GIRAR TODAS, solo al final: si no, el
+      // aviso taparía la ruleta en cada vuelta). Con espectáculo, cuando ya ha terminado.
+      if (!quick) {
+        this.toast(`${this.tr.t('mc.saving')}\n${this.tr.t('mc.noPowerOff')}`, 'save')
+        this.sfx.play('save')
+      }
+      this.announce(
+        this.tr.t('a11y.result', {
+          number: round.result,
+          color: this.tr.t(`color.${round.color}`),
+          net: this.tr.signed(round.net),
+        }),
+      )
+    })
+  }
+
+  /** BANCARROTA ya ha ofrecido el préstamo: la mesa no lo vuelve a ofrecer sola en esta situación. */
+  private markLoanOffered(): void {
+    const w = this.game.shown
+    if (w) this.loanOfferedFor = `${w.seasonId}:${w.spins}:${w.loans}`
+  }
+
+  /** Llamitas de ON FIRE detrás de la racha del HUD (las pide la mesa). */
+  hudFlames(g: CanvasRenderingContext2D): void {
+    this.fx.drawHudFlames(g)
   }
 
   /** Ofrece el préstamo cuando el saldo no llega ni para la ficha mínima (una vez por situación). */
   private checkLoanOffer(): void {
     const w = this.game.shown
-    if (!w || this.loanScreen || this.boot || this.spinLoop.active) return
+    if (!w || this.loanScreen || this.boot || this.spinLoop.active || this.fx.blocking) return
     if (this.game.phase === 'landing' || this.game.phase === 'result') return
     if (this.top() !== this.table) return
     if (w.balance >= this.minChip() || this.game.slip.total > 0) return
@@ -732,6 +833,8 @@ export class Game implements AppContext {
 
   private applyPrefs(): void {
     this.sfx.setMuted(!this.prefs.sound)
+    this.sfx.setVolume(volumeGain(this.prefs.volume))
+    this.icons.setSnap(!this.reducedMotion)
     const high = this.prefs.quality === 'high'
     this.pipeline.options = {
       crt: this.prefs.crt && !this.reducedMotion && high,
@@ -767,7 +870,7 @@ export class Game implements AppContext {
     }
   }
 
-  private announce(text: string): void {
+  announce(text: string): void {
     this.live.textContent = text
   }
 
@@ -798,7 +901,10 @@ export class Game implements AppContext {
 
     // Pantallas.
     for (const s of [...this.screens]) s.update?.(dt, t)
+    this.fx.update(dt)
     this.tickSpinAll()
+    const spunText = this.spinAllHud.see(this.game, this.spinLoop.status(), this.tr)
+    if (spunText) this.announce(spunText)
     this.checkLoanOffer()
     this.checkPendingNotice()
     const top = this.top()
@@ -822,6 +928,8 @@ export class Game implements AppContext {
     const g = this.pipeline.ui
     g.clearRect(0, 0, PSX_WIDTH, PSX_HEIGHT)
     this.hits.clear()
+    // Los iconos 3D del menú se piden mientras se pintan las pantallas.
+    this.icons.begin()
     let from = 0
     this.screens.forEach((s, i) => {
       if (s.opaque) from = i
@@ -839,33 +947,27 @@ export class Game implements AppContext {
       s.draw(g, t)
     })
     if (!toastsUnderTop) this.drawToasts(g, t)
+    this.icons.end()
+    // Avisos de logro (la copa 3D va en la capa FX 3D).
+    this.fx.drawUi(g)
+    // Capa FX 2D: se limpia solo si el fotograma anterior pintó algo.
+    const fxg = this.pipeline.fx
+    if (this.pipeline.fxDirty) fxg.clearRect(0, 0, PSX_WIDTH, PSX_HEIGHT)
+    let fxDrawn = false
+    for (const s of layers) if (s.drawFx?.(fxg, t)) fxDrawn = true
+    if (this.fx.drawFx(fxg)) fxDrawn = true
+    this.pipeline.fxDirty = fxDrawn
+    this.fx.endFrame()
     // En la mesa ya lo dice su rótulo; en el plano de la ruleta, el HUD está escondido.
     const tableHidden = this.shot !== SHOTS.table || this.camera !== null
-    if (this.spinLoop.active && tableHidden) this.drawSpinAllBanner(g, t)
+    if (this.spinLoop.active && tableHidden) {
+      this.spinAllHud.draw(g, this.game, this.tr, this.buttons())
+    }
 
     const view = this.boot
       ? this.boot.view()
       : { scene: this.world.scene, camera: this.world.camera }
     this.pipeline.render(view.scene, view.camera)
-  }
-
-  /** Rótulo de GIRAR TODAS, visible también en el plano de la ruleta (el HUD se esconde). */
-  private drawSpinAllBanner(g: CanvasRenderingContext2D, t: number): void {
-    const text = this.tr.t('status.spinAll', {
-      n: this.tr.n(pendingSpins(this.game)),
-      ...this.buttons(),
-    })
-    const look = STATUS_LOOKS.pending
-    const w = measure(text) + 16
-    drawWindow(g, 160 - w / 2, 4, w, STATUS_BOX.height, {
-      top: look.top,
-      bottom: look.bottom,
-    })
-    drawText(g, text, 160, 4 + STATUS_BOX.textTop, {
-      color: statusColor(look, t),
-      align: 'center',
-      shadow: PALETTE.ink,
-    })
   }
 
   private drawToasts(g: CanvasRenderingContext2D, t: number): void {

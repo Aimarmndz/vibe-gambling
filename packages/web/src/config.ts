@@ -3,7 +3,7 @@
 // - `config/web.json` (versionado, se empaqueta en la build): ajustes del propio cliente.
 // - `/config.json` (lo sirve el servidor en tiempo de ejecución): instancia, juego y textos de marca.
 // Ningún valor configurable vive en el código.
-import { webConfigSchema } from '@vibe-gambling/shared'
+import { gameConfigSchema, webConfigSchema } from '@vibe-gambling/shared'
 import type { WebConfig } from '@vibe-gambling/shared'
 import { z } from 'zod'
 
@@ -14,6 +14,118 @@ const ms = z
   .int()
   .min(0)
   .max(10 * 60 * 1000)
+
+/** Un tiempo de animación (no puede ser 0: dividiría por cero). */
+const span = ms.min(1)
+/** Cantidad de fichas que llueven en un nivel de premio. */
+const coinCount = z.number().int().min(0).max(200)
+
+/** Tiempos, cantidades y presupuestos de las animaciones de espectáculo. */
+const fxSchema = z
+  .object({
+    /** Con `prefers-reduced-motion`, ninguna animación dura más que esto. */
+    reducedMaxMs: span,
+    /** Duraciones de las versiones reducidas que no salen de otra clave (topadas por la de arriba). */
+    reduced: z.object({ greenTintMs: span, pushBandMs: span, loanMs: span }).strict(),
+    /** Presupuesto de fichas 3D a la vez en pantalla (rendimiento). */
+    maxCoins: z.number().int().min(0).max(200),
+    /** Sacudida de cámara del impacto (píxeles enteros) y lo que tarda en volver a 0. */
+    shake: z
+      .object({
+        x: z.number().int().min(-8).max(8),
+        y: z.number().int().min(-8).max(8),
+        decayMs: span,
+      })
+      .strict(),
+    bigWin: z
+      .object({
+        /** El flash crema del impacto (uno solo por resultado). */
+        flashMs: span,
+        /** Cada escalón del rótulo (×7 → ×6 → ×5). */
+        impactStepMs: span,
+        /** Lo que tarda el contador en rodar hasta el premio, por nivel. */
+        countMs: z.object({ big: span, mega: span, pleno: span }).strict(),
+        /** Cuánto se queda el valor final antes de cerrarse solo. */
+        holdMs: span,
+        /** Fichas que llueven por nivel (topadas por `maxCoins`). */
+        coins: z.object({ big: coinCount, mega: coinCount, pleno: coinCount }).strict(),
+        /** Gravedad de la lluvia de fichas, en píxeles de 320×240 por segundo². */
+        gravityPxS2: z.number().min(1).max(10_000),
+        /** Giro de los rayos durante el hold (grados por segundo). */
+        raysDegPerS: z.number().min(0).max(360),
+        /** Cada cuánto cruza el brillo diagonal el rótulo. */
+        sheenEveryMs: span,
+        /** Tic del contador mientras rueda. */
+        tickMs: ms.min(10),
+        /** Movimiento reducido: el contador llega en 3 saltos de este tiempo. */
+        reducedStepMs: span,
+      })
+      .strict(),
+    green: z
+      .object({
+        /** Medio ciclo del parpadeo verde (encendido o apagado). */
+        blinkMs: span,
+        /** Parpadeos (como mucho 3 por segundo: fotosensibilidad). */
+        blinks: z.number().int().min(1).max(3),
+        /** Espera hasta encadenar con el premio si se había apostado al 0. */
+        chainMs: span,
+        /** Sin premio que encadenar: cuánto se queda el rótulo antes de pasar al resultado. */
+        holdMs: span,
+      })
+      .strict(),
+    push: z
+      .object({
+        /** La terminal: sube, "git push" y la barra hasta DEPLOYED. */
+        terminalMs: span,
+        /** El cohete despegando. */
+        rocketMs: span,
+        /** El cohete sale y cae el sello ×N. */
+        stampMs: span,
+      })
+      .strict(),
+    loan: z
+      .object({
+        /** El contrato sube. */
+        contractMs: span,
+        /** La firma pixelada se dibuja. */
+        signMs: span,
+        /** Cae el sello APROBADO. */
+        stampMs: span,
+        /** Las monedas caen en el saldo (y el saldo cuenta). */
+        coinsMs: span,
+        /** La deuda sube con la caja registradora. */
+        debtMs: span,
+        /** Velocidad de la letra pequeña que cruza la barra inferior (demasiado rápida). */
+        finePrintPxPerS: z.number().min(1).max(5000),
+      })
+      .strict(),
+    bankrupt: z
+      .object({
+        /** La escena se desatura y el patrimonio parpadea. */
+        desaturateMs: span,
+        /** "BANCARROTA" con glitch. */
+        glitchMs: span,
+        /** Desde dónde cuenta el CONTINUE? */
+        countFrom: z.number().int().min(1).max(99),
+        /** Cada paso de la cuenta atrás. */
+        tickMs: ms.min(100),
+      })
+      .strict(),
+    onFire: z
+      .object({
+        /** Intro: franja de fuego y "ON FIRE". */
+        introMs: span,
+        /** Fotogramas por segundo del fuego y las llamitas (bucles de sprites). */
+        spriteFps: z.number().int().min(1).max(60),
+      })
+      .strict(),
+    fallacy: z.object({ holdMs: span }).strict(),
+    achievement: z.object({ inMs: span, holdMs: span, outMs: span, gapMs: ms }).strict(),
+    pending: z.object({ rollMs: span, floatMs: span, flyMs: span }).strict(),
+  })
+  .strict()
+
+export type FxConfig = z.output<typeof fxSchema>
 
 export const webClientConfigSchema = z
   .object({
@@ -76,6 +188,35 @@ export const webClientConfigSchema = z
         inGameLimit: z.number().int().min(1).max(20),
       })
       .strict(),
+    /** Menús v2 (docs/DISENO-V2.md, "Menús"). */
+    menu: z
+      .object({
+        /** Barrido de bloques entre pantallas: la mitad tapa y la otra mitad destapa. */
+        wipeMs: ms.min(2),
+        /** Las esquinas oro del cursor se abren y cierran 1 px cada este tiempo (a saltos). */
+        cursorBreatheMs: ms.min(50),
+        /** Una vuelta del icono 3D seleccionado. */
+        iconSpinMs: ms.min(100),
+        /** Periodo del bob (sube y baja) del icono seleccionado. */
+        iconBobMs: ms.min(100),
+        /** Una vuelta de la copa de la fila elegida en LOGROS. */
+        trophySpinMs: ms.min(100),
+        /** Velocidad de la trama de palos del fondo (píxeles por segundo, en diagonal). */
+        patternPxPerS: z.number().min(0).max(120),
+        /** La línea del patrimonio se dibuja de izquierda a derecha al entrar en ESTADÍSTICAS. */
+        chartDrawMs: ms,
+        /** Barrido de columnas al pasar página en CÓMO SE JUEGA. */
+        pageTurnMs: ms,
+        /** Velocidad a la que suben los créditos solos (píxeles por segundo). */
+        creditsPxPerS: z.number().min(0).max(240),
+        /** Parpadeo del "_" del icono de guardado de la MEMORY CARD. */
+        saveBlinkMs: ms.min(50),
+        /** Espera máxima a la respuesta de `stats.request` / `bank.request`. */
+        requestTimeoutMs: ms.min(500),
+      })
+      .strict(),
+    /** Animaciones de espectáculo (docs/DISENO-V2.md, "Animaciones"). */
+    fx: fxSchema,
     demo: z
       .object({
         /** Cuánto "piensa Claude" en cada turno simulado del modo demo. */
@@ -84,6 +225,31 @@ export const webClientConfigSchema = z
         pauseMs: ms.min(500),
         /** Usuario ficticio del modo demo. */
         login: z.string().min(1).max(39),
+        /**
+         * Topes de ESTADÍSTICAS y BANCO en la demo (los del servidor, `stats.*` de
+         * config/game.json, no son públicos).
+         */
+        stats: z
+          .object({
+            recentRounds: z.number().int().min(1).max(100),
+            seriesPoints: z.number().int().min(2).max(2000),
+            loanMarks: z.number().int().min(0).max(1000),
+            bankHistory: z.number().int().min(1).max(500),
+          })
+          .strict(),
+        /**
+         * Temporada de ejemplo (`__vgDemo.showcase()`) para las capturas: semilla del azar fijo,
+         * tiradas jugadas y tiradas pendientes.
+         */
+        showcase: z
+          .object({
+            seed: z.number().int().min(0),
+            spins: z.number().int().min(1).max(2000),
+            pending: z.number().int().min(0).max(1000),
+          })
+          .strict(),
+        /** Umbrales de los logros en la demo (los del servidor no son públicos). */
+        achievements: gameConfigSchema.shape.achievements,
       })
       .strict(),
   })
