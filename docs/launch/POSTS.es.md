@@ -1,6 +1,6 @@
 # Posts de lanzamiento (español)
 
-Borradores. **No se publica nada.** Enlaces: repo `https://github.com/Aimarmndz/vibe-gambling`, web `https://vibe.aimar.dev`, perfil `https://github.com/Aimarmndz`. Adjunta `docs/demo.gif` (o el vídeo de 30 s) donde se pueda. Dilo siempre: parodia, monedas falsas, aquí no se apuesta nada real.
+Borradores. **No se publica nada.** Enlaces: repo `https://github.com/Aimarmndz/vibe-gambling`, web `https://vibe.aimar.dev`, perfil `https://github.com/Aimarmndz`. Adjunta `docs/hero.gif` (o el vídeo de 30 s) donde se pueda. Dilo siempre: parodia, monedas falsas, aquí no se apuesta nada real.
 
 Hacker News, r/ClaudeAI y r/ProgrammerHumor son en inglés: usa [POSTS.en.md](POSTS.en.md). Estos son para Twitter/X en español y comunidades hispanohablantes (Discord, Telegram, foros, LinkedIn si te atreves).
 

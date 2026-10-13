@@ -26,9 +26,9 @@ Monedas de mentira, vicio de verdad (que no). Ranking mundial de los devs más a
 
 <br>
 
-<img src="docs/demo.gif" alt="Un turno de verdad: la mesa mientras Claude piensa, la ruleta girando, la bola que cae, la frase de ludópata y el guardado en la memory card" width="640">
+<img src="docs/hero.gif" alt="Una sesión real de Claude Code a la izquierda y la ventana de vibe-gambling a la derecha: se escribe un prompt, la ruleta gira mientras Claude lee un archivo y contesta, la bola cae y el mod enseña el resultado en la terminal" width="960">
 
-<sub>Un turno de verdad, de principio a fin. Sin trucos de montaje: la bola cae cuando Claude acaba.</sub>
+<sub>Un turno de verdad, sin cortes: una sesión de Claude Code con el mod cargado (izquierda) y la ventana del juego (derecha), grabadas con el mismo reloj.</sub>
 
 </div>
 

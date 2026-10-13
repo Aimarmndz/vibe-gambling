@@ -26,9 +26,9 @@ Fake coins, real addiction (not really). Global leaderboard of the most broke de
 
 <br>
 
-<img src="docs/demo.gif" alt="One real turn: the PS1-style table while Claude thinks, then the wheel spins, the ball drops, a gambler phrase and a memory card save" width="640">
+<img src="docs/hero.gif" alt="A real Claude Code session on the left and the vibe-gambling window on the right: a prompt is typed, the wheel spins while Claude reads a file and answers, then the ball drops and the mod shows the result in the terminal" width="960">
 
-<sub>One real turn, start to finish. The window speaks four languages; this one happens to be Spanish.</sub>
+<sub>One real turn, unedited: a live Claude Code session with the mod loaded (left) and the game window (right), recorded on the same clock.</sub>
 
 </div>
 

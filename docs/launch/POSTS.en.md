@@ -1,6 +1,6 @@
 # Launch posts (English)
 
-Drafts. **Nothing is published.** Links: repo `https://github.com/Aimarmndz/vibe-gambling`, site `https://vibe.aimar.dev`, profile `https://github.com/Aimarmndz`. Attach `docs/demo.gif` (or the 30 s video) wherever images are allowed. Always say it: parody, fake coins, nothing real is gambled.
+Drafts. **Nothing is published.** Links: repo `https://github.com/Aimarmndz/vibe-gambling`, site `https://vibe.aimar.dev`, profile `https://github.com/Aimarmndz`. Attach `docs/hero.gif` (or the 30 s video) wherever images are allowed. Always say it: parody, fake coins, nothing real is gambled.
 
 ## Show HN
 

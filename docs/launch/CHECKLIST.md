@@ -7,7 +7,7 @@ Para Aimar. **Nada de esto está hecho**: todo lo que toca GitHub, la VPS o publ
 - [ ] `git log --format='%an <%ae>%n%(trailers:key=Signed-off-by)' | sort -u`: solo tu identidad personal (Aimarmndz), todos los commits con `Signed-off-by` y ningún `Co-Authored-By`.
 - [ ] Nada que no deba subir: `git ls-files | grep -E '(^|/)\.env$|^\.plan/|\.(pem|key)$'` no devuelve nada.
 - [ ] Todo en verde en local: `pnpm lint`, `pnpm typecheck`, `pnpm test`, integración del servidor y E2E.
-- [ ] `docs/demo.gif` grabado (el README ya lo enlaza) y `docs/launch/social-preview.png` (1280×640) hecho.
+- [ ] `docs/hero.gif` grabado (el README ya lo enlaza) y `docs/launch/social-preview.png` (1280×640) hecho.
 - [ ] Push inicial a `git@github.com:Aimarmndz/vibe-gambling.git` (rama `main`). Con el repo aún privado.
 - [ ] El CI pasa en GitHub (incluida la matriz del mod en Linux, macOS y Windows).
 
@@ -47,7 +47,7 @@ Para Aimar. **Nada de esto está hecho**: todo lo que toca GitHub, la VPS o publ
 - [ ] **Hacer público el repo** (_Settings → General → Danger Zone → Change visibility_).
 - [ ] Justo después, en _Settings → Code security_: activar **secret scanning** y **push protection** (gratis en repos públicos) y comprobar que **CodeQL** (`codeql.yml`) pasa de `skipped` a ejecutarse: lanzarlo a mano (_Actions → CodeQL → Run workflow_) y revisar _Security → Code scanning_. No activar el «default setup» de CodeQL: choca con el workflow avanzado.
 - [ ] Probar la instalación de verdad, en un Claude Code limpio: `/plugin install vibe-gambling --marketplace Aimarmndz/vibe-gambling` → `/vibe-login` → un prompt → la ventana se abre y la bola cae. Con el repo privado este paso falla: hazlo justo después de publicarlo.
-- [ ] **Release v0.1.0**: la crea `release.yml` con las notas del CHANGELOG, los artefactos y la verificación. Editarla (_Releases → v0.1.0 → Edit_) para el anuncio: título `v0.1.0 — Every prompt is a spin`, el GIF (`docs/demo.gif`) arriba, "Fake coins only" y el enlace a `https://vibe.aimar.dev` (relanzar el workflow vuelve a escribir las notas).
+- [ ] **Release v0.1.0**: la crea `release.yml` con las notas del CHANGELOG, los artefactos y la verificación. Editarla (_Releases → v0.1.0 → Edit_) para el anuncio: título `v0.1.0 — Every prompt is a spin`, el GIF (`docs/hero.gif`) arriba, "Fake coins only" y el enlace a `https://vibe.aimar.dev` (relanzar el workflow vuelve a escribir las notas).
 - [ ] **Fijar** el repo en tu perfil (_tu perfil → Customize your pins_), junto a scan2nas.
 - [ ] En el README de tu perfil (`Aimarmndz/aimarmndz`), una línea con el enlace.
 - [ ] Ponerle **descripción a scan2nas** en GitHub (ahora está vacía y el README de vibe-gambling lo enlaza): `Preset-based document scanning for Epson scanners on Linux, straight to your NAS (CLI + Qt app).`

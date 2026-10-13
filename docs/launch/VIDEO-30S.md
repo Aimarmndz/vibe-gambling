@@ -17,7 +17,7 @@ Notas:
 
 - La frase "Fake coins only" tiene que verse entera y legible, no en letra pequeña.
 - Nada de logos de Anthropic ni de Sony; "Claude Code" aparece solo porque es la terminal que se ve.
-- Para el GIF del README (`docs/demo.gif`) vale el tramo de 7 s a 22 s, sin textos, a 15 fps y 720 px de ancho.
+- El GIF del README (`docs/hero.gif`) no sale de este vídeo: lo graba `pnpm --filter @vibe-gambling/web hero:record` (terminal real y ventana lado a lado).
 
 ## Textos en español
 
