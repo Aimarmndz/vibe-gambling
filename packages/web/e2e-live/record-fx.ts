@@ -62,7 +62,7 @@ async function record(
         JSON.stringify({ sound: false, crt: false, quality: 'high', locale: 'es' }),
       )
     })
-    await page.goto(new URL(`/play?demo&noboot&fx=${kind}`, env.FX_BASE_URL).toString())
+    await page.goto(new URL(`/play?demo&noboot&nogpuwarn&fx=${kind}`, env.FX_BASE_URL).toString())
     const from = await play(page, since)
     const until = since()
     await context.close()

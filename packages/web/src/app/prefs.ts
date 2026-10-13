@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Preferencias que se quedan en el navegador (sonido, CRT, calidad, idioma y giros automáticos de
-// la demo). Solo comodidades: si el almacenamiento falla o está vacío, se usan los valores
-// iniciales y todo funciona igual.
+// Preferencias que se quedan en el navegador (sonido, CRT, calidad, idioma, giros automáticos de
+// la demo y el aviso de aceleración por hardware). Solo comodidades: si el almacenamiento falla o
+// está vacío, se usan los valores iniciales y todo funciona igual.
 import { localeSchema } from '@vibe-gambling/shared'
 import { z } from 'zod'
 
@@ -18,6 +18,8 @@ export const prefsSchema = z.object({
   locale: localeSchema.nullable().catch(null),
   /** Demo: la ruleta gira sola (AUTO) o espera a que la persona gire (PAUSA). Por defecto, AUTO. */
   demoAuto: z.boolean().catch(true),
+  /** Avisar si el navegador dibuja sin aceleración por hardware ("No volver a mostrar" = false). */
+  gpuWarning: z.boolean().catch(true),
 })
 export type Prefs = z.output<typeof prefsSchema>
 
@@ -28,6 +30,7 @@ export const DEFAULT_PREFS: Prefs = Object.freeze({
   volume: VOLUME_STEPS,
   locale: null,
   demoAuto: true,
+  gpuWarning: true,
 })
 
 const KEY = 'vibe-gambling:prefs'

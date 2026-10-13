@@ -23,6 +23,25 @@
       <p id="fallback-body"></p>
       <p><a id="fallback-home" href="/"></a></p>
     </main>
+    <!-- Aviso de WebGL por software (src/ui/gpuWarning.ts): los textos los pone el código. -->
+    <dialog
+      id="gpu-warning"
+      class="gpu-warning"
+      aria-labelledby="gpu-title"
+      aria-describedby="gpu-body"
+      hidden
+    >
+      <div class="gpu-scroll">
+        <h2 id="gpu-title"></h2>
+        <p id="gpu-body"></p>
+        <p id="gpu-how" class="gpu-how"></p>
+        <ul id="gpu-steps" class="gpu-steps"></ul>
+      </div>
+      <div class="gpu-actions">
+        <button type="button" id="gpu-ok" class="gpu-primary"></button>
+        <button type="button" id="gpu-never"></button>
+      </div>
+    </dialog>
     <noscript>
       <main class="fallback">
         <h1>vibe-gambling</h1>

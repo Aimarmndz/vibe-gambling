@@ -72,9 +72,10 @@ describe('preferencias del navegador', () => {
   })
 })
 
-describe('preferencias de la demo', () => {
-  it('por defecto, AUTO; las de antes (sin este campo) siguen valiendo', () => {
+describe('preferencias de la demo y del aviso de GPU', () => {
+  it('por defecto, AUTO y con aviso; las de antes (sin estos campos) siguen valiendo', () => {
     expect(DEFAULT_PREFS.demoAuto).toBe(true)
+    expect(DEFAULT_PREFS.gpuWarning).toBe(true)
     const store = new Map<string, string>()
     const storage = {
       getItem: (k: string) => store.get(k) ?? null,
@@ -89,10 +90,11 @@ describe('preferencias de la demo', () => {
       quality: 'low',
       locale: 'fr',
       demoAuto: true,
+      gpuWarning: true,
     })
-    savePrefs(storage, { ...DEFAULT_PREFS, demoAuto: false })
-    expect(loadPrefs(storage)).toMatchObject({ demoAuto: false })
-    // Un valor raro en el campo nuevo no tira el resto.
+    savePrefs(storage, { ...DEFAULT_PREFS, demoAuto: false, gpuWarning: false })
+    expect(loadPrefs(storage)).toMatchObject({ demoAuto: false, gpuWarning: false })
+    // Un valor raro en un campo nuevo no tira el resto.
     store.set('vibe-gambling:prefs', JSON.stringify({ ...DEFAULT_PREFS, demoAuto: 'yes' }))
     expect(loadPrefs(storage)).toEqual(DEFAULT_PREFS)
   })

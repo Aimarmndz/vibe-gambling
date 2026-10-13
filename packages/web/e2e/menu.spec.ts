@@ -64,7 +64,7 @@ test('menú con datos del servidor: estadísticas, logros y banco', async ({ pag
     meResponseSchema.parse(await (await request.get(API_ROUTES.me.path, { headers })).json())
 
   await page.addInitScript(() => localStorage.setItem('vibe-gambling:tip-seen', '1'))
-  await page.goto(`${await linkUrl(request, token)}&noboot`)
+  await page.goto(`${await linkUrl(request, token)}&noboot&nogpuwarn`)
   await waitUser(page)
   if ((await screens(page)).includes('pendingNotice')) await page.keyboard.press('o')
 
@@ -136,7 +136,7 @@ async function showcase(browser: Browser, locale: string) {
   const context = await browser.newContext({ locale, viewport: { width: 960, height: 720 } })
   const page = await context.newPage()
   await page.addInitScript(() => localStorage.setItem('vibe-gambling:tip-seen', '1'))
-  await page.goto('/play?demo=manual&noboot')
+  await page.goto('/play?demo=manual&noboot&nogpuwarn')
   await waitUser(page)
   return { context, page }
 }

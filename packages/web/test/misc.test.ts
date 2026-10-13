@@ -79,6 +79,19 @@ describe('recordatorios por navegador', () => {
     expect(warn).toHaveBeenCalledTimes(2)
     warn.mockRestore()
   })
+
+  it('el aviso de GPU sale una vez por sesión', async () => {
+    const { gpuWarned, markGpuWarned } = await import('../src/app/onboarding.ts')
+    const data = new Map<string, string>()
+    const session = {
+      getItem: (k: string) => data.get(k) ?? null,
+      setItem: (k: string, v: string) => void data.set(k, v),
+    }
+    expect(gpuWarned(session)).toBe(false)
+    markGpuWarned(session)
+    expect(gpuWarned(session)).toBe(true)
+    expect(gpuWarned(null)).toBe(false)
+  })
 })
 
 describe('ruleta: la casilla del 0 se enciende en ¡VERDE!', () => {

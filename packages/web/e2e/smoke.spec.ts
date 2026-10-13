@@ -84,7 +84,7 @@ const render = (page: Page) =>
   page.evaluate(() => (window as unknown as { __vg: Hooks }).__vg.render())
 
 async function openDemo(page: Page, query = 'demo=manual&noboot') {
-  await page.goto(`/play?${query}`)
+  await page.goto(`/play?${query}&nogpuwarn`)
   await page.waitForFunction(() => (window as unknown as { __vg?: Hooks }).__vg?.state().user)
 }
 
@@ -178,7 +178,7 @@ test.describe('humo', () => {
         return (original as (...a: unknown[]) => RenderingContext | null).apply(this, args)
       } as typeof original
     })
-    await page.goto('/play?demo')
+    await page.goto('/play?demo&nogpuwarn')
     await expect(page.locator('#fallback')).toBeVisible()
     await expect(page.locator('#fallback-title')).not.toBeEmpty()
     await expect(page.locator('#screen')).toBeHidden()

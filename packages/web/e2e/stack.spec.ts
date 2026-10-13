@@ -40,7 +40,7 @@ test('la ventana juega una ronda de verdad contra el servidor', async ({
   const fresh = () =>
     browser.newPage({ baseURL, viewport: { width: 960, height: 720 }, locale: 'es-ES' })
   const anon = await fresh()
-  await anon.goto('/play?noboot')
+  await anon.goto('/play?noboot&nogpuwarn')
   await anon.waitForFunction(() =>
     (window as unknown as { __vg?: Hooks }).__vg?.screens().includes('message'),
   )
@@ -50,7 +50,7 @@ test('la ventana juega una ronda de verdad contra el servidor', async ({
 
   // Enlace de un solo uso: la web lo canjea y lo quita de la URL.
   const url = await linkUrl(request, token)
-  await page.goto(url)
+  await page.goto(`${url}&nogpuwarn`)
   await page.waitForTimeout(2600)
   await shot(page, 'boot')
   await page.waitForTimeout(1800)
@@ -192,7 +192,7 @@ test('la ventana juega una ronda de verdad contra el servidor', async ({
 
   // Un enlace ya usado no vale dos veces.
   const reused = await fresh()
-  await reused.goto(url)
+  await reused.goto(`${url}&nogpuwarn`)
   await reused.waitForFunction(() =>
     (window as unknown as { __vg?: Hooks }).__vg?.screens().includes('message'),
   )
@@ -226,7 +226,7 @@ test('tiradas pendientes: se acumulan con la ventana cerrada y se gastan con GIR
 
   // 2. Al abrir la ventana: aviso con el contador; ✕ lleva a la pantalla de tiradas pendientes.
   await page.addInitScript(() => localStorage.setItem('vibe-gambling:tip-seen', '1'))
-  await page.goto(`${await linkUrl(request, token)}&noboot`)
+  await page.goto(`${await linkUrl(request, token)}&noboot&nogpuwarn`)
   await page.waitForFunction(() =>
     (window as unknown as { __vg?: Hooks }).__vg?.screens().includes('pendingNotice'),
   )

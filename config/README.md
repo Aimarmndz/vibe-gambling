@@ -6,6 +6,6 @@ Configuración versionada de vibe-gambling. **Ningún valor de estos archivos es
 | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
 | `game.json` | Números del juego: saldo inicial, fichas, préstamo y su TAE, jackpot, temporadas, giro mínimo, rachas, edad mínima de la cuenta de GitHub para el ranking                        | `gameConfigSchema` (`packages/shared`)                             |
 | `site.json` | Textos de marca y enlaces: autor, repo, comando de instalación, ayuda real, otros proyectos y los datos de la instancia para `/privacy` (`instance`, ver `docs/SELF-HOSTING.md`) | `siteConfigSchema` (`packages/server`)                             |
-| `web.json`  | Ajustes del cliente web: ping y reconexión del WebSocket, tiempos de la interfaz, ranking y modo demo                                                                            | `webClientConfigSchema` (`packages/web`, se empaqueta en la build) |
+| `web.json`  | Ajustes del cliente web: ping y reconexión del WebSocket, tiempos de la interfaz, ranking, modo demo y renderers WebGL por software (aviso de aceleración por hardware)          | `webClientConfigSchema` (`packages/web`, se empaqueta en la build) |
 
 Las variables de entorno (URLs, puertos, secretos, rate limits…) están en `deploy/.env.example`.

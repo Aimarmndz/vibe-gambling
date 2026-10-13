@@ -104,6 +104,8 @@ export interface GameOptions {
   translator: Translator
   /** Mandos AUTO/PAUSA y GIRAR de la demo (solo con `demo`). */
   demoControl?: DemoAutoControl
+  /** Cuando termina el arranque (o enseguida, si se lo salta): la mesa ya está a la vista. */
+  onBooted?: () => void
 }
 
 /** Curva barril del CRT (la misma que el shader), para que el ratón apunte bien con el filtro. */
@@ -228,10 +230,12 @@ export class Game implements AppContext {
         this.boot = null
         markBootSeen(safeStorage('session'))
         this.showTipOnce()
+        opts.onBooted?.()
       })
       this.screens.push(this.boot)
     } else {
       this.showTipOnce()
+      if (opts.onBooted) queueMicrotask(opts.onBooted)
     }
     this.applyPrefs()
 

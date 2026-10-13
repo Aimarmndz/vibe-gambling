@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Entrada de /play: comprueba WebGL2, carga /config.json, canjea el código de un solo uso y arranca
 // la ventana. Three.js y el juego se cargan aparte (import dinámico) para que esto pinte rápido.
+// Si WebGL va por software (sin aceleración por hardware), avisa tras el arranque, sin bloquear.
 // Primero de todo: zod sin `new Function` (CSP sin 'unsafe-eval'), ver zodJitless.ts.
 import './zodJitless.ts'
 import './styles/play.css'
@@ -9,8 +10,11 @@ import { clientConfig, loadWebConfig } from './config.ts'
 import { applyDocumentLanguage, detectLocale, loadTranslator } from './i18n/index.ts'
 import type { Translator } from './i18n/index.ts'
 import { ApiError, redeemCode, takeCodeFromUrl } from './net/api.ts'
+import { gpuWarned, markGpuWarned } from './app/onboarding.ts'
 import { loadPrefs, safeStorage } from './app/prefs.ts'
+import { detectSoftwareGpu } from './render/gpu.ts'
 import { hasWebGL2 } from './render/pipeline.ts'
+import { showGpuWarning } from './ui/gpuWarning.ts'
 
 function fallback(tr: Translator, title: string, body: string): void {
   const root = document.getElementById('fallback')
@@ -45,6 +49,17 @@ async function main(): Promise<void> {
 
   const params = new URLSearchParams(window.location.search)
   const demo = params.has('demo')
+  // Aviso de WebGL por software: una vez por sesión, salvo "No volver a mostrar" o `?nogpuwarn`
+  // (los E2E, cuyos navegadores dibujan por software). `?gpu=software` fuerza la detección.
+  let warnGpu = false
+  if (prefs.gpuWarning && !params.has('nogpuwarn') && !gpuWarned(safeStorage('session'))) {
+    const gpu = detectSoftwareGpu(
+      clientConfig.gpu.softwareRenderers,
+      params.get('gpu') === 'software',
+    )
+    if (gpu.software) console.info('[gpu] WebGL por software', gpu.reason, gpu.renderer ?? '')
+    warnGpu = gpu.software
+  }
   // El código de un solo uso se quita de la URL antes de nada (que no quede en el historial).
   const code = takeCodeFromUrl(window.location, window.history)
   let linkExpired = false
@@ -86,7 +101,7 @@ async function main(): Promise<void> {
   }
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
   const canvas = document.getElementById('screen') as HTMLCanvasElement
-  const game = new Game({
+  const game: InstanceType<typeof Game> = new Game({
     canvas,
     live: document.getElementById('live')!,
     web,
@@ -98,6 +113,15 @@ async function main(): Promise<void> {
     linkExpired,
     translator: tr,
     demoControl,
+    onBooted: () => {
+      if (!warnGpu) return
+      markGpuWarned(safeStorage('session'))
+      showGpuWarning({
+        tr: game.tr,
+        onNever: () => game.setPrefs({ gpuWarning: false }),
+        returnFocus: canvas,
+      })
+    },
   })
   game.start()
   canvas.focus()

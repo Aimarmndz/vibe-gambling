@@ -201,7 +201,7 @@ async function main(): Promise<void> {
     const link = await api<{ url: string }>('/api/auth/link', { v: 1 }, token)
     const page = await browser.newPage({ viewport: { width: 960, height: 720 }, locale: 'es-ES' })
     await page.addInitScript(() => localStorage.setItem('vibe-gambling:tip-seen', '1'))
-    await page.goto(`${link.url}&noboot`)
+    await page.goto(`${link.url}&noboot&nogpuwarn`)
     await waitFor(
       async () => (await hooks(page)).screens.includes('pendingNotice'),
       30_000,

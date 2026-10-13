@@ -118,7 +118,7 @@ async function main(): Promise<void> {
         frames.push({ type: String(body.type), at: Date.now(), body })
       }),
     )
-    await page.goto(link.url)
+    await page.goto(`${link.url}&nogpuwarn`)
     await waitFor(() => frames.some(f => f.type === 'hello'), 20_000, 'hello de la ventana')
     const user = (frames.find(f => f.type === 'hello')?.body.user as { login: string }).login
     log(`ventana conectada como ${user}`)

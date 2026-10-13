@@ -253,6 +253,16 @@ export const webClientConfigSchema = z
         achievements: gameConfigSchema.shape.achievements,
       })
       .strict(),
+    /** Aviso de aceleración por hardware desactivada (render/gpu.ts). */
+    gpu: z
+      .object({
+        /**
+         * Trozos del nombre del renderer WebGL (`WEBGL_debug_renderer_info`) que delatan que se
+         * dibuja por software. Sin distinguir mayúsculas.
+         */
+        softwareRenderers: z.array(z.string().trim().min(2).max(80)).min(1).max(50),
+      })
+      .strict(),
   })
   .strict()
   .refine(cfg => cfg.ws.reconnect.maxMs >= cfg.ws.reconnect.baseMs, {

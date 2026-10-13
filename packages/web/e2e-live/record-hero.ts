@@ -231,7 +231,7 @@ async function main(): Promise<void> {
         events.push({ type: String(body.type), at: Date.now(), body })
       }),
     )
-    await page.goto(link.url)
+    await page.goto(`${link.url}&nogpuwarn`)
     await toTable(page)
     for (const key of env.HERO_BETS.split(/\s+/)) {
       await page.keyboard.press(key)

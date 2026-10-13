@@ -57,7 +57,7 @@ test('Ajustes: las banderas cambian la ventana a francés y alemán al momento y
       .locale
 
   // El navegador del E2E pide español: es el idioma inicial (nada guardado todavía).
-  await page.goto(`${await linkUrl(request, token)}&noboot`)
+  await page.goto(`${await linkUrl(request, token)}&noboot&nogpuwarn`)
   await waitScreen(page, 'tip')
   await expect(htmlLang(page)).toHaveAttribute('lang', 'es')
   await page.keyboard.press('x')

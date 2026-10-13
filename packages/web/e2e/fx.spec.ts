@@ -55,7 +55,7 @@ async function open(browser: Browser, kind: string, reduced = false): Promise<Pa
       JSON.stringify({ sound: true, crt: false, quality: 'high', locale: 'es' }),
     )
   })
-  await page.goto(`/play?demo&noboot&fx=${kind}`)
+  await page.goto(`/play?demo&noboot&nogpuwarn&fx=${kind}`)
   await page.waitForFunction(() => (window as unknown as { __vg?: FxHooks }).__vg?.state().user)
   return page
 }
