@@ -1,6 +1,6 @@
 {
   "privacy.title": "Confidentialité",
-  "privacy.lede": "vibe-gambling ne sait rien de ton travail. Cette page explique exactement ce que cette instance conserve, pourquoi, où, combien de temps et comment le supprimer.",
+  "privacy.lede": "La seule chose avec laquelle ce casino ne joue jamais, ce sont tes données. vibe-gambling ne sait rien de ton travail. Cette page explique exactement ce que cette instance conserve, pourquoi, où, combien de temps et comment le supprimer.",
   "privacy.instance.unknown": "Les informations sur cette instance (qui l’exploite, où elle est hébergée, comment la contacter) n’ont pas pu être chargées. Recharge la page pour réessayer.",
   "privacy.unit.day.one": "{n} jour",
   "privacy.unit.day.other": "{n} jours",

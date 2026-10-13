@@ -113,7 +113,7 @@ test(
     await w.clock.advance(5_000)
     expect(w.store.get(SESSION_KEY)).toEqual({ token: NEW_TOKEN, login: LOGIN })
     expect(w.toasts.at(-1)).toBe(
-      `🎰 Welcome to the table, @${LOGIN}. Your GitHub account is under 30 days old: you play as usual and show up on the public leaderboard (login and avatar) from Nov 12, 2026. /vibe-hide to stay off it.`,
+      `🎰 Welcome to the table, @${LOGIN}. Risk: 100%. Upside: infinite. Real money: none. Your GitHub account is under 30 days old: you play as usual and show up on the public leaderboard (login and avatar) from Nov 12, 2026. /vibe-hide to stay off it.`,
     )
   },
 )
@@ -177,7 +177,7 @@ test('denied and expired answers stop the polling', { options: TEST_OPTIONS }, a
   await startSession($, w)
   await command($, 'vibe-login')
   await w.clock.advance(5_000)
-  expect(w.toasts.at(-1)).toBe('GitHub login was cancelled. The table will wait.')
+  expect(w.toasts.at(-1)).toBe('GitHub login was cancelled. The table will wait. It always does.')
   await w.clock.advance(60_000)
   expect(w.to('/api/auth/device/poll')).toHaveLength(1)
 })
@@ -220,7 +220,7 @@ test(
     await $.turn.start({ text: 'hello again', turnId: 'b' })
     await w.clock.settle()
     expect(w.toasts).toEqual([
-      '🎰 Every prompt is a spin. Run /vibe-login to take a seat at the table.',
+      '🎰 Every prompt is a spin. Risk: 100%. Upside: infinite. Run /vibe-login to take a seat at the table.',
     ])
     expect(w.requests).toHaveLength(0)
   },

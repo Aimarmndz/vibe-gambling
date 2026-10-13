@@ -128,7 +128,7 @@ for (const [name, args] of [
       await startSession($, w)
       w.store.set(SESSION_KEY, { token: TOKEN, login: LOGIN })
       const { text } = await command($, name, args)
-      expect(text).toBe('Your session expired. Run /vibe-login again.')
+      expect(text).toBe('Your session expired. Run /vibe-login again. Even sessions need a break.')
       expect(w.store.has(SESSION_KEY)).toBe(false)
       expect(w.lastStatus()).toBe('🎰 /vibe-login')
     },

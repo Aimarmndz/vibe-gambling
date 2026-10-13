@@ -12,7 +12,13 @@
     "Ça marche sur ma machine. Et sur la roue aussi.",
     "J’arrête quand je veux. Juste pas maintenant, je suis chaud.",
     "Merge validé par l’univers.",
-    "La chance, ça se code."
+    "La chance, ça se code.",
+    "Risque : 100 %. Rendement : 100 % aussi. Le compte est bon.",
+    "Ça ne peut que monter. 🚀",
+    "Développeur 10x, parieur 35x.",
+    "Mon avantage concurrentiel, c’est le feeling. Et il performe.",
+    "Patrimoine transgénérationnel. Une génération : moi, jusqu’au prochain tour.",
+    "Je t’avais dit que le rouge, c’était du long terme."
   ],
   "lose": [
     "Le prochain, c’est le bon.",
@@ -29,60 +35,78 @@
     "Ça ira mieux en prod.",
     "Je fais un rollback de mon solde. Ah non, on ne peut pas.",
     "La roue me doit une revanche.",
-    "Faites vos jeux, qu’ils disaient."
+    "Faites vos jeux, qu’ils disaient.",
+    "On peut perdre 100 %, mais on peut aussi gagner l’infini. Aujourd’hui, c’était jour de 100 %.",
+    "Je n’ai pas perdu : j’ai pivoté.",
+    "J’achète la baisse. La baisse continue de baisser.",
+    "On est encore tôt.",
+    "−100 %. Belle marge de progression.",
+    "La maison gagne toujours ; mon code compile parfois. Aujourd’hui, même pas."
   ],
   "zero": [
     "Zéro. Toujours zéro. Comme ma couverture de tests.",
     "La bille tombe sur le 0 : la banque gagne, la banque gagne toujours.",
     "Zéro. Autant que mes commits d’hier.",
-    "Erreur d’indice cosmique : le tableau commençait à 0."
+    "Erreur d’indice cosmique : le tableau commençait à 0.",
+    "0. La vraie valeur de ces pièces, au passage.",
+    "Le zéro : le seul numéro auquel la maison croit dur comme fer."
   ],
   "bigWin": [
     "EN PLEIN ! Je démissionne. Demain. Peut-être.",
     "Ça va direct sur mon LinkedIn.",
     "J’ai battu le marché. Et le bon sens.",
-    "Plein dans le mille, comme une regex qui marche du premier coup."
+    "Plein dans le mille, comme une regex qui marche du premier coup.",
+    "Je lance ma formation : « Comment j’ai battu la roulette (une fois) »."
   ],
   "bigLoss": [
     "Tout est sous contrôle. Tout. Est. Sous. Contrôle.",
     "C’est un défaut de conception, pas le mien.",
     "Respire. C’est de l’argent fictif. Respire plus fort.",
-    "Rien ne va plus. Moi non plus."
+    "Rien ne va plus. Moi non plus.",
+    "Je ne perds pas : je fais un stress test de mon portefeuille.",
+    "Dans le dur. Dans le dur fictif, heureusement."
   ],
   "jackpot": [
     "push en prod = bonus 🚀",
     "git push réussi : gains ×{multiplier}. Déployer, c’est jouer.",
     "Push au vert, tapis au vert. Enfin, couleur : {color}.",
-    "Tu as poussé en prod un vendredi et la roue te récompense. Ne fais pas ça chez toi."
+    "Tu as poussé en prod un vendredi et la roue te récompense. Ne fais pas ça chez toi.",
+    "Livré en prod, payé ×{multiplier} en pièces fictives. Meilleur sprint de l’histoire."
   ],
   "testFailed": [
     "Les tests aussi jouent à la roulette.",
     "Les tests sont au rouge. Au moins quelqu’un a misé sur le rouge.",
     "Un test a échoué : bienvenue à la roulette de la CI.",
-    "Tes tests et toi avez un point commun : ce n’est pas votre jour."
+    "Tes tests et toi avez un point commun : ce n’est pas votre jour.",
+    "Tests au rouge, solde au rouge. Au moins, je suis cohérent."
   ],
   "autoDefault": [
     "Mise automatique : ton inconscient a choisi le rouge.",
-    "Tu n’as pas misé, alors j’ai misé pour toi. Rouge, comme le veut la tradition."
+    "Tu n’as pas misé, alors j’ai misé pour toi. Rouge, comme le veut la tradition.",
+    "Mise par défaut placée. L’équipe growth appelle ça « un onboarding sans friction »."
   ],
   "autoRepeat": [
     "Je rejoue ta dernière mise. La constance, c’est la clé (paraît-il).",
     "Même mise que la dernière fois. Si ça n’a pas marché, ça va forcément tomber.",
-    "Mise répétée : la chance sourit aux têtus."
+    "Mise répétée : la chance sourit aux têtus.",
+    "Même mise, encore. Refaire la même chose en espérant un autre résultat, ça s’appelle une stratégie maintenant."
   ],
   "noBet": [
     "Pas de jetons, alors la roue tourne sans toi. Bizarre, non ?",
-    "Tu n’as même plus de quoi miser un jeton. Ludo-Crédit Express t’attend."
+    "Tu n’as même plus de quoi miser un jeton. Ludo-Crédit Express t’attend.",
+    "Zéro jeton sur la table, zéro risque. Bizarrement, zéro fun."
   ],
   "streakWarning": [
     "{count} {color} d’affilée. Le {pick} DOIT tomber.",
     "{count} {color} de suite. Statistiquement, le {pick} est dû (non, il ne l’est pas).",
-    "{count} {color} d’affilée. Là, c’est personnel."
+    "{count} {color} d’affilée. Là, c’est personnel.",
+    "{count} {color} d’affilée. Le {pick} « va forcément sortir ». Spoiler : la roue n’a pas de mémoire."
   ],
   "broke": [
     "Solde à zéro. Moment idéal pour un prêt à un raisonnable {apr} % de TAEG.",
     "Tu es fauché. Mais on apprend beaucoup dans la ruine.",
-    "Faillite. Ton patrimoine est désormais un nombre négatif plein de caractère."
+    "Faillite. Ton patrimoine est désormais un nombre négatif plein de caractère.",
+    "Patrimoine : négatif. Vibes : impeccables."
   ],
   "pendingDropped": [
     "Tu as déjà {max} tours en attente. Ce prompt part à la corbeille, comme mes bonnes résolutions.",
@@ -105,6 +129,7 @@
     "{limit} tours. À ce stade, c’est la roulette qui te fait tourner.",
     "Ta série impressionne. Ta posture, beaucoup moins. Étire-toi.",
     "Rien ne va plus. Vraiment plus. Jusqu’à minuit.",
-    "Tu as plus tourné que la chaise du bureau pendant le stand-up."
+    "Tu as plus tourné que la chaise du bureau pendant le stand-up.",
+    "Le growth voulait des tours illimités. Le juridique a dit non. Le juridique a gagné."
   ]
 }

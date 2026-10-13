@@ -5,7 +5,8 @@
 ### 🎰 Every prompt is a spin.
 
 A PS1-style roulette that pops up while Claude Code thinks.<br>
-Fake coins, real addiction (not really). Global leaderboard of the most broke devs.
+Risk: 100%. Upside: infinite. Real money involved: zero, legally and spiritually.<br>
+Global leaderboard of the most broke devs.
 
 [![CI](https://github.com/Aimarmndz/vibe-gambling/actions/workflows/ci.yml/badge.svg)](https://github.com/Aimarmndz/vibe-gambling/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/Aimarmndz/vibe-gambling?include_prereleases&sort=semver&color=f2c14e)](https://github.com/Aimarmndz/vibe-gambling/releases)
@@ -30,9 +31,13 @@ Fake coins, real addiction (not really). Global leaderboard of the most broke de
 
 No purchases, no real money, no links to betting sites. Ever. The coins are as real as the users of your vibe-coded MVP, and the only thing you can lose is your dignity on a public leaderboard.
 
+Our tokenomics fit in one line: zero tokens, zero value, zero whitepaper. You cannot cash out, top up, stake, mint or rug-pull anything, because there is nothing there.
+
+<sub>Fine print: past performance of red is not indicative of future results. Future results are not indicative of anything either. Coins have no cash value, no resale value and, after a few seasons, no sentimental value.</sub>
+
 ## Install
 
-In a Claude Code terminal session:
+Frictionless onboarding in three steps. No KYC, no seed phrase, no credit card "just to verify your identity". In a Claude Code terminal session:
 
 ```text
 /plugin install vibe-gambling --marketplace Aimarmndz/vibe-gambling
@@ -40,7 +45,7 @@ In a Claude Code terminal session:
 
 Claude Code asks **`Add marketplace?`** for `github:Aimarmndz/vibe-gambling`: answer `y`, pick the scope (user scope is the first one: press Enter), skim the plugin options (server, auto-open, language… the defaults are fine) and you get `Installed vibe-gambling. Plugin is now active.`
 
-Then take a seat at the table:
+Then take a seat at the table (your first round of regret is on the house):
 
 ```text
 /vibe-login
@@ -52,7 +57,7 @@ It prints a GitHub device code (`🎰 Go to https://github.com/login/device and 
 2. When Claude finishes, the ball drops. You get the result in a toast and your balance in the status line (`🎰 750 🪙`).
 3. You get a gambler phrase you did not ask for. That is the product.
 
-Good to know:
+Good to know (the terms and conditions, in a font size you can actually read):
 
 - **It never slows Claude down.** Every request runs in the background with a 1.5 s timeout. If the casino is down, the status line says `🎰 offline` and life goes on.
 - **It needs a browser.** With Chrome, Chromium, Brave, Edge or Vivaldi the window opens as a borderless 960×720 app; otherwise, in your default browser. Linux, macOS and Windows.
@@ -62,6 +67,8 @@ Good to know:
 ## How to play
 
 There is no spin button. **Your prompts are the spins.** Every turn opens a round; when Claude finishes, the server spins the wheel and settles your bets.
+
+The pitch deck calls this _AI-native, prompt-led engagement_. In plain words: the more you ship, the more you spin, and the house is fine with both.
 
 ### Live or pending
 
@@ -88,15 +95,15 @@ Bet in the window (mouse, keyboard or gamepad: arrows to move, ✕ to drop a chi
 | Dozen · Column                    | 2:1  |
 | Red/Black · Even/Odd · 1–18/19–36 | 1:1  |
 
-When the 0 comes up, every even-money bet loses. No _la partage_: the house wants your fake money.
+When the 0 comes up, every even-money bet loses. No _la partage_: the house wants your fake money. The house always wins; your code, sometimes, compiles.
 
 ### House rules
 
-Defaults of the official instance; all of them live in [`config/game.json`](config/game.json).
+Defaults of the official instance; all of them live in [`config/game.json`](config/game.json). Terms and conditions apply. Conditions also apply to the terms.
 
 - **1,000 coins** at the start of each season. Chips: 10, 50, 100, 500, 1,000 and ALL-IN.
 - **Didn't bet?** Your last bet is repeated. Never bet at all? Your subconscious puts 10 on red.
-- **Ludo-Credit Express.** Can't afford the smallest chip? The window offers a 1,000-coin loan at a **4,200 % APR**. The debt grows 2 % with every spin. There is no repay button. There is fine print, and it scrolls too fast to read.
+- **Ludo-Credit Express.** Can't afford the smallest chip? The window offers a pre-approved 1,000-coin loan at a **4,200 % APR**, no questions asked, no collateral, no future. The debt grows 2 % with every spin. There is no repay button. There is fine print, and it scrolls too fast to read.
 - **Net worth** = balance − debt. It can go very negative. That is the point.
 - **Dev jackpot.** If a `git push` succeeded during the turn, your winnings pay **×2**. _Push to prod = bonus._
 - **Failed tests** get a consolation phrase. Five reds in a row? The window will remind you that black HAS to come up now. It doesn't: that is the gambler's fallacy, and that is the joke.
@@ -109,9 +116,11 @@ You show up on the public leaderboard by default (login, avatar and stats), and 
 
 ### Four languages
 
-🇬🇧 English · 🇪🇸 Español · 🇫🇷 Français · 🇩🇪 Deutsch. All of it: the game, the landing page, the privacy policy, the plugin messages and 60+ gambler phrases per language, adapted rather than translated. The flags are hand-drawn pixel art. The window starts in your browser's language, the plugin in your system's, and you can switch from the in-game settings. [Adding a language](locales/README.md) is copying a folder.
+🇬🇧 English · 🇪🇸 Español · 🇫🇷 Français · 🇩🇪 Deutsch. All of it: the game, the landing page, the privacy policy, the plugin messages and 60+ gambler phrases per language, adapted rather than translated. The flags are hand-drawn pixel art. The window starts in your browser's language, the plugin in your system's, and you can switch from the in-game settings. [Adding a language](locales/README.md) is copying a folder. Global expansion: four markets, zero revenue, flawless execution.
 
 ### Commands
+
+The whole API surface. There is no premium tier: every command is free, and so is every loss.
 
 | Command                        | Alias      | What it does                                                         |
 | ------------------------------ | ---------- | -------------------------------------------------------------------- |
@@ -128,7 +137,7 @@ Plugin options (server, auto-open, language, timeouts, window size) are in `/con
 
 ## The show
 
-Everything happens inside a 320×240 framebuffer with wobbly vertices, dithering and a CRT filter, with synthesized sounds. Every animation can be skipped (✕, ○ or a click), has a short, steady version under `prefers-reduced-motion`, and never gives away the result before the ball drops.
+Cutting-edge 1997 technology, delivered at a 4:3 aspect ratio. Everything happens inside a 320×240 framebuffer with wobbly vertices, dithering and a CRT filter, with synthesized sounds. Every animation can be skipped (✕, ○ or a click), has a short, steady version under `prefers-reduced-motion`, and never gives away the result before the ball drops.
 
 <table>
   <tr>
@@ -178,6 +187,8 @@ Big wins by tiers (**BIG WIN**, **MEGA WIN**, **STRAIGHT UP!**), the table blink
 
 ## Privacy
 
+Possibly the only casino in history that does not want to know anything about you.
+
 **The plugin knows nothing about your work.** A test intercepts every request the plugin makes (turns, every command, the login and the error paths) and fails if it carries anything else.
 
 | Sent to the server                                                | Never sent                                            |
@@ -198,20 +209,20 @@ Full policy: [docs/PRIVACIDAD.md](docs/PRIVACIDAD.md#english) and [vibe.aimar.de
 
 ## Self-hosting
 
-Run your own casino for your team: Docker Compose with Postgres (and an optional Caddy with automatic HTTPS), your own GitHub OAuth App, and `/vibe-server https://your.domain` in Claude Code. Every rule of the house (balance, chips, APR, jackpot, caps, season time zone) is a line in `config/game.json`. Step by step: [docs/SELF-HOSTING.md](docs/SELF-HOSTING.md).
+Exclusive franchise opportunity! No upfront fee, no downline, no pyramid: just Postgres. Run your own casino for your team: Docker Compose with Postgres (and an optional Caddy with automatic HTTPS), your own GitHub OAuth App, and `/vibe-server https://your.domain` in Claude Code. Every rule of the house (balance, chips, APR, jackpot, caps, season time zone) is a line in `config/game.json`. Step by step: [docs/SELF-HOSTING.md](docs/SELF-HOSTING.md).
 
 ## Under the hood
 
-A shitpost on the outside, a TypeScript monorepo you can read on the inside: `shared` (the contract as zod schemas and the pure roulette logic), `server` (Fastify + WebSocket + Drizzle/Postgres, the only authority), `web` (Vite + Three.js with a hand-made PS1 pipeline) and `mod` (the Claude Code plugin, no dependencies).<br>
+A shitpost on the outside, a TypeScript monorepo you can read on the inside (strongly typed, weakly justified): `shared` (the contract as zod schemas and the pure roulette logic), `server` (Fastify + WebSocket + Drizzle/Postgres, the only authority), `web` (Vite + Three.js with a hand-made PS1 pipeline) and `mod` (the Claude Code plugin, no dependencies).<br>
 Nothing configurable is hardcoded. How it fits together: [architecture](docs/ARQUITECTURA.md) · [protocol](docs/PROTOCOLO.md) · [deployment](docs/DESPLIEGUE.md) · [decisions](docs/DECISIONES.md) (the docs are in Spanish; the code is in English).
 
 ## Releases
 
-One version for everything (plugin, server, web and Docker image), [SemVer](https://semver.org/), `0.x` while the protocol may still change. Each [GitHub Release](https://github.com/Aimarmndz/vibe-gambling/releases) ships the plugin as a zip, the server as a tarball for Node.js without Docker, an SPDX SBOM and `SHA256SUMS`, with build provenance you can check with `gh attestation verify`; the multi-arch image goes to `ghcr.io/aimarmndz/vibe-gambling`. What changed: [CHANGELOG.md](CHANGELOG.md). How a release is cut and verified: [docs/RELEASING.md](docs/RELEASING.md).
+Public roadmap, zero burn rate, no runway needed. One version for everything (plugin, server, web and Docker image), [SemVer](https://semver.org/), `0.x` while the protocol may still change. Each [GitHub Release](https://github.com/Aimarmndz/vibe-gambling/releases) ships the plugin as a zip, the server as a tarball for Node.js without Docker, an SPDX SBOM and `SHA256SUMS`, with build provenance you can check with `gh attestation verify`; the multi-arch image goes to `ghcr.io/aimarmndz/vibe-gambling`. What changed: [CHANGELOG.md](CHANGELOG.md). How a release is cut and verified: [docs/RELEASING.md](docs/RELEASING.md).
 
 ## Contributing
 
-The house always wants more:
+The house always wants more. Join the network (it is a contributor list, not a pyramid scheme; we checked):
 
 - **Gambler phrases**, in any of the four languages, in [`locales/<language>/phrases.json`](locales/README.md) or with the _New funny phrase_ issue template. Jokes about fake gambling addiction and dev culture; never about people, groups, or anyone's real addiction.
 - **Languages**: copy `locales/en`, translate it, draw the flag in pixel art. [Step by step](locales/README.md#add-a-language).

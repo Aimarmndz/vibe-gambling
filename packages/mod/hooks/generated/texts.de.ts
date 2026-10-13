@@ -11,9 +11,11 @@ export const modTextsDe: ModTexts = {
   statusOffline: '🎰 offline',
   statusLogin: '🎰 /vibe-login',
   statusBadConfig: '🎰 Konfig kaputt',
-  loginHint: '🎰 Jeder Prompt ist ein Dreh. Mit /vibe-login nimmst du am Tisch Platz.',
+  loginHint:
+    '🎰 Jeder Prompt ist ein Dreh. Risiko: 100 %. Potenzial: unendlich. Mit /vibe-login nimmst du am Tisch Platz.',
   jackpotTag: '🚀 JACKPOT',
-  noRound: 'Das Rad stand ohne dich still. Nächster Prompt, nächster Dreh.',
+  noRound:
+    'Das Rad hat sich ohne dich gedreht. FOMO ist im Preis inbegriffen. Nächster Prompt, nächster Dreh.',
   pendingCount: '{count} offen',
   'pendingCount.one': '{count} offen',
   spinSaved: '🎰 Dreh für später gespeichert · {count} offen. Öffne /roulette und drück DREHEN.',
@@ -25,31 +27,37 @@ export const modTextsDe: ModTexts = {
     '🎰 {count} offene Drehs (Prompts bei geschlossenem Fenster). Löse sie mit DREHEN in /roulette ein.',
   'pendingHint.one':
     '🎰 {count} offener Dreh (ein Prompt bei geschlossenem Fenster). Löse ihn mit DREHEN in /roulette ein.',
-  'command.roulette.description': 'Öffnet das Roulette-Fenster',
-  'command.bet.description': 'Setzt Spielgeld auf den aktuellen oder nächsten Dreh',
+  'command.roulette.description': 'Öffnet das Roulette-Fenster (deine neue IDE)',
+  'command.bet.description':
+    'Setzt Spielgeld auf den aktuellen oder nächsten Dreh. Keine Anlageberatung',
   'command.bet.argumentHint': '<Betrag> <Feld>',
-  'command.allIn.description': 'Setzt dein ganzes Guthaben (standardmäßig auf Rot)',
+  'command.allIn.description':
+    'Setzt dein ganzes Guthaben (standardmäßig auf Rot). Diversifizieren wird überschätzt',
   'command.allIn.argumentHint': '[Feld]',
-  'command.balance.description': 'Kontostand, Schulden, Vermögen und Platz',
-  'command.login.description': 'Mit GitHub anmelden (Gerätecode)',
-  'command.logout.description': 'Von vibe-gambling abmelden',
-  'command.hide.description': 'Aus der öffentlichen Rangliste ausblenden',
-  'command.show.description': 'Wieder in der öffentlichen Rangliste erscheinen',
-  'command.server.description': 'Zeigt oder wechselt den vibe-gambling-Server',
+  'command.balance.description': 'Kontostand, Schulden, Vermögen und Platz. Erst hinsetzen',
+  'command.login.description': 'Mit GitHub anmelden (Gerätecode). Ohne KYC, ohne Einzahlung',
+  'command.logout.description': 'Von vibe-gambling abmelden (wir warten)',
+  'command.hide.description': 'Aus der öffentlichen Rangliste ausblenden. Schande mit Opt-out',
+  'command.show.description': 'Wieder in der öffentlichen Rangliste erscheinen. Schamlos',
+  'command.server.description': 'Zeigt oder wechselt den vibe-gambling-Server (Franchise-Modus)',
   'command.server.argumentHint': '[url|default]',
-  'command.deleteAccount.description': 'Löscht dein Konto und alle seine Daten',
+  'command.deleteAccount.description':
+    'Löscht dein Konto und alle seine Daten. Ohne Ausstiegsgebühr',
   'command.deleteAccount.argumentHint': '<Login>',
-  notLoggedIn: 'Du bist nicht angemeldet. Führe zuerst /vibe-login aus.',
+  notLoggedIn: 'Du bist nicht angemeldet. Führe zuerst /vibe-login aus. Kein Platz, kein Dreh.',
   offline:
     '🎰 Das Casino ist gerade nicht erreichbar. Dein Spielgeld ist sicher (es war nie echt).',
   serverError: 'Der Server sagt Nein: {detail}',
   badConfig: 'vibe-gambling ist falsch konfiguriert: {errors}. Korrigier das in /config.',
-  sessionExpired: 'Deine Sitzung ist abgelaufen. Führe /vibe-login erneut aus.',
-  openingWindow: '🎰 Der Tisch wird geöffnet…',
-  windowFailed: 'Das Fenster ließ sich nicht öffnen. Ist irgendwo ein Browser in der Nähe?',
+  sessionExpired:
+    'Deine Sitzung ist abgelaufen. Führe /vibe-login erneut aus. Auch Sitzungen brauchen Pause.',
+  openingWindow: '🎰 Der Tisch wird geöffnet… Faites vos jeux.',
+  windowFailed:
+    'Das Fenster ließ sich nicht öffnen. Ist irgendwo ein Browser in der Nähe? Dann führe /roulette erneut aus.',
   betUsage: 'Verwendung: /bet <Betrag> <Feld>, z. B. /bet 200 red, /bet 50 17, /bet 100 1st12',
   allInUsage: 'Verwendung: /all-in [Feld], z. B. /all-in black',
-  betBadAmount: '„{raw}“ ist kein Betrag. Nur ganze Spielgeld-Münzen (oder „all-in“).',
+  betBadAmount:
+    '„{raw}“ ist kein Betrag. Nur ganze Spielgeld-Münzen (oder „all-in“). Bruchteil-Ruin wird nicht unterstützt.',
   betBadTarget: '„{raw}“ ist zu lang für ein Feld auf diesem Tisch.',
   betPlaced: '🎰 {amount} auf {target} ({round}). Kontostand: {balance}.',
   'betRound.current': 'dieser Dreh',
@@ -57,7 +65,8 @@ export const modTextsDe: ModTexts = {
   insufficientFunds:
     'Nicht genug Spielgeld. Der Ludo-Kredit Express wartet im Fenster, wenn du dich traust.',
   tooManyBets: 'Zu viele Chips auf dem Tisch für einen Dreh. Auch Süchtige haben Grenzen.',
-  invalidBet: '„{target}“ ist kein Feld auf diesem Tisch.',
+  invalidBet:
+    '„{target}“ ist kein Feld auf diesem Tisch. Versuch eine Zahl, eine Farbe oder ein Dutzend.',
   balance: '🎰 Kontostand {balance} · Schulden {debt} · Vermögen {netWorth} · {rank}',
   rankHidden: 'aus der Rangliste ausgeblendet',
   rankNone: 'noch ohne Platz',
@@ -66,18 +75,20 @@ export const modTextsDe: ModTexts = {
   loginPrompt:
     '🎰 Geh auf {uri} und gib {code} ein. Du hast {minutes} Min.; ich prüfe im Hintergrund weiter.',
   loginInProgress: 'Ich warte noch: Geh auf {uri} und gib {code} ein.',
-  loginWelcome: '🎰 Willkommen am Tisch, @{login}.',
+  loginWelcome:
+    '🎰 Willkommen am Tisch, @{login}. Risiko: 100 %. Potenzial: unendlich. Echtes Geld: keins.',
   loginPublicNotice:
     'Achtung: Du erscheinst in der öffentlichen Rangliste (Login und Avatar). Mit /vibe-hide verschwindest du.',
   loginNewAccount:
     'Dein GitHub-Konto ist jünger als {days} Tage: Du spielst ganz normal und erscheinst ab {date} in der öffentlichen Rangliste (Login und Avatar). Mit /vibe-hide bleibst du draußen.',
   loginExpired: 'Der Login-Code ist abgelaufen. Mit /vibe-login bekommst du einen neuen.',
-  loginDenied: 'Der GitHub-Login wurde abgebrochen. Der Tisch wartet.',
+  loginDenied: 'Der GitHub-Login wurde abgebrochen. Der Tisch wartet. Wie immer.',
   loginFailed:
     'Der Login wurde abgebrochen: Der Server sagt „{detail}“. Mit /vibe-login versuchst du es erneut.',
-  loggedOut: '🎰 Abgemeldet. Das Rad wird dich vermissen.',
+  loggedOut: '🎰 Abgemeldet. Das Rad wird dich vermissen (und dreht sich trotzdem weiter).',
   notLoggedInLogout: 'Du warst gar nicht angemeldet. Mission trotzdem erfüllt.',
-  hidden: '🎰 Du bist aus der Rangliste (und der Halle des Ruins) ausgeblendet.',
+  hidden:
+    '🎰 Du bist aus der Rangliste (und der Halle des Ruins) ausgeblendet. Ruin, jetzt privat.',
   shown: '🎰 Du bist zurück in der Rangliste. Die Schande ist wieder öffentlich.',
   serverCurrent: '🎰 Server: {url}{name}{state}',
   serverNameSuffix: ' — {name}',
