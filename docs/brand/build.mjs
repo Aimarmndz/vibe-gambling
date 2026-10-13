@@ -19,6 +19,9 @@ const { chromium } = require('@playwright/test')
 // La paleta del juego es la única fuente de los colores (Node ejecuta el .ts sin compilar).
 const { PALETTE } = await import(join(webDir, 'src/ui/palette.ts'))
 
+/** Banner del README: escala del logotipo y margen alrededor (en píxeles del logotipo). */
+const BANNER_SCALE = 8
+const BANNER_MARGIN = { x: 8, y: 6 }
 /** Fondo del avatar del repo y de los iconos de la web: el azul noche del menú. */
 const AVATAR_BG = PALETTE.night
 const AVATAR_SIZE = 500
@@ -99,6 +102,17 @@ try {
       await render(join(outDir, `${name}@${scale}x.png`), svg, scale)
     }
   }
+  // Banner del README: el logotipo ×8 sobre el azul noche, con margen. Un PNG opaco se ve igual
+  // en el tema claro y en el oscuro sin `<picture>` (la app móvil de GitHub no resuelve sus
+  // `srcset` relativos en un repo privado).
+  const wordmark = loadSvg('logo.svg')
+  await render(join(outDir, 'logo-banner.png'), wordmark, BANNER_SCALE, {
+    size: {
+      w: (wordmark.w + 2 * BANNER_MARGIN.x) * BANNER_SCALE,
+      h: (wordmark.h + 2 * BANNER_MARGIN.y) * BANNER_SCALE,
+    },
+    background: AVATAR_BG,
+  })
   await render(join(here, 'avatar.png'), mark, AVATAR_SCALE, {
     size: { w: AVATAR_SIZE, h: AVATAR_SIZE },
     background: AVATAR_BG,

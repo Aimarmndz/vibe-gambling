@@ -1,10 +1,6 @@
 <div align="center">
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/brand/png/logo@8x.png">
-  <source media="(prefers-color-scheme: light)" srcset="docs/brand/png/logo-light@8x.png">
-  <img alt="VIBE GAMBLING" src="docs/brand/png/logo@8x.png" width="516" height="132">
-</picture>
+<img alt="VIBE GAMBLING" src="docs/brand/png/logo-banner.png" width="580">
 
 ### 🎰 Cada prompt es una tirada.
 
