@@ -194,11 +194,13 @@ Plantilla común (todas las pantallas del menú):
 
 ### Menú principal (`menu-main.png`)
 
-- Rejilla de 5×2 tiles de 56×52, hueco 6, origen (8, 30). Orden: CONTINUAR (ficha), TIRADAS (pila de
-  fichas), ESTADÍSTICAS (barras), LOGROS (copa), CLASIFICACIÓN (corona), BANCO (banco), MEMORY CARD,
-  AJUSTES (engranaje), CÓMO SE JUEGA (libro), CRÉDITOS (gema POLYGONE).
-- Seleccionado: ventana de menú + icono a tamaño 17 (unidades de malla → px), una vuelta cada
-  `menu.iconSpinMs`, bob ±1,5 px con periodo `menu.iconBobMs`, brillo ×1,12. Resto: pozo, icono a 13,
+- Rejilla de 6 + 5 tiles de 46×52 (cada fila centrada en los 320 px), hueco 5, desde y = 30. Orden:
+  CONTINUAR (ficha), TIRADAS (pila de fichas), ESTADÍSTICAS (barras), LOGROS (copa), CLASIFICACIÓN
+  (corona), AFILIADOS (pirámide) arriba; BANCO (banco), MEMORY CARD, AJUSTES (engranaje), CÓMO SE
+  JUEGA (libro), CRÉDITOS (gema POLYGONE) abajo. ↑↓ van a la casilla de la otra fila con el centro
+  más cerca. (Hasta la pantalla AFILIADOS era de 5×2 tiles de 56×52.)
+- Seleccionado: ventana de menú + icono a tamaño 15 (unidades de malla → px), una vuelta cada
+  `menu.iconSpinMs`, bob ±1,5 px con periodo `menu.iconBobMs`, brillo ×1,12. Resto: pozo, icono a 12,
   brillo ×0,72, quieto en su ángulo de 3/4.
 - Insignias: TIRADAS con el número (caja roja con borde crema, texto crema); LOGROS con un punto oro
   de radio 2 si hay uno sin ver.
@@ -434,18 +436,19 @@ Mallas en código (Three.js, material PSX con sombreado plano por cara y vertex 
 relativos a una caja de ±1 unidad. Luz direccional (−0,55, 0,75, 0,6), ambiente 0,42. Ver
 `icons-sheet.png` (cada fila, 8 ángulos de la vuelta).
 
-| Icono          | Malla                                                                                                                                     |
-| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| Ficha          | cilindro de 24 lados, r 1, alto 0,2; cara superior: centro crema r < 0,56, aro oro 0,56–0,66, canto rojo con inserción crema cada 3 lados |
-| Pila de fichas | n fichas de 16 lados (inserción cada 4), separadas 0,22, desplazadas ±0,035 al azar fijo, colores rojo/azul/verde/negro/oro               |
-| Barras         | base 1,9×0,14×1 `frameInner` + 3 prismas 0,42 de lado: `loss` 0,7, `gold` 1,2, `win` 1,75 de alto                                         |
-| Copa           | torno de 10 lados (pie, tallo, cáliz) en oro con el interior oscurecido + dos asas de 0,18×0,55                                           |
-| Corona         | aro de 10 lados r 0,85 alto 0,7 con 5 puntas de 0,75 y 5 gemas (rojo/azul)                                                                |
-| Banco          | basamento, 4 columnas de 0,22, cornisa, frontón con faldones rojos y triángulo oro                                                        |
-| Memory card    | caja 1,25×1,7×0,16 `frame` con etiqueta oro y 3 muescas de tinta                                                                          |
-| Engranaje      | 8 dientes (radios 1 / 0,74) extruidos ±0,18 en `steel`, hexágono de tinta en el centro                                                    |
-| Libro          | tapa roja 1,3×1,6×0,34 con canto de páginas crema, franja oro y marcapáginas                                                              |
-| Gema POLYGONE  | torno de 8 lados (la gema de la v1)                                                                                                       |
+| Icono          | Malla                                                                                                                                                                     |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Ficha          | cilindro de 24 lados, r 1, alto 0,2; cara superior: centro crema r < 0,56, aro oro 0,56–0,66, canto rojo con inserción crema cada 3 lados                                 |
+| Pila de fichas | n fichas de 16 lados (inserción cada 4), separadas 0,22, desplazadas ±0,035 al azar fijo, colores rojo/azul/verde/negro/oro                                               |
+| Barras         | base 1,9×0,14×1 `frameInner` + 3 prismas 0,42 de lado: `loss` 0,7, `gold` 1,2, `win` 1,75 de alto                                                                         |
+| Copa           | torno de 10 lados (pie, tallo, cáliz) en oro con el interior oscurecido + dos asas de 0,18×0,55                                                                           |
+| Corona         | aro de 10 lados r 0,85 alto 0,7 con 5 puntas de 0,75 y 5 gemas (rojo/azul)                                                                                                |
+| Banco          | basamento, 4 columnas de 0,22, cornisa, frontón con faldones rojos y triángulo oro                                                                                        |
+| Memory card    | caja 1,25×1,7×0,16 `frame` con etiqueta oro y 3 muescas de tinta                                                                                                          |
+| Engranaje      | 8 dientes (radios 1 / 0,74) extruidos ±0,18 en `steel`, hexágono de tinta en el centro                                                                                    |
+| Libro          | tapa roja 1,3×1,6×0,34 con canto de páginas crema, franja oro y marcapáginas                                                                                              |
+| Gema POLYGONE  | torno de 8 lados (la gema de la v1)                                                                                                                                       |
+| Pirámide       | tres pisos de 1,7 / 1,2 / 0,7 de lado y 0,4 de alto (`goldDark`, `gold`, `gold`; lados oscurecidos, tapas `goldHi`) y la cima suelta encima: pirámide de 4 caras `goldHi` |
 
 ## Logo
 

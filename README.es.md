@@ -120,6 +120,7 @@ Invita a 3 amigos y deja de tenerlos. `/vibe-invite` te da tu enlace de afiliado
 
 - **Tu amigo** canjea tu código con `/vibe-redeem <código>` en sus primeros **7 días** y antes de **100 tiradas**, y cobra **500 monedas** al momento. Un código por cuenta, para siempre. Ni el tuyo ni el de quien canjeó el tuyo.
 - **Tú** cobras **1.000 monedas** cuando juegue **50 tiradas** y su cuenta de GitHub tenga edad para el ranking. Como mucho **10 comisiones por temporada**: después, la pirámide está llena y no paga hasta el mes siguiente.
+- Capturas: [la página de invitación](docs/screenshots/invite.png) y [la pantalla AFILIADOS](docs/screenshots/menu-referral.png).
 - Monedas de mentira, reglas de verdad: lo comprueba todo el servidor (y solo cuenta: nunca te dice quiénes son tus invitados). Los valores están en [`config/game.json`](config/game.json) (`referral`).
 
 ### Cuatro idiomas

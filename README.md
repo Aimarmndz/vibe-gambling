@@ -120,6 +120,7 @@ Invite 3 friends and stop having them. `/vibe-invite` gives you your affiliate l
 
 - **Your friend** redeems your code with `/vibe-redeem <code>` within their first **7 days** and **100 spins**, and gets **500 coins** on the spot. One code per account, forever. Not your own, and not the code of someone who redeemed yours.
 - **You** get **1,000 coins** once they play **50 spins** and their GitHub account is old enough for the leaderboard. Up to **10 commissions per season**: after that, the pyramid is full and pays nothing until next month.
+- Screenshots: [the invite page](docs/screenshots/invite-en.png) and [the AFFILIATES screen](docs/screenshots/menu-referral-en.png).
 - Fake coins, real rules: the server checks everything (and only counts, it never tells you who your invitees are). Defaults in [`config/game.json`](config/game.json) (`referral`).
 
 ### Four languages
