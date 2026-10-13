@@ -3,7 +3,7 @@
 Guía paso a paso para poner vibe-gambling en **https://vibe.aimar.dev**: una VPS de IONOS que ya sirve `aimar.dev` con su propio reverse proxy, detrás del proxy de Cloudflare.
 
 > [!IMPORTANT]
-> **No se ha desplegado nada.** Todo se ha probado en local (Docker Compose, Postgres local, el mod con `--plugin-dir`). Esta guía lo deja listo para que Aimar lo haga cuando quiera. Ninguno de los scripts de `deploy/` se ha ejecutado contra una máquina real.
+> **Así está desplegada la instancia oficial:** con [Noust](https://github.com/Perkybeet/noust), que construye la imagen en la propia VPS y sigue las etiquetas `v*`. Lo cuenta la sección [16. Desplegar con Noust](#16-desplegar-con-noust). Las secciones 1 a 15 son el camino genérico (imagen de GHCR + `docker compose` a mano) y siguen valiendo para cualquier VPS con un reverse proxy.
 
 Una vez hecha la preparación (secciones 1 a 8, una sola vez), desplegar es:
 
@@ -31,6 +31,7 @@ Una vez hecha la preparación (secciones 1 a 8, una sola vez), desplegar es:
 13. [Actualizaciones](#13-actualizaciones)
 14. [Monitorización](#14-monitorización)
 15. [Problemas frecuentes](#15-problemas-frecuentes)
+16. [Desplegar con Noust](#16-desplegar-con-noust)
 
 ## 0. Cómo queda
 
@@ -530,3 +531,52 @@ Pon la etiqueta anterior en `IMAGE_TAG` y `docker compose up -d`. Las migracione
 | La página carga en blanco y la consola habla de CSP                  | Algo de Cloudflare inyecta scripts (Rocket Loader, ofuscación de correos, Zaraz): desactívalo para este nombre.                                                |
 | El mod se queda en `🎰 offline`                                      | Un desafío de Cloudflare (Bot Fight Mode, WAF) en `/api/*`, o el servidor caído. Prueba `curl https://vibe.aimar.dev/api/meta` desde el ordenador del usuario. |
 | `docker compose pull` da `denied`                                    | El paquete de GHCR es privado: hazlo público o `docker login ghcr.io` (sección 8).                                                                             |
+
+## 16. Desplegar con Noust
+
+Así está montada la instancia oficial. La VPS comparte nginx con otras webs que **no** van por Cloudflare, así que el firewall de la sección 5 (80/443 solo para Cloudflare) no se puede aplicar a toda la máquina. Las mismas garantías se consiguen dentro de nginx, solo para este sitio.
+
+| Pieza                                                                              | Qué hace                                                                                                                                                                                                              |
+| ---------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`compose.noust.yml`](../compose.noust.yml)                                        | El compose de producción, pero **construyendo la imagen en la VPS** desde el código de la etiqueta (sin token para GHCR). Está en la raíz porque Noust deja el `.env` junto al código.                                |
+| [`deploy/nginx/vibe.aimar.dev.conf`](../deploy/nginx/vibe.aimar.dev.conf)          | El sitio de nginx, escrito a mano: Noust no reescribe un sitio sin su marca. Log sin IPs ni query, WebSockets y solo Cloudflare.                                                                                      |
+| [`deploy/cloudflare-nginx.sh`](../deploy/cloudflare-nginx.sh) + `deploy/systemd/*` | Escribe `/etc/nginx/snippets/cloudflare-only.conf` (`allow` de los rangos de Cloudflare y `deny all`) y lo actualiza cada semana con un timer. Si la descarga falla o `nginx -t` no pasa, deja el fragmento anterior. |
+
+Con eso, al servidor solo le llega Cloudflare y `CF-Connecting-IP` es de fiar (`TRUST_PROXY_CIDRS` = `DOCKER_SUBNET`, `REAL_IP_HEADER=CF-Connecting-IP`, igual que en la sección 7).
+
+### Una vez, como root en la VPS
+
+```sh
+# 1. Rangos de Cloudflare para nginx, y su timer semanal
+install -o root -g root -m 0755 deploy/cloudflare-nginx.sh /usr/local/sbin/vibe-cloudflare-nginx
+install -o root -g root -m 0644 deploy/systemd/vibe-cloudflare-nginx.* /etc/systemd/system/
+vibe-cloudflare-nginx && systemctl daemon-reload && systemctl enable --now vibe-cloudflare-nginx.timer
+
+# 2. Certificado (HTTP-01 por el webroot de nginx: Cloudflare deja pasar /.well-known en HTTP)
+certbot certonly --webroot -w /var/www/html -d vibe.aimar.dev
+
+# 3. El sitio (antes del primer despliegue, para que Noust lo respete)
+install -o root -g root -m 0644 deploy/nginx/vibe.aimar.dev.conf /etc/nginx/sites-available/vibe.aimar.dev
+ln -s /etc/nginx/sites-available/vibe.aimar.dev /etc/nginx/sites-enabled/vibe.aimar.dev
+nginx -t && systemctl reload nginx
+
+# 4. El .env (fuera del repo, 600): deploy/.env.example con POSTGRES_PASSWORD=$(openssl rand -hex 32),
+#    GITHUB_CLIENT_ID de la sección 6 y los valores comprobados de la sección 7.
+install -m 0600 /dev/null /root/vibe.env && $EDITOR /root/vibe.env
+
+# 5. Ensayo y despliegue
+noust create -d vibe.aimar.dev -s git@github.com:Aimarmndz/vibe-gambling.git \
+  -t docker-compose --compose-file compose.noust.yml --follow-tags 'v*' \
+  --env-file /root/vibe.env -p 8787 --dry-run
+noust create … (lo mismo sin --dry-run)
+```
+
+`--follow-tags 'v*'` hace que Noust despliegue la última versión publicada y las siguientes (nunca lo que haya a medias en `main`). Noust construye la imagen, levanta el stack, comprueba que responde y, si una actualización no pasa, vuelve a la anterior sin tocar el volumen de Postgres.
+
+### Después
+
+- **Actualizar:** `noust update vibe.aimar.dev` (o se hace solo al publicar una etiqueta, si el webhook de la GitHub App está expuesto).
+- **Variables:** `noust env show vibe.aimar.dev` para verlas y `noust env configure vibe.aimar.dev` para cambiarlas; después, `noust restart vibe.aimar.dev`.
+- **Copias:** `noust backup schedule create vibe.aimar.dev …` (incluye los volúmenes de Docker, o sea Postgres) además de `backup.sh` si quieres volcados de `pg_dump`.
+- **Logs:** `noust logs vibe.aimar.dev`.
+- **Comprobación:** la de la [sección 11](#11-comprobación-final), y que `curl -sk --resolve vibe.aimar.dev:443:<IP de la VPS> https://vibe.aimar.dev/healthz` (saltándose Cloudflare) devuelve **403**.

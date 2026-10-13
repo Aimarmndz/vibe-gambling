@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- **Deploying with [Noust](https://github.com/Perkybeet/noust)**: `compose.noust.yml` builds the server image on the VPS from the tagged source (no GHCR token needed for a private package), and `docs/DESPLIEGUE.md` explains the whole setup step by step.
+- **`deploy/nginx/vibe.aimar.dev.conf`**: the nginx site of the official instance, with an access log that keeps neither IPs nor query strings, as the privacy policy promises, and WebSockets with a timeout above the server's ping.
+- **`deploy/cloudflare-nginx.sh`** with a weekly systemd timer: lets only Cloudflare reach the site from inside nginx, for servers whose other sites do not go through Cloudflare and so cannot close 80/443 to everyone else. If the download fails or `nginx -t` does not pass, the previous list stays.
+
 ## [0.3.0] - 2026-10-13
 
 ### Security

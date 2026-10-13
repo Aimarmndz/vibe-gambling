@@ -14,7 +14,7 @@ Este archivo **añade y anula** reglas de `~/dev/CLAUDE.md`. La especificación 
 
 ## Despliegue
 
-- **No se despliega nada.** Todo se prueba **en local** (Docker Compose, Postgres local, el mod con `--plugin-dir`).
+- **La instancia oficial está desplegada** en la VPS con Noust (`docs/DESPLIEGUE.md`, sección 16), por decisión de Aimar. **No se despliega ni se toca la VPS sin su permiso explícito**: el desarrollo y las pruebas se hacen **en local** (Docker Compose, Postgres local, el mod con `--plugin-dir`).
 - Aun así, el proyecto debe quedar **listo para desplegarlo fácilmente** después: imagen Docker, compose de producción, `.env.example` de producción y `docs/DESPLIEGUE.md` paso a paso, de modo que desplegar sea copiar el `.env`, ejecutar un comando y añadir el sitio al reverse proxy existente.
 - Contexto de producción (solo para la documentación): `https://vibe.aimar.dev`, detrás del proxy de Cloudflare, en una VPS compartida que ya sirve `aimar.dev` con su propio reverse proxy.
 
