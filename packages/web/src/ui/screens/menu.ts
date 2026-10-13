@@ -1,321 +1,173 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Menú de pausa (START), ajustes y créditos.
-import { forLocale } from '@vibe-gambling/shared'
-import type { Locale } from '@vibe-gambling/shared'
-import { FLAG_HEIGHT, FLAG_WIDTH } from '@vibe-gambling/shared/i18n'
-
+// El menú v2 (START): una sola pantalla opaca que pone la plantilla común (fondo de palos,
+// cabecera con su icono 3D, ayuda inferior), lleva la pila de páginas y hace el barrido de bloques
+// entre ellas con sus sonidos (docs/DISENO-V2.md, "Menús"). Cada página está en `ui/menu/pages/`.
 import type { AppContext, Screen } from '../../app/context.ts'
 import type { ActionEvent } from '../../app/input.ts'
-import { drawText, wrap } from '../../font/bitmap.ts'
-import { pendingSpins } from '../../game/state.ts'
-import { LANGUAGES, cycleLocale, languageOf } from '../../i18n/index.ts'
-import { dim, drawHelpBar, drawWindow } from '../draw.ts'
-import { drawFlag } from '../flags.ts'
-import { ListMenu } from '../listMenu.ts'
-import { attribution, displayUrl } from '../../legal/attribution.ts'
-import { PALETTE } from '../palette.ts'
-import { LeaderboardScreen } from './leaderboard.ts'
-import { MemoryCardScreen } from './memoryCard.ts'
+import type { IconKind, IconOptions, IconSink } from '../../render/menuIcons/layer.ts'
+import { HEADER_ICON, cornerGap, drawHeader, drawHelp, drawMenuBackground } from '../menu/kit.ts'
+import type { MenuHost, MenuPage } from '../menu/page.ts'
+import { MainMenuPage } from '../menu/pages/main.ts'
+import { PendingPage } from '../menu/pages/pending.ts'
+import { drawWipe, pointCovered, wipeFrame } from '../menu/wipe.ts'
+import type { WipeFrame } from '../menu/wipe.ts'
 
-const ROW = 14
-/** Separación entre banderas y ancho máximo de la fila de banderas en Ajustes. */
-const FLAG_GAP = 5
-const LANGUAGE_ROW_WIDTH = 132
-
-/**
- * Esquinas oro alrededor de una caja (selección del menú v2, a escala de la bandera): brazos de
- * 3 px a 1 px por fuera que respiran 1 px cada 250 ms, a saltos.
- */
-function drawCorners(
-  g: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  t: number,
-): void {
-  const o = 2 + (Math.floor(t * 4) % 2)
-  const arm = 3
-  g.fillStyle = PALETTE.gold
-  for (const [cx, cy, sx, sy] of [
-    [x - o, y - o, 1, 1],
-    [x + w - 1 + o, y - o, -1, 1],
-    [x - o, y + h - 1 + o, 1, -1],
-    [x + w - 1 + o, y + h - 1 + o, -1, -1],
-  ] as const) {
-    g.fillRect(sx > 0 ? cx : cx - arm + 1, cy, arm, 1)
-    g.fillRect(cx, sy > 0 ? cy : cy - arm + 1, 1, arm)
-  }
+interface Wipe {
+  start: number
+  /** Qué hacer al quedar la pantalla tapada (cambiar de página o cerrar el menú). */
+  swap: () => void
+  swapped: boolean
 }
 
-export class MenuScreen implements Screen {
-  readonly id = 'menu'
-  private readonly ctx: AppContext
-  private readonly menu: ListMenu
+export type MenuStart = 'main' | 'pending'
 
-  constructor(ctx: AppContext) {
+export class MenuScreen implements Screen, MenuHost {
+  readonly opaque = true
+  readonly ctx: AppContext
+  readonly still: boolean
+  readonly icons: IconSink
+  private readonly pages: MenuPage[] = []
+  private wipe: Wipe | null = null
+  private frame: WipeFrame = { phase: 'done', frontier: 0 }
+  private time = 0
+  private closed = false
+
+  constructor(ctx: AppContext, start: MenuStart = 'main') {
     this.ctx = ctx
-    this.menu = new ListMenu(ctx, 'menu', [
-      { label: () => ctx.tr.t('menu.resume'), accept: () => ctx.pop(this) },
-      {
-        label: () => ctx.tr.t('menu.pending'),
-        value: () => ctx.tr.n(pendingSpins(ctx.state())),
-        accept: () => {
-          ctx.pop(this)
-          ctx.showPending()
-        },
-        disabled: () => ctx.demo,
+    this.still = ctx.reducedMotion
+    const sink = ctx.menuIcons()
+    // Los iconos van por encima de la interfaz: los que quedan bajo el barrido no se pintan.
+    this.icons = {
+      icon: (kind: IconKind, x: number, y: number, size: number, opts?: IconOptions) => {
+        if (pointCovered(this.frame, x, y)) return
+        sink.icon(kind, x, y, size, opts)
       },
-      { label: () => ctx.tr.t('menu.howTo'), accept: () => ctx.showTip() },
-      {
-        label: () => ctx.tr.t('menu.leaderboard'),
-        accept: () => ctx.push(new LeaderboardScreen(ctx)),
-      },
-      {
-        label: () => ctx.tr.t('menu.memoryCard'),
-        accept: () => ctx.push(new MemoryCardScreen(ctx)),
-      },
-      {
-        label: () => ctx.tr.t('menu.loan'),
-        accept: () => {
-          ctx.pop(this)
-          ctx.offerLoan()
-        },
-        disabled: () => !ctx.loanAvailable(),
-      },
-      { label: () => ctx.tr.t('menu.settings'), accept: () => ctx.push(new SettingsScreen(ctx)) },
-      { label: () => ctx.tr.t('menu.credits'), accept: () => ctx.push(new CreditsScreen(ctx)) },
-    ])
-  }
-
-  action(e: ActionEvent): void {
-    if (this.menu.action(e)) return
-    if (e.action === 'back' || e.action === 'start') {
-      this.ctx.sfx.play('back')
-      this.ctx.pop(this)
     }
+    const first: MenuPage = start === 'pending' ? new PendingPage(this) : new MainMenuPage(this)
+    this.pages.push(first)
+    this.ctx.sfx.play('menuOpen')
+    first.enter?.(0)
+    this.describe(first)
   }
 
-  draw(g: CanvasRenderingContext2D, t: number): void {
-    dim(g, 0.45)
-    const h = 30 + this.menu.items.length * ROW
-    const y = 120 - h / 2
-    drawWindow(g, 76, y, 168, h)
-    drawText(g, this.ctx.tr.t('menu.title'), 160, y + 8, { color: PALETTE.muted, align: 'center' })
-    this.menu.draw(g, 88, y + 24, 144, ROW, t)
-    drawHelpBar(g, this.ctx.tr.t('help.menu', { ...this.ctx.buttons() }), PALETTE.muted)
-  }
-}
-
-export class SettingsScreen implements Screen {
-  readonly id = 'settings'
-  private readonly ctx: AppContext
-  private readonly menu: ListMenu
-
-  constructor(ctx: AppContext) {
-    this.ctx = ctx
-    const onOff = (v: boolean) => ctx.tr.t(v ? 'settings.on' : 'settings.off')
-    this.menu = new ListMenu(ctx, 'settings', [
-      {
-        label: () => ctx.tr.t('settings.sound'),
-        value: () => onOff(ctx.prefs.sound),
-        change: () => ctx.setPrefs({ sound: !ctx.prefs.sound }),
-      },
-      {
-        label: () => ctx.tr.t('settings.crt'),
-        value: () => onOff(ctx.prefs.crt && !ctx.reducedMotion),
-        change: () => ctx.setPrefs({ crt: !ctx.prefs.crt }),
-        disabled: () => ctx.reducedMotion,
-      },
-      {
-        label: () => ctx.tr.t('settings.language'),
-        change: dir => this.chooseLocale(cycleLocale(this.locale(), dir)),
-        drawValue: (g, right, y, selected, t) => this.drawLanguages(g, right, y, selected, t),
-      },
-      {
-        label: () => ctx.tr.t('settings.leaderboard'),
-        value: () => ctx.tr.t(ctx.state().user?.hidden ? 'settings.hidden' : 'settings.visible'),
-        change: () => {
-          const user = ctx.state().user
-          if (user) ctx.send({ type: 'settings.update', hidden: !user.hidden })
-        },
-        disabled: () => ctx.demo || ctx.state().user === null,
-      },
-      {
-        label: () => ctx.tr.t('settings.quality'),
-        value: () => ctx.tr.t(ctx.prefs.quality === 'high' ? 'settings.high' : 'settings.low'),
-        change: () => ctx.setPrefs({ quality: ctx.prefs.quality === 'high' ? 'low' : 'high' }),
-      },
-    ])
+  /** El id de la página de arriba (los tests E2E lo leen en `__vg.screens()`). */
+  get id(): string {
+    return this.page().id
   }
 
-  /** Idioma elegido (las preferencias cambian al momento; los textos, al llegar su chunk). */
-  private locale(): Locale {
-    return this.ctx.prefs.locale ?? this.ctx.tr.locale
+  private page(): MenuPage {
+    return this.pages[this.pages.length - 1]!
   }
 
-  /** Cambia el idioma al instante y lo guarda en el navegador y en el servidor. */
-  private chooseLocale(locale: Locale): void {
-    if (locale === this.locale()) return
-    this.ctx.setPrefs({ locale })
-    this.ctx.send({ type: 'settings.update', locale })
+  cornerGap(t: number): number {
+    return cornerGap(t, this.ctx.client.menu.cursorBreatheMs, this.still)
+  }
+
+  private describe(page: MenuPage): void {
+    const text = page.describe?.() ?? page.title()
+    this.ctx.announce(text)
+  }
+
+  /** Cambia de página con barrido (o al momento con movimiento reducido). */
+  private transition(swap: () => void): void {
+    this.finishCover()
+    if (this.still || this.ctx.client.menu.wipeMs <= 0) {
+      swap()
+      return
+    }
+    this.wipe = { start: this.time, swap, swapped: false }
   }
 
   /**
-   * Fila de banderas alineada a la derecha, con el nombre del idioma delante. La elegida va a
-   * color con esquinas oro que respiran (como la selección del menú v2); las demás, apagadas.
-   * Si no caben todas, se ve una ventana alrededor de la elegida con ◄ ► en los bordes.
+   * Si la pantalla aún se está tapando, el cambio se hace ya y el barrido sigue destapando: una
+   * pulsación durante el barrido es para la página nueva, nunca se pierde.
    */
-  private drawLanguages(
-    g: CanvasRenderingContext2D,
-    right: number,
-    y: number,
-    selected: boolean,
-    t: number,
-  ): void {
-    const current = this.locale()
-    const pitch = FLAG_WIDTH + FLAG_GAP
-    const fit = Math.max(1, Math.floor((LANGUAGE_ROW_WIDTH + FLAG_GAP) / pitch))
-    const at = LANGUAGES.findIndex(l => l.code === current)
-    const first = Math.min(
-      Math.max(0, at - Math.floor(fit / 2)),
-      Math.max(0, LANGUAGES.length - fit),
-    )
-    const shown = LANGUAGES.slice(first, first + fit)
-    const fy = y - 2
-    let x = right - shown.length * pitch + FLAG_GAP
-    const name = languageOf(current).meta.nativeName
-    const color = selected ? PALETTE.gold : PALETTE.cream
-    drawText(g, name, x - (first > 0 ? 14 : 6), y, { color, align: 'right', shadow: PALETTE.ink })
-    if (first > 0) drawText(g, '◄', x - 2, y, { color: PALETTE.muted, align: 'right' })
-    const hover = this.ctx.hoverId()
-    for (const language of shown) {
-      const id = `settings:lang:${language.code}`
-      const active = language.code === current
-      drawFlag(g, language.flag, x, fy)
-      if (!active) {
-        // Apagada: tinta al 55 % por encima (como los pozos de la v2).
-        g.fillStyle = 'rgba(8,7,13,0.55)'
-        g.fillRect(x, fy, FLAG_WIDTH, FLAG_HEIGHT)
-      }
-      if (active) drawCorners(g, x, fy, FLAG_WIDTH, FLAG_HEIGHT, t)
-      else if (hover === id) {
-        g.fillStyle = PALETTE.cream
-        g.fillRect(x - 1, fy - 1, FLAG_WIDTH + 2, 1)
-        g.fillRect(x - 1, fy + FLAG_HEIGHT, FLAG_WIDTH + 2, 1)
-      }
-      this.ctx.hits.add({
-        x: x - 2,
-        y: fy - 2,
-        w: FLAG_WIDTH + 4,
-        h: FLAG_HEIGHT + 4,
-        id,
-        onClick: () => {
-          this.menu.index = this.menu.items.findIndex(i => i.drawValue !== undefined)
-          if (language.code !== current) this.ctx.sfx.play('move')
-          this.chooseLocale(language.code)
-        },
-      })
-      x += pitch
+  private finishCover(): void {
+    const wipe = this.wipe
+    if (!wipe || wipe.swapped) return
+    wipe.swapped = true
+    wipe.start = this.time - this.ctx.client.menu.wipeMs / 2000
+    this.frame = wipeFrame(this.ctx.client.menu.wipeMs / 2, this.ctx.client.menu.wipeMs)
+    this.ctx.hits.clear()
+    wipe.swap()
+  }
+
+  open(page: MenuPage): void {
+    this.ctx.sfx.play('menuOpen')
+    this.transition(() => {
+      this.pages.push(page)
+      page.enter?.(this.time)
+      this.describe(page)
+    })
+  }
+
+  back(): void {
+    this.ctx.sfx.play('back')
+    if (this.pages.length <= 1) {
+      this.close()
+      return
     }
-    if (first + fit < LANGUAGES.length) {
-      drawText(g, '►', right + 2, y, { color: PALETTE.muted })
-    }
+    this.transition(() => {
+      this.pages.pop()
+      const page = this.page()
+      page.enter?.(this.time)
+      this.describe(page)
+    })
+  }
+
+  close(): void {
+    this.finishCover()
+    if (this.closed) return
+    this.closed = true
+    this.ctx.pop(this)
   }
 
   action(e: ActionEvent): void {
-    if (this.menu.action(e)) return
-    if (e.action === 'back' || e.action === 'start') {
-      this.ctx.sfx.play('back')
-      this.ctx.pop(this)
+    // Mientras se tapa la pantalla, la pulsación es ya para la página que llega.
+    this.finishCover()
+    if (this.page().action(e)) return
+    if (e.action === 'back' || e.action === 'start') this.back()
+  }
+
+  pointer(kind: 'move' | 'down' | 'leave', x: number, y: number): boolean {
+    if (kind === 'down') this.finishCover()
+    return this.page().pointer?.(kind, x, y) ?? true
+  }
+
+  wheel(delta: number): void {
+    this.page().wheel?.(delta)
+  }
+
+  update(dt: number, t: number): void {
+    this.time = t
+    const wipe = this.wipe
+    if (wipe) {
+      const elapsed = (t - wipe.start) * 1000
+      this.frame = wipeFrame(elapsed, this.ctx.client.menu.wipeMs)
+      if (!wipe.swapped && this.frame.phase !== 'cover') {
+        wipe.swapped = true
+        // Las zonas clicables eran de la página que se va.
+        this.ctx.hits.clear()
+        wipe.swap()
+      }
+      if (this.frame.phase === 'done') this.wipe = null
     }
+    this.page().update?.(dt, t)
   }
 
   draw(g: CanvasRenderingContext2D, t: number): void {
-    const { tr } = this.ctx
-    dim(g, 0.6)
-    drawWindow(g, 24, 14, 272, 200)
-    drawText(g, tr.t('settings.title'), 160, 22, { color: PALETTE.gold, align: 'center' })
-    this.menu.draw(g, 36, 42, 248, 16, t)
-    const notes = [tr.t('settings.leaderboardNote')]
-    if (this.ctx.reducedMotion) notes.push(tr.t('settings.reducedMotion'))
-    let y = 128
-    for (const note of notes) {
-      for (const line of wrap(note, 248)) {
-        drawText(g, line, 36, y, { color: PALETTE.muted })
-        y += 10
-      }
-    }
-    g.fillStyle = PALETTE.frameInner
-    g.fillRect(36, 172, 248, 1)
-    let ky = 178
-    for (const line of wrap(tr.t('help.keys'), 248)) {
-      drawText(g, line, 36, ky, { color: PALETTE.muted })
-      ky += 10
-    }
-    drawHelpBar(g, tr.t('help.menu', { ...this.ctx.buttons() }), PALETTE.muted)
-  }
-}
-
-export class CreditsScreen implements Screen {
-  readonly id = 'credits'
-  private readonly ctx: AppContext
-  private readonly menu: ListMenu
-
-  constructor(ctx: AppContext) {
-    this.ctx = ctx
-    const site = ctx.web.site
-    // Los enlaces de ayuda del idioma actual (el idioma no cambia con los créditos abiertos).
-    const help = forLocale(site.helpLinks, ctx.tr.locale)
-    this.menu = new ListMenu(ctx, 'credits', [
-      {
-        label: () => displayUrl(site.author.url),
-        accept: () => ctx.openLink(site.author.url),
-      },
-      ...help.map(link => ({ label: () => link.label, accept: () => ctx.openLink(link.url) })),
-      {
-        label: () => displayUrl(site.repoUrl),
-        accept: () => ctx.openLink(site.repoUrl),
-      },
-    ])
+    const { menu } = this.ctx.client
+    const page = this.page()
+    drawMenuBackground(g, t, menu.patternPxPerS, this.still)
+    page.draw(g, t)
+    drawHeader(g, page.title(), page.headerRight?.())
+    this.icons.icon(page.icon, HEADER_ICON.x, HEADER_ICON.y, HEADER_ICON.size)
+    drawHelp(g, page.help())
+    if (this.wipe) drawWipe(g, this.frame)
   }
 
-  action(e: ActionEvent): void {
-    if (this.menu.action(e)) return
-    if (e.action === 'back' || e.action === 'start') {
-      this.ctx.sfx.play('back')
-      this.ctx.pop(this)
-    }
-  }
-
-  draw(g: CanvasRenderingContext2D, t: number): void {
-    const { tr, web } = this.ctx
-    dim(g, 0.6)
-    drawWindow(g, 16, 16, 288, 208)
-    drawText(g, tr.t('credits.title'), 160, 24, { color: PALETTE.gold, align: 'center' })
-    drawText(g, tr.t('brand.title'), 160, 40, { color: PALETTE.cream, align: 'center', scale: 2 })
-    // Atribución obligatoria (términos 7(b) de LICENSE).
-    drawText(g, attribution(web.site.author, tr).text, 28, 64, { color: PALETTE.cream })
-    let y = 76
-    for (const line of wrap(tr.t('credits.fakeCoins'), 264)) {
-      drawText(g, line, 28, y, { color: PALETTE.muted })
-      y += 10
-    }
-    this.menu.draw(g, 28, y + 4, 260, 13, t)
-    y += 8 + this.menu.items.length * 13
-    for (const key of ['credits.disclaimer', 'credits.assets', 'credits.license'] as const) {
-      for (const line of wrap(tr.t(key), 264)) {
-        drawText(g, line, 28, y, { color: PALETTE.muted })
-        y += 10
-      }
-    }
-    drawText(
-      g,
-      tr.t('credits.version', { instance: web.instanceName, version: web.serverVersion }),
-      28,
-      y + 2,
-      { color: PALETTE.line },
-    )
-    drawHelpBar(g, tr.t('credits.open', { ...this.ctx.buttons() }), PALETTE.muted)
+  /** Avisos encima de la ayuda, sin tapar la cabecera. */
+  toastBand(): { top: number; bottom: number } {
+    return { top: 24, bottom: 218 }
   }
 }

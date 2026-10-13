@@ -32,6 +32,19 @@ export const PALETTE = Object.freeze({
   moneyTop: '#1d6b3a',
   deepTop: '#1b2368',
   jackpotBottom: '#5a0d12',
+  // Tokens de la v2 (docs/DISENO-V2.md, "Paleta"): solo espectáculo, iconos y marca.
+  goldHi: '#ffe08a',
+  fire1: '#ff7a1f',
+  fire2: '#ffd04a',
+  steel: '#8d93b8',
+  patternInk: '#222c78',
+  paperTop: '#efe6cc',
+  paperBottom: '#d9cba6',
+  redHi: '#e0454a',
+  redLo: '#8f1b20',
+  creamLo: '#cbbd98',
+  skin: '#d9a07a',
+  chipBlue: '#2b5fd9',
 })
 
 /** Colores de las fichas, de la menor a la mayor (se repiten si hay más fichas). */
