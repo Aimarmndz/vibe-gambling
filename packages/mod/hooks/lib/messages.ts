@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Textos del mod en todos los idiomas de `locales/` (el del sistema; inglés por defecto). Los
 // textos y las frases son la copia generada en `../generated` (`pnpm gen:locales`). Módulo puro.
-import { MOD_TEXTS, REFERENCE_LOCALE } from '../generated/locales.ts'
+import { LOCALE_INFO, MOD_TEXTS, REFERENCE_LOCALE } from '../generated/locales.ts'
 import type { ModTextKey, ModTexts } from '../generated/locales.ts'
 import { fillTemplate } from '../generated/phrases.ts'
 import { LOCALES } from '../generated/protocol.ts'
@@ -18,14 +18,17 @@ export interface Messages {
   readonly loginHint: string
   readonly jackpotTag: string
   readonly noRound: string
-  /** Trozo de la status line con las tiradas pendientes. */
-  readonly pendingCount: (count: string) => string
+  /**
+   * Trozo de la status line con las tiradas pendientes. Estos cuatro reciben el número (elige el
+   * singular o el plural) y la cifra ya formateada con el separador de miles del idioma.
+   */
+  readonly pendingCount: (count: number, formatted: string) => string
   /** Toast: el prompt terminó sin ventana visible y la tirada se guardó. */
-  readonly spinSaved: (count: string) => string
+  readonly spinSaved: (count: number, formatted: string) => string
   /** Toast: tope de tiradas pendientes alcanzado, este prompt se descarta. */
-  readonly spinDropped: (count: string) => string
+  readonly spinDropped: (count: number, formatted: string) => string
   /** `/balance`: cuántas hay y cómo se gastan. */
-  readonly pendingHint: (count: string) => string
+  readonly pendingHint: (count: number, formatted: string) => string
 
   readonly commands: Readonly<Record<CommandId, { description: string; argumentHint?: string }>>
 
@@ -110,9 +113,19 @@ const COMMAND_IDS: readonly CommandId[] = [
   'deleteAccount',
 ]
 
-/** Mensajes de un idioma a partir de sus textos (copia generada de `locales/<idioma>/mod.json`). */
-export function buildMessages(t: ModTexts): Messages {
+/**
+ * Mensajes de un idioma a partir de sus textos (copia generada de `locales/<idioma>/mod.json`).
+ * `bcp47` decide el singular (`<clave>.one`) con `Intl.PluralRules`, como la web.
+ */
+export function buildMessages(t: ModTexts, bcp47: string): Messages {
   const text = (key: ModTextKey) => t[key]
+  const rules = new Intl.PluralRules(bcp47)
+  const counted =
+    (key: 'pendingCount' | 'spinSaved' | 'spinDropped' | 'pendingHint') =>
+    (count: number, formatted: string): string =>
+      fillTemplate(t[rules.select(count) === 'one' ? (`${key}.one` as const) : key], {
+        count: formatted,
+      })
   const hintOf = (id: CommandId): string | undefined =>
     (t as Readonly<Record<string, string>>)[`command.${id}.argumentHint`]
   const state = (official: boolean | null) =>
@@ -131,10 +144,10 @@ export function buildMessages(t: ModTexts): Messages {
     loginHint: t.loginHint,
     jackpotTag: t.jackpotTag,
     noRound: t.noRound,
-    pendingCount: count => fillTemplate(t.pendingCount, { count }),
-    spinSaved: count => fillTemplate(t.spinSaved, { count }),
-    spinDropped: count => fillTemplate(t.spinDropped, { count }),
-    pendingHint: count => fillTemplate(t.pendingHint, { count }),
+    pendingCount: counted('pendingCount'),
+    spinSaved: counted('spinSaved'),
+    spinDropped: counted('spinDropped'),
+    pendingHint: counted('pendingHint'),
 
     commands: Object.fromEntries(
       COMMAND_IDS.map(id => {
@@ -212,7 +225,7 @@ export function buildMessages(t: ModTexts): Messages {
 
 /** Mensajes de cada idioma registrado (`locales/`, copia generada por `pnpm gen:locales`). */
 export const MESSAGES: Readonly<Record<Locale, Messages>> = Object.fromEntries(
-  LOCALES.map(locale => [locale, buildMessages(MOD_TEXTS[locale])]),
+  LOCALES.map(locale => [locale, buildMessages(MOD_TEXTS[locale], LOCALE_INFO[locale].bcp47)]),
 ) as Record<Locale, Messages>
 
 /**

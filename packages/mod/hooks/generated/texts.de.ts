@@ -15,10 +15,16 @@ export const modTextsDe: ModTexts = {
   jackpotTag: '🚀 JACKPOT',
   noRound: 'Das Rad stand ohne dich still. Nächster Prompt, nächster Dreh.',
   pendingCount: '{count} offen',
+  'pendingCount.one': '{count} offen',
   spinSaved: '🎰 Dreh für später gespeichert · {count} offen. Öffne /roulette und drück DREHEN.',
+  'spinSaved.one':
+    '🎰 Dreh für später gespeichert · {count} offen. Öffne /roulette und drück DREHEN.',
   spinDropped: '🎰 {count} offene Drehs sind das Limit: Dieser Prompt wurde nicht gespeichert',
+  'spinDropped.one': '🎰 {count} offener Dreh ist das Limit: Dieser Prompt wurde nicht gespeichert',
   pendingHint:
     '🎰 {count} offene Drehs (Prompts bei geschlossenem Fenster). Löse sie mit DREHEN in /roulette ein.',
+  'pendingHint.one':
+    '🎰 {count} offener Dreh (ein Prompt bei geschlossenem Fenster). Löse ihn mit DREHEN in /roulette ein.',
   'command.roulette.description': 'Öffnet das Roulette-Fenster',
   'command.bet.description': 'Setzt Spielgeld auf den aktuellen oder nächsten Dreh',
   'command.bet.argumentHint': '<Betrag> <Feld>',

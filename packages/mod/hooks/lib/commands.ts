@@ -167,7 +167,7 @@ export async function balance(ctx: CommandContext): Promise<string> {
     rank,
   )
   const pending = me.wallet.pendingSpins ?? 0
-  return pending > 0 ? `${text}\n${m.pendingHint(coins(pending))}` : text
+  return pending > 0 ? `${text}\n${m.pendingHint(pending, coins(pending))}` : text
 }
 
 // ------------------------------------------------------------------ /vibe-login, /vibe-logout

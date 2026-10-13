@@ -15,10 +15,15 @@ export const modTextsEn: ModTexts = {
   jackpotTag: '🚀 JACKPOT',
   noRound: 'The wheel stopped without you. Next prompt, next spin.',
   pendingCount: '{count} pending',
+  'pendingCount.one': '{count} pending',
   spinSaved: '🎰 Spin saved for later · {count} pending. Open /roulette and hit SPIN.',
+  'spinSaved.one': '🎰 Spin saved for later · {count} pending. Open /roulette and hit SPIN.',
   spinDropped: '🎰 {count} pending spins is the limit: this prompt was not saved',
+  'spinDropped.one': '🎰 {count} pending spin is the limit: this prompt was not saved',
   pendingHint:
     '🎰 {count} pending spins (prompts with the window closed). Spend them with SPIN in /roulette.',
+  'pendingHint.one':
+    '🎰 {count} pending spin (a prompt with the window closed). Spend it with SPIN in /roulette.',
   'command.roulette.description': 'Open the roulette window',
   'command.bet.description': 'Bet fake coins on the current or next spin',
   'command.bet.argumentHint': '<amount> <square>',

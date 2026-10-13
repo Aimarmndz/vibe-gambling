@@ -27,7 +27,7 @@ export function statusText(wallet: WalletView, locale: Locale, messages: Message
   const parts = [`🎰 ${formatCoins(wallet.balance, locale)} ${messages.coin}`]
   if (wallet.debt > 0) parts.push(`${messages.debtLabel} ${formatCoins(wallet.debt, locale)}`)
   const pending = wallet.pendingSpins ?? 0
-  if (pending > 0) parts.push(messages.pendingCount(formatCoins(pending, locale)))
+  if (pending > 0) parts.push(messages.pendingCount(pending, formatCoins(pending, locale)))
   return parts.join(' · ')
 }
 
@@ -43,8 +43,9 @@ export function queuedToast(
   previousPhrase: string | null,
   random: () => number = Math.random,
 ): ResultToast {
-  const count = formatCoins(wallet.pendingSpins ?? 0, locale)
-  if (!dropped) return { text: messages.spinSaved(count), phrase: null }
+  const pending = wallet.pendingSpins ?? 0
+  const count = formatCoins(pending, locale)
+  if (!dropped) return { text: messages.spinSaved(pending, count), phrase: null }
   // En el tope, el contador es justo el tope: con él se rellena el {max} de las frases.
   const phrase = pickFilledPhrase(
     PHRASES[locale],
@@ -53,7 +54,7 @@ export function queuedToast(
     previousPhrase,
     random,
   )
-  const parts = [messages.spinDropped(count)]
+  const parts = [messages.spinDropped(pending, count)]
   if (phrase !== null) parts.push(`“${phrase.text}”`)
   return { text: parts.join(' · '), phrase: phrase?.template ?? null }
 }

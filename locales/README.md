@@ -24,7 +24,10 @@ defines the keys and the `{placeholders}` every other language must have.
 
 Texts are flat keys (`"menu.title": "MENU"`) with `{placeholders}` that the code fills in. Keep the
 placeholders exactly; translate everything else. A few values start with a space on purpose
-(`serverNameSuffix`, `serverState.*` in `mod.json`): keep it.
+(`serverNameSuffix`, `serverState.*` in `mod.json`): keep it. A key ending in `.one` is the
+singular of the same key without it (`pendingHint.one` / `pendingHint`), chosen with
+`Intl.PluralRules` for your `bcp47` (in French, 0 counts as singular too); if your language does
+not change the word, write the same text in both.
 
 ## Add a language
 

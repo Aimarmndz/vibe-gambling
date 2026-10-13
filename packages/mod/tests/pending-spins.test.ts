@@ -87,6 +87,25 @@ test('queued toast in Spanish, without repeating the last joke', () => {
   expect(queuedToast(false, w, 'es', es, null).phrase).toBeNull()
 })
 
+test('one pending spin is singular in every language', () => {
+  const one = wallet({ pendingSpins: 1 })
+  expect(statusText(one, 'es', MESSAGES.es)).toBe('🎰 1.000 🪙 · 1 pendiente')
+  expect(queuedToast(false, one, 'es', MESSAGES.es, null).text).toBe(
+    '🎰 Tirada guardada · 1 pendiente. Abre /roulette y dale a GIRAR.',
+  )
+  expect(queuedToast(true, one, 'en', MESSAGES.en, null, () => 0).text).toStartWith(
+    '🎰 1 pending spin is the limit: this prompt was not saved',
+  )
+  expect(MESSAGES.en.pendingHint(1, '1')).toBe(
+    '🎰 1 pending spin (a prompt with the window closed). Spend it with SPIN in /roulette.',
+  )
+  expect(MESSAGES.fr.spinDropped(1, '1')).toStartWith('🎰 1 tour en attente,')
+  expect(MESSAGES.de.pendingHint(1, '1')).toStartWith('🎰 1 offener Dreh ')
+  // Y el plural sigue para el resto (también con la cifra ya agrupada).
+  expect(MESSAGES.es.pendingCount(1234, '1.234')).toBe('1.234 pendientes')
+  expect(MESSAGES.de.pendingHint(2, '2')).toStartWith('🎰 2 offene Drehs ')
+})
+
 test('the status line hides the counter when there are none (or an older server)', () => {
   const en = MESSAGES.en
   expect(statusText(wallet({ pendingSpins: 0 }), 'en', en)).toBe('🎰 1,000 🪙')
