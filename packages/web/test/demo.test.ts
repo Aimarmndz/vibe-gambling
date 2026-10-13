@@ -5,9 +5,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { DemoLink, demoGameConfig } from '../src/net/demo.ts'
 import { withVersion } from '../src/net/link.ts'
-import { testWebConfig } from './fixtures.ts'
+import { testGame, testWebConfig } from './fixtures.ts'
 
-const demoCfg = { thinkMs: 1000, pauseMs: 2000, login: 'demo-tester' }
+const demoCfg = {
+  thinkMs: 1000,
+  pauseMs: 2000,
+  login: 'demo-tester',
+  stats: { recentRounds: 4, seriesPoints: 6, loanMarks: 3, bankHistory: 3 },
+  showcase: { seed: 3, spins: 40, pending: 7 },
+  achievements: testGame.achievements,
+}
 
 describe('modo demo', () => {
   beforeEach(() => vi.useFakeTimers())

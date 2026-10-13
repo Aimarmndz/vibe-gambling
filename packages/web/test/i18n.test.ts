@@ -92,8 +92,8 @@ describe('idioma inicial', () => {
     expect(detectLocale(['de-AT', 'en'])).toBe('de')
     expect(detectLocale(['DE'])).toBe('de')
     expect(detectLocale(['en-GB', 'es'])).toBe('en')
-    expect(detectLocale(['pt-BR', 'it', 'es'])).toBe('es')
-    expect(detectLocale(['ja-JP'])).toBe(REFERENCE_LOCALE)
+    expect(detectLocale(['xx-XX', 'zz', 'es'])).toBe('es')
+    expect(detectLocale(['qq-QQ'])).toBe(REFERENCE_LOCALE)
     expect(detectLocale([])).toBe('en')
   })
 })
@@ -131,7 +131,7 @@ describe('traducción', () => {
     expect(tr.t('menu.title')).toBe('MENU')
     expect(tr.has('menu.title')).toBe(true)
     expect(tr.has('error.nope')).toBe(false)
-    expect(tr.t('menu.resume')).toBe('menu.resume')
+    expect(tr.t('menu.item.resume')).toBe('menu.item.resume')
   })
 
   it('cada idioma trae sus frases', async () => {

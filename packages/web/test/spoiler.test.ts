@@ -8,7 +8,8 @@ import { clientConfig } from '../src/config.ts'
 import { INITIAL_STATE } from '../src/game/state.ts'
 import type { GameState, Phase } from '../src/game/state.ts'
 import { translator } from './translators.ts'
-import { LeaderboardScreen } from '../src/ui/screens/leaderboard.ts'
+import { RankingPage } from '../src/ui/menu/pages/ranking.ts'
+import { fakeHost } from './menuHost.ts'
 import { testWebConfig } from './fixtures.ts'
 
 function context(phase: { value: Phase }) {
@@ -22,6 +23,7 @@ function context(phase: { value: Phase }) {
     state: (): GameState => ({ ...INITIAL_STATE, phase: phase.value }),
     leaderboard,
     brokeRank,
+    announce: () => undefined,
   } as unknown as AppContext
   return { ctx, leaderboard, brokeRank }
 }
@@ -30,7 +32,7 @@ describe('sin destripes', () => {
   it('el ranking de la ventana espera a que caiga la bola', () => {
     const phase = { value: 'landing' as Phase }
     const { ctx, leaderboard, brokeRank } = context(phase)
-    const screen = new LeaderboardScreen(ctx)
+    const screen = new RankingPage(fakeHost(ctx))
     screen.update()
     expect(leaderboard).not.toHaveBeenCalled()
     expect(brokeRank).not.toHaveBeenCalled()
@@ -43,7 +45,7 @@ describe('sin destripes', () => {
 
   it('fuera de la caída se carga al abrir', () => {
     const { ctx, leaderboard } = context({ value: 'idle' })
-    new LeaderboardScreen(ctx).update()
+    new RankingPage(fakeHost(ctx)).update()
     expect(leaderboard).toHaveBeenCalledTimes(1)
   })
 })

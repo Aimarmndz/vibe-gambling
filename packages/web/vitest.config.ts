@@ -17,9 +17,18 @@ export default defineConfig({
         'src/app/onboarding.ts',
         'src/app/presence.ts',
         'src/ui/counter.ts',
+        // Lógica pura de las animaciones de espectáculo (lo que pinta se ve en las capturas E2E).
+        'src/render/fx/clock.ts',
+        'src/render/fx/easing.ts',
+        'src/render/fx/plan.ts',
+        'src/render/fx/notices.ts',
+        'src/render/fx/odometer.ts',
+        'src/render/fx/fire.ts',
         'src/legal/**/*.ts',
         'src/ui/status.ts',
         'src/pages/privacy.ts',
+        'src/ui/menu/**/*.ts',
+        'src/ui/brandMark.ts',
       ],
       reporter: ['text', 'html'],
       thresholds: {

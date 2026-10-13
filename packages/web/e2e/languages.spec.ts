@@ -24,17 +24,17 @@ async function waitScreen(page: Page, id: string) {
   )
 }
 
-/** START → AJUSTES (dos filas hacia arriba desde CONTINUAR: CRÉDITOS y AJUSTES) → fila IDIOMA. */
+/** START → AJUSTES (rejilla: fila de abajo, tercera casilla) → fila IDIOMA. */
 async function openLanguageRow(page: Page) {
   await page.keyboard.press('p')
   await waitScreen(page, 'menu')
-  await page.keyboard.press('ArrowUp')
-  await page.keyboard.press('ArrowUp')
+  await page.keyboard.press('ArrowDown')
+  await page.keyboard.press('ArrowRight')
+  await page.keyboard.press('ArrowRight')
   await page.keyboard.press('x')
   await waitScreen(page, 'settings')
-  // SONIDO · FILTRO CRT · IDIOMA
-  await page.keyboard.press('ArrowDown')
-  await page.keyboard.press('ArrowDown')
+  // SONIDO · VOLUMEN · FILTRO CRT · CALIDAD · IDIOMA
+  for (let i = 0; i < 4; i++) await page.keyboard.press('ArrowDown')
 }
 
 async function closeMenus(page: Page) {

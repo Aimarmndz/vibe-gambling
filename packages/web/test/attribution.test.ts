@@ -109,9 +109,10 @@ describe('atribución 7(b)', () => {
   })
 
   it.each(LOCALES)('sale en los créditos de la ventana (%s)', async locale => {
-    const { CreditsScreen } = await import('../src/ui/screens/menu.ts')
+    const { CreditsPage } = await import('../src/ui/menu/pages/credits.ts')
+    const { fakeHost } = await import('./menuHost.ts')
     const tr = translator(locale)
-    new CreditsScreen(fakeContext(tr)).draw(fakeCanvas2d(), 0)
+    new CreditsPage(fakeHost(fakeContext(tr))).draw(fakeCanvas2d(), 0)
     expect(painted).toContain(attribution(web.site.author, tr).text)
   })
 

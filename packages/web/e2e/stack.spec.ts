@@ -107,17 +107,19 @@ test('la ventana juega una ronda de verdad contra el servidor', async ({
   await page.keyboard.press('p')
   await page.waitForTimeout(200)
   await shot(page, 'menu')
-  // CONTINUAR · TIRADAS PENDIENTES · CÓMO SE GIRA · CLASIFICACIÓN · MEMORY CARD…
+  // Rejilla de 5×2: MEMORY CARD es la segunda de la fila de abajo.
   await page.keyboard.press('ArrowDown')
-  await page.keyboard.press('ArrowDown')
-  await page.keyboard.press('ArrowDown')
-  await page.keyboard.press('ArrowDown')
+  await page.keyboard.press('ArrowRight')
   await page.keyboard.press('x')
   await page.waitForTimeout(400)
   expect(await screens(page)).toContain('memoryCard')
   await shot(page, 'memory-card')
+  // Vuelta a la rejilla y a CLASIFICACIÓN (la última de la fila de arriba).
   await page.keyboard.press('o')
   await page.keyboard.press('ArrowUp')
+  await page.keyboard.press('ArrowRight')
+  await page.keyboard.press('ArrowRight')
+  await page.keyboard.press('ArrowRight')
   await page.keyboard.press('x')
   await page.waitForTimeout(1200)
   expect(await screens(page)).toContain('leaderboard')
@@ -145,9 +147,13 @@ test('la ventana juega una ronda de verdad contra el servidor', async ({
   )
   await page.waitForTimeout(300)
   await shot(page, 'loan')
+  // El usuario del GitHub falso es el mismo en toda la ejecución (otro E2E puede haber pedido
+  // ya un préstamo): se espera a que la deuda suba respecto a la de antes de aceptar.
+  const loansBefore = (await vg(page)).shown!.loans
   await page.keyboard.press('x')
   await page.waitForFunction(
-    () => ((window as unknown as { __vg: Hooks }).__vg.state().shown?.debt ?? 0) > 0,
+    n => ((window as unknown as { __vg: Hooks }).__vg.state().shown?.loans ?? 0) > n,
+    loansBefore,
   )
   const after = await vg(page)
   expect(after.shown!.balance).toBeGreaterThanOrEqual(10)
@@ -246,15 +252,14 @@ test('tiradas pendientes: se acumulan con la ventana cerrada y se gastan con GIR
   const spinAll = () => page.evaluate(() => (window as unknown as { __vg: Hooks }).__vg.spinAll())
   const startSpinAll = async () => {
     await closeLoan()
-    // Menú → TIRADAS PENDIENTES → GIRAR TODAS.
+    // Menú → TIRADAS → □ TODAS.
     await page.keyboard.press('p')
-    await page.keyboard.press('ArrowDown')
+    await page.keyboard.press('ArrowRight')
     await page.keyboard.press('x')
     await page.waitForFunction(() =>
       (window as unknown as { __vg: Hooks }).__vg.screens().includes('pending'),
     )
-    await page.keyboard.press('ArrowDown')
-    await page.keyboard.press('x')
+    await page.keyboard.press('z')
     await page.waitForFunction(() => (window as unknown as { __vg: Hooks }).__vg.spinAll().running)
   }
 
