@@ -16,6 +16,7 @@ export default tseslint.config(
       'packages/mod/.claude-plugin/types/**',
       'packages/server/drizzle/**',
       '.plan/**',
+      '.claude/**',
     ],
   },
   js.configs.recommended,

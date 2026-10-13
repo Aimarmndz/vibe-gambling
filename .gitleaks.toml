@@ -1,0 +1,7 @@
+# Configuración de gitleaks: las reglas por defecto más los falsos positivos revisados a mano.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Token de ejemplo inventado de docs/PROTOCOLO.md (usuario falso octo-gambler; nunca ha sido válido)"
+regexes = ['''crV3b3vf6xWJIR5Tmek_aEaimhOxbsdcnSRmIkriyUQ''']
