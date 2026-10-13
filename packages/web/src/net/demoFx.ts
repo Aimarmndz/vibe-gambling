@@ -18,6 +18,7 @@ export const DEMO_FX = [
   'fallacy',
   'achievement',
   'pending',
+  'commission',
 ] as const
 export type DemoFx = (typeof DEMO_FX)[number]
 
@@ -42,6 +43,8 @@ export interface DemoScenario {
    * guardada y baja como al gastarla. Vacío = no se toca.
    */
   pendingSteps: number[]
+  /** Comisión de afiliado de mentira (un invitado "se activa"), sin tirada. */
+  commission: boolean
 }
 
 /** Números rojos del cilindro europeo (para la racha de la falacia). */
@@ -58,6 +61,7 @@ export function demoScenario(kind: DemoFx, cfg: GameConfig): DemoScenario {
     gitPushOk: false,
     achievement: null,
     pendingSteps: [],
+    commission: false,
   }
   const bet = (selection: Bet['selection'], amount = chip): Bet => ({ selection, amount })
   switch (kind) {
@@ -104,5 +108,7 @@ export function demoScenario(kind: DemoFx, cfg: GameConfig): DemoScenario {
       return { ...base, bets: [bet({ kind: 'red' })], result: 3, achievement: 'first_spin' }
     case 'pending':
       return { ...base, pendingSteps: [19, 20, 19] }
+    case 'commission':
+      return { ...base, commission: true }
   }
 }

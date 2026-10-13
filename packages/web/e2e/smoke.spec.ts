@@ -111,7 +111,7 @@ test.describe('humo', () => {
       `${baseURL}/og.png`,
     )
     await page.goto('/privacy')
-    await expect(page.locator('#sections h2')).toHaveCount(9)
+    await expect(page.locator('#sections h2')).toHaveCount(10)
     await expect(page.locator('#footer .attribution')).toBeVisible()
     expect(w.csp).toEqual([])
     expect(w.errors).toEqual([])

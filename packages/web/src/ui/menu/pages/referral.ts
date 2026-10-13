@@ -289,7 +289,7 @@ export class ReferralPage implements MenuPage {
     this.lines()
       .slice(this.scroll, this.scroll + ROWS)
       .forEach((line, i) => {
-        const y = 152 + i * 14
+        const y = 150 + i * 13
         if (line.kind === 'text') {
           drawText(g, line.text, 16, y, { color: line.color })
           return
@@ -297,6 +297,10 @@ export class ReferralPage implements MenuPage {
         drawText(g, line.label, 16, y, { color: PALETTE.cream, shadow: PALETTE.ink })
         drawText(g, line.value, 304, y, { color: line.color, align: 'right', shadow: PALETTE.ink })
       })
+    // Hay más debajo (las reglas): una flecha discreta en la esquina, como pista del ↑↓.
+    if (this.scroll + ROWS < this.lines().length) {
+      drawText(g, '▼', 304, 204, { color: SECONDARY, align: 'right' })
+    }
   }
 
   private drawLoading(g: CanvasRenderingContext2D, t: number, x: number, y: number): void {

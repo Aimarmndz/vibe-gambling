@@ -465,6 +465,20 @@ export class DemoLink implements Link, DemoAutoControl {
           : { v: PROTOCOL_VERSION, type: 'wallet', wallet: this.wallet },
       )
     }
+    if (sc.commission) {
+      // AFILIADOS: como si se activara un invitado (la demo no tiene a quién invitar).
+      const { commission, maxCommissionsPerSeason } = this.cfg.referral
+      this.setBalance(this.wallet.balance + commission)
+      this.emit({
+        v: PROTOCOL_VERSION,
+        type: 'referral.commission',
+        amount: commission,
+        capped: false,
+        commissions: 1,
+        cap: maxCommissionsPerSeason,
+        wallet: this.wallet,
+      })
+    }
     if (sc.result === null) return
     await this.turn({
       result: sc.result,

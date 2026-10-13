@@ -441,17 +441,23 @@ h2 {
   padding-bottom: 24px;
 }
 
-.invite-from {
+/* Más pequeño que el titular de la portada: un login largo tiene que caber al lado del avatar. */
+.headline.invite-from {
   flex-direction: row;
-  flex-wrap: wrap;
-  gap: 16px;
+  gap: 24px;
   align-items: center;
+  font-size: var(--t2);
   overflow-wrap: anywhere;
 }
 
+.invite-from > span {
+  min-width: 0;
+}
+
 .invite-avatar {
-  width: 48px;
-  height: 48px;
+  width: 72px;
+  height: 72px;
+  box-shadow: 8px 8px 0 #000;
 }
 
 .invite-steps {
@@ -478,6 +484,10 @@ h2 {
 @media (min-width: 720px) {
   .headline {
     font-size: var(--t4);
+  }
+
+  .headline.invite-from {
+    font-size: var(--t3);
   }
 }
 

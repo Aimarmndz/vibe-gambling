@@ -110,14 +110,14 @@ test('la ventana juega una ronda de verdad contra el servidor', async ({
   await page.keyboard.press('p')
   await page.waitForTimeout(200)
   await shot(page, 'menu')
-  // Rejilla de 5×2: MEMORY CARD es la segunda de la fila de abajo.
+  // Rejilla de 6+5: MEMORY CARD es la segunda de la fila de abajo.
   await page.keyboard.press('ArrowDown')
   await page.keyboard.press('ArrowRight')
   await page.keyboard.press('x')
   await page.waitForTimeout(400)
   expect(await screens(page)).toContain('memoryCard')
   await shot(page, 'memory-card')
-  // Vuelta a la rejilla y a CLASIFICACIÓN (la última de la fila de arriba).
+  // Vuelta a la rejilla y a CLASIFICACIÓN (la quinta de la fila de arriba).
   await page.keyboard.press('o')
   await page.keyboard.press('ArrowUp')
   await page.keyboard.press('ArrowRight')
@@ -332,7 +332,7 @@ test('landing con el ranking y página de privacidad', async ({ page }) => {
   await page.waitForTimeout(2500)
   await shot(page, 'landing', true)
   await page.goto('/privacy')
-  await expect(page.locator('#sections h2')).toHaveCount(9)
+  await expect(page.locator('#sections h2')).toHaveCount(10)
   // Lo que depende de la instancia sale de /config.json (site.json y el entorno del servidor).
   const web = webConfigSchema.parse(await (await page.request.get('/config.json')).json())
   const { instance } = web.site

@@ -181,7 +181,7 @@ test('capturas de cada pantalla del menú (demo, temporada de ejemplo)', async (
     'menu-achievements',
     ['ArrowDown'],
   )
-  await capture(page, ['ArrowLeft'], 'leaderboard', 'menu-ranking')
+  await capture(page, ['ArrowLeft', 'ArrowLeft'], 'leaderboard', 'menu-ranking')
   await capture(page, ['ArrowDown'], 'bank', 'menu-bank')
   await capture(page, ['ArrowDown', 'ArrowRight'], 'memoryCard', 'menu-memory')
   await capture(page, ['ArrowDown', 'ArrowRight', 'ArrowRight'], 'settings', 'menu-settings', [

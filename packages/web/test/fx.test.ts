@@ -464,6 +464,7 @@ describe('guiones de la demo: cada uno da justo su animación', () => {
     expect(play('achievement').sc.achievement).toBe('first_spin')
     expect(play('bank').sc).toMatchObject({ result: null, wallet: { balance: 0 } })
     expect(play('pending').sc.pendingSteps).toEqual([19, 20, 19])
+    expect(play('commission').sc).toMatchObject({ result: null, commission: true })
   })
 
   it('todas las apuestas de los guiones caben en las reglas de la mesa', () => {

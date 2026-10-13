@@ -243,6 +243,18 @@ test.describe('espectáculo', () => {
     await done(ach)
   })
 
+  test('comisión de afiliado: aviso con la pirámide y el saldo sumado', async ({ browser }) => {
+    const page = await open(browser, 'commission')
+    await page.waitForFunction(() =>
+      ((window as unknown as { __vg: FxHooks }).__vg.fx().notice ?? '').startsWith('commission:'),
+    )
+    // Sale con la mesa quieta y la cartera ya lleva la comisión.
+    await page.waitForTimeout(450)
+    await expect(page.locator('#live')).toContainText('Comisión de afiliado')
+    await shot(page, 'fx-commission-1')
+    await done(page)
+  })
+
   test('contador de pendientes: sube y baja como un odómetro', async ({ browser }) => {
     const page = await open(browser, 'pending')
     await page.waitForFunction(
