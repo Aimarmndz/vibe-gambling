@@ -25,8 +25,8 @@
     "font:build": "python3 -I scripts/build_font.py",
     "test:e2e:claude": "node --env-file=e2e-live/live.env e2e-live/claude-turn.ts",
     "test:e2e:pending": "node --env-file=e2e-live/live.env e2e-live/pending-turns.ts",
-    "demo:record": "node --env-file=e2e-live/live.env e2e-live/record-demo.ts",
-    "fx:record": "node --env-file=e2e-live/live.env e2e-live/record-fx.ts"
+    "fx:record": "node --env-file=e2e-live/live.env e2e-live/record-fx.ts",
+    "hero:record": "node --env-file=e2e-live/live.env e2e-live/record-hero.ts"
   },
   "dependencies": {
     "@vibe-gambling/shared": "workspace:*",
