@@ -5,7 +5,15 @@ import type { ServerMessage } from '@vibe-gambling/shared'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import WebSocket from 'ws'
 
-import { createUser, MOD_META, startTestApp, turnId, webCookie } from '../helpers/app.ts'
+import {
+  afterMinTurn,
+  beginTurn,
+  createUser,
+  MOD_META,
+  startTestApp,
+  turnId,
+  webCookie,
+} from '../helpers/app.ts'
 import type { TestApp } from '../helpers/app.ts'
 import { TEST_PUBLIC_URL } from '../helpers/env.ts'
 
@@ -99,6 +107,7 @@ describe('WebSocket', () => {
       payload: { v: 1, turnId: id, ...MOD_META },
     })
     expect(start.json().windowConnected).toBe(true)
+    afterMinTurn(t)
     await t.app.inject({
       method: 'POST',
       url: '/api/turn/end',
@@ -125,11 +134,11 @@ describe('WebSocket', () => {
     client.ws.close()
   })
 
-  it('una turn/end sin turn/start manda igualmente round.started y luego round.resolved', async () => {
+  it('una turn/end sin turn/start no tira ni anuncia nada (no hay turno que medir)', async () => {
     const { user, bearer } = await createUser(t)
     const client = connect({ cookie: await webCookie(t, user.id) })
     await client.next('hello')
-    await t.app.inject({
+    const res = await t.app.inject({
       method: 'POST',
       url: '/api/turn/end',
       headers: bearer,
@@ -142,22 +151,22 @@ describe('WebSocket', () => {
         ...MOD_META,
       },
     })
-    await client.next('round.resolved')
-    // La primera tirada desbloquea "first_spin", que llega siempre detrás del resultado.
-    await client.next('achievement.unlocked')
-    expect(client.messages.map(m => m.type)).toEqual([
-      'hello',
-      'round.started',
-      'round.resolved',
-      'achievement.unlocked',
-    ])
+    expect(res.json()).toMatchObject({ status: 'no_round', wallet: { spins: 0 } })
+    // El `pong` llega detrás de cualquier cosa que el servidor hubiera mandado antes.
+    client.send({ v: 1, type: 'ping', t: 1 })
+    await client.next('pong')
+    expect(client.messages.map(m => m.type)).toEqual(['hello', 'pong'])
     client.ws.close()
   })
 
-  it('tiradas pendientes: presence oculta → pending; GIRAR → round.started y round.resolved', async () => {
-    const { user, bearer } = await createUser(t, 'pendingws')
-    const endTurn = async (id: string) =>
-      t.app.inject({
+  it('una tirada por bola: con la bola aún cayendo, la ventana recibe pending y no round.resolved', async () => {
+    const { user, bearer } = await createUser(t, 'onepereball')
+    const client = connect({ cookie: await webCookie(t, user.id) })
+    await client.next('hello')
+    const play = async () => {
+      const id = turnId()
+      await beginTurn(t, bearer, id)
+      const res = await t.app.inject({
         method: 'POST',
         url: '/api/turn/end',
         headers: bearer,
@@ -170,6 +179,46 @@ describe('WebSocket', () => {
           ...MOD_META,
         },
       })
+      return res.json() as { status: string; round?: { revealAt: string } }
+    }
+    const first = await play()
+    expect(first.status).toBe('resolved')
+    await client.next('round.started')
+    const resolved = await client.next('round.resolved')
+    await client.next('achievement.unlocked')
+    const second = await play()
+    expect(Date.parse(first.round?.revealAt ?? '')).toBeGreaterThan(t.clock.now().getTime())
+    expect(second.status).toBe('queued')
+    const started = await client.next('round.started')
+    expect(started.round.roundId).not.toBe(resolved.round.roundId)
+    expect(await client.next('pending')).toMatchObject({
+      event: 'queued',
+      wallet: { pendingSpins: 1, spins: 1 },
+    })
+    client.send({ v: 1, type: 'ping', t: 1 })
+    await client.next('pong')
+    expect(client.messages.filter(m => m.type === 'round.resolved')).toHaveLength(1)
+    client.ws.close()
+  })
+
+  it('tiradas pendientes: presence oculta → pending; GIRAR → round.started y round.resolved', async () => {
+    const { user, bearer } = await createUser(t, 'pendingws')
+    const endTurn = async (id: string) => {
+      await beginTurn(t, bearer, id)
+      return t.app.inject({
+        method: 'POST',
+        url: '/api/turn/end',
+        headers: bearer,
+        payload: {
+          v: 1,
+          turnId: id,
+          durationMs: 9,
+          gitPushOk: false,
+          testFailed: false,
+          ...MOD_META,
+        },
+      })
+    }
     // Con la ventana cerrada se acumula una; al abrirla, el hello ya trae el contador.
     expect((await endTurn(turnId())).json().status).toBe('queued')
     const client = connect({ cookie: await webCookie(t, user.id) })

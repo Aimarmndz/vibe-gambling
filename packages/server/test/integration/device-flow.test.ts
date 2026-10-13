@@ -6,6 +6,7 @@ import {
   deviceStartResponseSchema,
   opaqueTokenSchema,
 } from '@vibe-gambling/shared'
+import { eq } from 'drizzle-orm'
 import { http, HttpResponse } from 'msw'
 import { setupServer } from 'msw/node'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
@@ -57,7 +58,12 @@ const github = setupServer(
       return HttpResponse.json({ message: 'Bad credentials' }, { status: 401 })
     }
     return HttpResponse.json(
-      script.profile ?? { id: 777, login: 'Octo', avatar_url: 'https://avatars.test/777' },
+      script.profile ?? {
+        id: 777,
+        login: 'Octo',
+        avatar_url: 'https://avatars.test/777',
+        created_at: '2012-03-04T05:06:07Z',
+      },
     )
   }),
 )
@@ -135,7 +141,12 @@ describe('Device Flow', () => {
       avatarUrl: 'https://avatars.test/777',
       profileUrl: 'https://github.test/Octo',
       hidden: false,
+      // Cuenta de GitHub de 2012: ya sale en el ranking.
+      newAccount: null,
     })
+    // Se guarda la fecha de creación de la cuenta de GitHub (regla antiabuso del ranking).
+    const [stored] = await t.db.db.select().from(users).where(eq(users.githubId, 777))
+    expect(stored?.githubCreatedAt?.toISOString()).toBe('2012-03-04T05:06:07.000Z')
 
     // El token de sesión funciona contra /api/me…
     const me = await t.app.inject({
@@ -167,6 +178,7 @@ describe('Device Flow', () => {
       id: 777,
       login: 'OctoRenamed',
       avatar_url: 'https://avatars.test/new',
+      created_at: '2012-03-04T05:06:07Z',
     })
     const start = await deviceStart()
     const ok = await poll(start.pollId)
@@ -174,6 +186,61 @@ describe('Device Flow', () => {
     expect(ok.isNew).toBe(false)
     expect(ok.user.login).toBe('OctoRenamed')
     expect(await t.db.db.select().from(users)).toHaveLength(1)
+  })
+
+  it('una cuenta de antes de la regla (sin fecha) la recibe en su próximo login', async () => {
+    await t.db.db.update(users).set({ githubCreatedAt: null }).where(eq(users.githubId, 777))
+    // Cuenta de GitHub de hace 10 días: a partir de ahora espera a cumplir los 30.
+    const created = new Date(t.clock.now().getTime() - 10 * 86_400_000)
+    fresh([{ access_token: GITHUB_TOKEN }], {
+      id: 777,
+      login: 'OctoRenamed',
+      avatar_url: 'https://avatars.test/new',
+      created_at: created.toISOString(),
+    })
+    const ok = await poll((await deviceStart()).pollId)
+    if (ok.status !== 'ok') throw new Error('esperaba ok')
+    expect(ok.user.newAccount).toEqual({
+      minAgeDays: 30,
+      rankedFrom: new Date(created.getTime() + 30 * 86_400_000).toISOString(),
+    })
+    const [stored] = await t.db.db.select().from(users).where(eq(users.githubId, 777))
+    expect(stored?.githubCreatedAt?.toISOString()).toBe(created.toISOString())
+  })
+
+  it('una cuenta nueva de GitHub entra y juega, con la fecha en que saldrá en el ranking', async () => {
+    const created = new Date(t.clock.now().getTime() - 2 * 86_400_000)
+    fresh([{ access_token: GITHUB_TOKEN }], {
+      id: 888,
+      login: 'Fresh',
+      avatar_url: 'https://avatars.test/888',
+      created_at: created.toISOString(),
+    })
+    const ok = await poll((await deviceStart()).pollId)
+    if (ok.status !== 'ok') throw new Error('esperaba ok')
+    expect(ok.isNew).toBe(true)
+    expect(ok.user.newAccount).toEqual({
+      minAgeDays: 30,
+      rankedFrom: new Date(created.getTime() + 30 * 86_400_000).toISOString(),
+    })
+  })
+
+  it('sin una fecha de creación válida en el perfil, el login falla sin crear el usuario', async () => {
+    fresh([{ access_token: GITHUB_TOKEN }], {
+      id: 999,
+      login: 'NoDate',
+      avatar_url: 'https://avatars.test/999',
+      created_at: 'not a date',
+    })
+    const start = await deviceStart()
+    const res = await t.app.inject({
+      method: 'POST',
+      url: '/api/auth/device/poll',
+      payload: { v: 1, pollId: start.pollId },
+    })
+    expect(res.statusCode).toBe(502)
+    expect(res.json()).toMatchObject({ v: 1, error: 'github_unavailable' })
+    expect(await t.db.db.select().from(users).where(eq(users.githubId, 999))).toHaveLength(0)
   })
 
   it('access_denied y expired_token terminan el login', async () => {

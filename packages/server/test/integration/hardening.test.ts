@@ -18,6 +18,7 @@ import { hallOfRuin, sessions, users, wallets } from '../../src/db/schema.ts'
 import { runMigrations } from '../../src/db/migrate.ts'
 import { AppError } from '../../src/lib/errors.ts'
 import {
+  beginTurn,
   createUser,
   createWatchingUser,
   MOD_META,
@@ -81,13 +82,15 @@ describe('cambio de temporada con fichas en el boleto', () => {
     try {
       const { user, bearer } = await createWatchingUser(own, 'slipper')
       // Una tirada (apuesta por defecto: 10 al rojo; sale el 17, negro) para entrar en el Salón.
+      const id = turnId()
+      await beginTurn(own, bearer, id)
       const end = await own.app.inject({
         method: 'POST',
         url: '/api/turn/end',
         headers: bearer,
         payload: {
           v: 1,
-          turnId: turnId(),
+          turnId: id,
           durationMs: 1,
           gitPushOk: false,
           testFailed: false,
@@ -268,6 +271,7 @@ describe('carreras que ya aguantaban (regresión)', () => {
       testFailed: false,
       ...MOD_META,
     }
+    await beginTurn(t, bearer, id)
     const responses = await Promise.all(
       Array.from({ length: 20 }, () =>
         t.app.inject({ method: 'POST', url: '/api/turn/end', headers: bearer, payload }),
@@ -284,6 +288,7 @@ describe('carreras que ya aguantaban (regresión)', () => {
 
     // El mismo turnId de otro usuario es otro turno.
     const other = await createWatchingUser(t)
+    await beginTurn(t, other.bearer, id)
     const res = await t.app.inject({
       method: 'POST',
       url: '/api/turn/end',

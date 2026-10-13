@@ -97,7 +97,7 @@ describe('GitHubClient', () => {
     await expect(client.requestDeviceCode()).rejects.toMatchObject({ code: 'github_unavailable' })
   })
 
-  it('pide el perfil con el token y User-Agent, y se queda solo con id, login y avatar', async () => {
+  it('pide el perfil con el token y User-Agent, y se queda con id, login, avatar y fecha de alta', async () => {
     server.use(
       http.get(`${API}/user`, ({ request }) => {
         expect(request.headers.get('authorization')).toBe('Bearer gho_x')
@@ -106,6 +106,7 @@ describe('GitHubClient', () => {
           id: 5,
           login: 'octo',
           avatar_url: 'https://avatars.test/5',
+          created_at: '2011-01-25T18:44:36Z',
           email: 'private@example.com',
           name: 'Private Name',
         })
@@ -115,13 +116,59 @@ describe('GitHubClient', () => {
       id: 5,
       login: 'octo',
       avatarUrl: 'https://avatars.test/5',
+      createdAt: new Date('2011-01-25T18:44:36Z'),
     })
+  })
+
+  it('acepta created_at con milisegundos o con desfase horario', async () => {
+    for (const [raw, iso] of [
+      ['2020-02-29T23:59:59.500Z', '2020-02-29T23:59:59.500Z'],
+      ['2020-03-01T01:00:00+02:00', '2020-02-29T23:00:00.000Z'],
+    ]) {
+      server.use(
+        http.get(`${API}/user`, () =>
+          HttpResponse.json({
+            id: 5,
+            login: 'octo',
+            avatar_url: 'https://a.test/5',
+            created_at: raw,
+          }),
+        ),
+      )
+      expect((await client.fetchProfile('gho_x')).createdAt.toISOString()).toBe(iso)
+    }
+  })
+
+  it.each([
+    ['sin created_at', undefined],
+    ['created_at nulo', null],
+    ['created_at que no es fecha', 'yesterday'],
+    ['solo el día', '2011-01-25'],
+    ['día imposible', '2011-02-30T00:00:00Z'],
+    ['un número', 1296000000],
+  ])('rechaza un perfil %s (sin fecha no se aplica la regla del ranking)', async (_, created) => {
+    server.use(
+      http.get(`${API}/user`, () =>
+        HttpResponse.json({
+          id: 5,
+          login: 'octo',
+          avatar_url: 'https://avatars.test/5',
+          ...(created === undefined ? {} : { created_at: created }),
+        }),
+      ),
+    )
+    await expect(client.fetchProfile('gho_x')).rejects.toMatchObject({ code: 'github_unavailable' })
   })
 
   it('rechaza un perfil cuyo avatar no es http(s) (acabaría en un src de la web)', async () => {
     server.use(
       http.get(`${API}/user`, () =>
-        HttpResponse.json({ id: 5, login: 'octo', avatar_url: 'javascript:alert(1)' }),
+        HttpResponse.json({
+          id: 5,
+          login: 'octo',
+          avatar_url: 'javascript:alert(1)',
+          created_at: '2011-01-25T18:44:36Z',
+        }),
       ),
     )
     await expect(client.fetchProfile('gho_x')).rejects.toMatchObject({ code: 'github_unavailable' })

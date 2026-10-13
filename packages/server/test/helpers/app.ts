@@ -137,6 +137,46 @@ export function turnId(): string {
 
 export const MOD_META = { pluginVersion: '0.1.0', os: 'linux' } as const
 
+/**
+ * Adelanta el reloj hasta que la bola de la última tirada en directo haya caído. Una tirada por
+ * bola: mientras su `revealAt` no llegue, el siguiente `turn/end` se guarda como pendiente en vez
+ * de tirarse. `revealAt` nunca pasa de `max(openedAt + minSpinMs, ahora + landingMs)`, y
+ * `openedAt` nunca es posterior a ahora, así que basta con el mayor de los dos.
+ */
+export function afterBall(t: TestApp): void {
+  const { minSpinMs, landingMs } = t.config.game.spin
+  t.clock.advance(Math.max(minSpinMs, landingMs))
+}
+
+/**
+ * Adelanta el reloj la duración mínima de un turno (`turn.minDurationMs`). Un `turn/end` que llega
+ * antes no da tirada: el servidor mide el turno con su propio reloj desde el `turn/start`.
+ */
+export function afterMinTurn(t: TestApp): void {
+  t.clock.advance(t.config.game.turn.minDurationMs)
+}
+
+/**
+ * El principio de un prompt como lo hace el mod: `turn/start` (idempotente: si el turno ya empezó,
+ * no cambia nada) y la duración mínima de un turno, para que su `turn/end` cuente.
+ */
+export async function beginTurn(t: TestApp, headers: Record<string, string>, id: string) {
+  const res = await t.app.inject({
+    method: 'POST',
+    url: '/api/turn/start',
+    headers,
+    payload: { v: 1, turnId: id, ...MOD_META },
+  })
+  if (res.statusCode !== 200) throw new Error(`turn/start: ${res.statusCode} ${res.body}`)
+  afterMinTurn(t)
+}
+
+/** Lo mismo que `beginTurn`, llamando al servicio directamente (sin HTTP). */
+export async function beginServiceTurn(t: TestApp, userId: string, id: string): Promise<void> {
+  await t.services.game.turnStart(userId, id)
+  afterMinTurn(t)
+}
+
 /** Usuario con la ventana abierta y visible: sus turnos se juegan en directo. */
 export function createWatchingUser(t: TestApp, login?: string) {
   return createUser(t, login, { window: 'visible' })

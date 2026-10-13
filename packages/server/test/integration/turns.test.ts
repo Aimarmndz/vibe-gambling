@@ -1,12 +1,20 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Turnos: idempotencia, ronda compartida entre sesiones, caducidad, apuestas automáticas,
-// jackpot del `git push`, intereses y tiempo mínimo de giro.
+// Turnos: idempotencia, ronda compartida entre sesiones, caducidad, duración mínima del turno,
+// apuestas automáticas, jackpot del `git push`, intereses y tiempo mínimo de giro.
 import { turnEndResponseSchema, turnStartResponseSchema } from '@vibe-gambling/shared'
 import { eq } from 'drizzle-orm'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { rounds, turns } from '../../src/db/schema.ts'
-import { createWatchingUser, MOD_META, startTestApp, turnId } from '../helpers/app.ts'
+import {
+  afterBall,
+  beginTurn,
+  createUser,
+  createWatchingUser,
+  MOD_META,
+  startTestApp,
+  turnId,
+} from '../helpers/app.ts'
 import type { TestApp } from '../helpers/app.ts'
 
 let t: TestApp
@@ -29,7 +37,21 @@ async function start(headers: Record<string, string>, id: string) {
   return turnStartResponseSchema.parse(res.json())
 }
 
+/**
+ * Termina un turno como el mod: con su `turn/start` (no hace nada si ya se mandó) y pasada la
+ * duración mínima del turno. Los tests de la duración mínima usan `rawEnd`.
+ */
 async function end(
+  headers: Record<string, string>,
+  id: string,
+  extra: Partial<{ gitPushOk: boolean; testFailed: boolean; durationMs: number }> = {},
+) {
+  await beginTurn(t, headers, id)
+  return rawEnd(headers, id, extra)
+}
+
+/** Solo el `turn/end`, sin `turn/start` ni esperar nada. */
+async function rawEnd(
   headers: Record<string, string>,
   id: string,
   extra: Partial<{ gitPushOk: boolean; testFailed: boolean; durationMs: number }> = {},
@@ -124,14 +146,17 @@ describe('turnos', () => {
     }
   })
 
-  it('turn/end sin turn/start (se perdió) sigue siendo una tirada', async () => {
-    const { user, bearer } = await createWatchingUser(t)
+  it('turn/end sin turn/start no es una tirada: no hay duración que medir', async () => {
+    // El mod nunca lo manda (si su `turn/start` falla, no hay `turn/end`): solo un script.
+    const { user, bearer, window } = await createWatchingUser(t)
     const id = turnId()
-    const res = await end(bearer, id)
-    expect(res.status).toBe('resolved')
-    const [turn] = await t.db.db.select().from(turns).where(eq(turns.userId, user.id))
-    expect(turn?.turnId).toBe(id)
-    expect(turn?.endedAt).not.toBeNull()
+    const res = await rawEnd(bearer, id, { durationMs: 60_000 })
+    expect(res).toMatchObject({ status: 'no_round', wallet: { spins: 0, pendingSpins: 0 } })
+    // Ni ronda, ni turno, ni nada para la ventana; y el reintento dice lo mismo.
+    expect(await t.db.db.select().from(rounds).where(eq(rounds.userId, user.id))).toHaveLength(0)
+    expect(await t.db.db.select().from(turns).where(eq(turns.userId, user.id))).toHaveLength(0)
+    expect(window?.received).toEqual([])
+    expect(await rawEnd(bearer, id)).toEqual(res)
   })
 
   it('revealAt respeta el giro mínimo y la caída: max(openedAt + minSpinMs, resolvedAt + landingMs)', async () => {
@@ -157,6 +182,66 @@ describe('turnos', () => {
     )
   })
 
+  it('duración mínima: justo por debajo no hay tirada (ni pendiente); justo en el mínimo, sí', async () => {
+    const min = t.config.game.turn.minDurationMs
+    const { user, bearer, window } = await createWatchingUser(t)
+    const warn = vi.spyOn(t.app.log, 'warn')
+    try {
+      const short = turnId()
+      const opened = await start(bearer, short)
+      t.clock.advance(min - 1)
+      // El `durationMs` del cliente no cuenta: el servidor mide con su reloj.
+      const res = await rawEnd(bearer, short, { durationMs: 60_000 })
+      expect(res).toMatchObject({ status: 'no_round', wallet: { spins: 0, pendingSpins: 0 } })
+      // La ronda se cierra sin tirar y la ventana deja de verla girar.
+      const [row] = await t.db.db.select().from(rounds).where(eq(rounds.id, opened.round.roundId))
+      expect(row).toMatchObject({ status: 'expired', result: null, deferredAt: null })
+      expect(window?.received.map(m => m.type)).toEqual(['round.started', 'round.expired'])
+      // En el log: el hecho y la duración, sin datos personales.
+      expect(warn).toHaveBeenCalledTimes(1)
+      const [fields] = warn.mock.calls[0] as unknown as [Record<string, unknown>]
+      expect(fields).toEqual({ event: 'turn_too_short', elapsedMs: min - 1, minDurationMs: min })
+      // El reintento responde lo mismo, sin tirar.
+      t.clock.advance(min)
+      expect(await rawEnd(bearer, short)).toEqual(res)
+
+      const exact = turnId()
+      await start(bearer, exact)
+      t.clock.advance(min)
+      expect((await rawEnd(bearer, exact)).status).toBe('resolved')
+      expect(warn).toHaveBeenCalledTimes(1)
+    } finally {
+      warn.mockRestore()
+    }
+    const all = await t.db.db.select().from(rounds).where(eq(rounds.userId, user.id))
+    expect(all.map(r => r.status).sort()).toEqual(['expired', 'resolved'])
+  })
+
+  it('duración mínima sin ventana: un turno corto no se guarda como pendiente', async () => {
+    const { bearer } = await createUser(t)
+    const id = turnId()
+    await start(bearer, id)
+    t.clock.advance(t.config.game.turn.minDurationMs - 1)
+    expect(await rawEnd(bearer, id)).toMatchObject({
+      status: 'no_round',
+      wallet: { pendingSpins: 0, spins: 0 },
+    })
+  })
+
+  it('un turno corto no cierra la ronda que comparte con otro turno aún abierto', async () => {
+    const { bearer } = await createWatchingUser(t)
+    const long = turnId()
+    const short = turnId()
+    const a = await start(bearer, long)
+    t.clock.advance(t.config.game.turn.minDurationMs)
+    await start(bearer, short)
+    expect((await rawEnd(bearer, short)).status).toBe('no_round')
+    // La ronda sigue abierta para el otro turno, que ya pasó el mínimo y la tira.
+    const res = await rawEnd(bearer, long)
+    if (res.status !== 'resolved') throw new Error('debía resolverse')
+    expect(res.round.roundId).toBe(a.round.roundId)
+  })
+
   it('sin boleto: primero la apuesta por defecto, luego se repite la última', async () => {
     const { bearer } = await createWatchingUser(t)
     t.rng.fix(1) // rojo
@@ -168,14 +253,17 @@ describe('turnos', () => {
     ])
     expect(first.wallet.balance).toBe(1010)
 
-    // Apuesta propia de 50 al negro; luego otra ronda sin apostar repite esa.
+    // Apuesta propia de 50 al negro; luego otra ronda sin apostar repite esa (cada una cuando
+    // ya ha caído la bola de la anterior: si no, se guardaría como pendiente).
     expect((await bet(bearer, 50, 'negro')).statusCode).toBe(200)
+    afterBall(t)
     t.rng.fix(1)
     const own = await end(bearer, turnId())
     if (own.status !== 'resolved') throw new Error('debía resolverse')
     expect(own.round.source).toBe('slip')
     expect(own.wallet.balance).toBe(960)
 
+    afterBall(t)
     t.rng.fix(2) // negro
     const repeat = await end(bearer, turnId())
     if (repeat.status !== 'resolved') throw new Error('debía resolverse')
@@ -191,6 +279,7 @@ describe('turnos', () => {
     t.rng.fix(2) // negro: lo pierde todo
     const lost = await end(bearer, turnId())
     expect(lost.wallet.balance).toBe(0)
+    afterBall(t)
     const none = await end(bearer, turnId())
     if (none.status !== 'resolved') throw new Error('debía resolverse')
     expect(none.round.source).toBe('none')
@@ -226,11 +315,13 @@ describe('turnos', () => {
   it('la racha de color se calcula sobre las tiradas del usuario', async () => {
     const { bearer } = await createWatchingUser(t)
     for (const n of [1, 3, 5]) {
+      afterBall(t)
       t.rng.fix(n)
       const res = await end(bearer, turnId())
       if (res.status !== 'resolved') throw new Error('debía resolverse')
       expect(res.round.colorStreak?.color).toBe('red')
     }
+    afterBall(t)
     t.rng.fix(7)
     const res = await end(bearer, turnId())
     if (res.status !== 'resolved') throw new Error('debía resolverse')

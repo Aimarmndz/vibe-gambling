@@ -6,7 +6,15 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { loans, wallets } from '../../src/db/schema.ts'
 import { AppError } from '../../src/lib/errors.ts'
-import { createUser, createWatchingUser, MOD_META, startTestApp, turnId } from '../helpers/app.ts'
+import {
+  afterBall,
+  beginTurn,
+  createUser,
+  createWatchingUser,
+  MOD_META,
+  startTestApp,
+  turnId,
+} from '../helpers/app.ts'
 import type { TestApp } from '../helpers/app.ts'
 
 let t: TestApp
@@ -24,6 +32,18 @@ function bet(headers: Record<string, string>, amount: number | 'all-in', target:
     url: '/api/bet',
     headers,
     payload: { v: 1, amount, target },
+  })
+}
+
+/** Un prompt como lo manda el mod: `turn/start`, la duración mínima del turno y `turn/end`. */
+async function endTurn(headers: Record<string, string>) {
+  const id = turnId()
+  await beginTurn(t, headers, id)
+  return t.app.inject({
+    method: 'POST',
+    url: '/api/turn/end',
+    headers,
+    payload: { v: 1, turnId: id, durationMs: 1, gitPushOk: false, testFailed: false, ...MOD_META },
   })
 }
 
@@ -116,26 +136,31 @@ describe('concurrencia', () => {
   it('turn/end y apuestas a la vez: cada moneda está en un solo sitio', async () => {
     const { user, bearer } = await createWatchingUser(t)
     t.rng.fix(0)
-    const jobs: Array<Promise<unknown>> = []
+    // Una tirada por bola: los 20 turnos ya no pueden tirarse todos a la vez en directo (eso lo
+    // prueba pending.test.ts). Aquí cada turno termina mientras llueven apuestas, y el siguiente
+    // empieza cuando ha caído la bola del anterior.
     for (let i = 0; i < 20; i++) {
-      jobs.push(bet(bearer, 10, 'red'))
-      jobs.push(
+      const id = turnId()
+      await beginTurn(t, bearer, id)
+      await Promise.all([
+        bet(bearer, 10, 'red'),
         t.app.inject({
           method: 'POST',
           url: '/api/turn/end',
           headers: bearer,
           payload: {
             v: 1,
-            turnId: turnId(),
+            turnId: id,
             durationMs: 1,
             gitPushOk: false,
             testFailed: false,
             ...MOD_META,
           },
         }),
-      )
+        bet(bearer, 10, 'red'),
+      ])
+      afterBall(t)
     }
-    await Promise.all(jobs)
     // Con el 0 todas las apuestas al rojo pierden: lo que no esté en el boleto se ha perdido.
     const row = await walletRow(user.id)
     expect(row.spins).toBe(20)
@@ -156,19 +181,7 @@ describe('préstamo', () => {
       code: 'loan_not_allowed',
     })
     t.rng.fix(2)
-    await t.app.inject({
-      method: 'POST',
-      url: '/api/turn/end',
-      headers: bearer,
-      payload: {
-        v: 1,
-        turnId: turnId(),
-        durationMs: 1,
-        gitPushOk: false,
-        testFailed: false,
-        ...MOD_META,
-      },
-    })
+    await endTurn(bearer)
     const loan = await t.services.game.requestLoan(user.id)
     expect(loan.amount).toBe(t.config.game.loan.amount)
     expect(loan.wallet).toMatchObject({ balance: 500, debt: 500, netWorth: 0, loans: 1 })
@@ -178,23 +191,11 @@ describe('préstamo', () => {
     const { user, bearer } = await createWatchingUser(t)
     await bet(bearer, 'all-in', 'red')
     t.rng.fix(2)
-    const end = () =>
-      t.app.inject({
-        method: 'POST',
-        url: '/api/turn/end',
-        headers: bearer,
-        payload: {
-          v: 1,
-          turnId: turnId(),
-          durationMs: 1,
-          gitPushOk: false,
-          testFailed: false,
-          ...MOD_META,
-        },
-      })
-    await end()
+    await endTurn(bearer)
     await t.services.game.requestLoan(user.id)
-    const res = (await end()).json()
+    // La siguiente, cuando ya ha caído la bola (si no, se guardaría como pendiente).
+    afterBall(t)
+    const res = (await endTurn(bearer)).json()
     // 10 % por tirada en la configuración de test: 500 → 550.
     expect(res.round.interestCharged).toBe(50)
     expect(res.wallet.debt).toBe(550)

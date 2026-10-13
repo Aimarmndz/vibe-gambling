@@ -117,10 +117,12 @@ describe('configuración', () => {
       FAKE_GITHUB_CLIENT_ID: 'x',
       FAKE_GITHUB_USER_ID: '1',
       FAKE_GITHUB_USER_LOGIN: 'octo',
+      FAKE_GITHUB_USER_CREATED_AT: '2015-06-01T00:00:00Z',
       FAKE_GITHUB_INTERVAL_SECONDS: '1',
       FAKE_GITHUB_EXPIRES_IN_SECONDS: '60',
       LOG_LEVEL: 'silent',
     })
     expect(env.FAKE_GITHUB_PORT).toBe(8788)
+    expect(env.FAKE_GITHUB_USER_CREATED_AT).toBe('2015-06-01T00:00:00Z')
   })
 })

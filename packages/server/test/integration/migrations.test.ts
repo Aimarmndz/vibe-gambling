@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Migraciones de la v2 (0001 → 0003) sobre una base de datos con datos de la v1: se aplica solo la
+// Migraciones de la v2 (0001 → 0004) sobre una base de datos con datos de la v1: se aplica solo la
 // 0000, se llenan las tablas como las dejaba la v1, se migra y se comprueba que no se pierde nada,
 // que los checks nuevos aceptan las filas viejas y que el servidor de la v2 trabaja con ellas
 // (estadísticas reconstruidas, reintentos de turnos de la v1, idioma guardado).
@@ -15,7 +15,7 @@ import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest'
 import { createDb } from '../../src/db/client.ts'
 import type { DbHandle } from '../../src/db/client.ts'
 import { runMigrations } from '../../src/db/migrate.ts'
-import { attachWindow, MOD_META, startTestApp } from '../helpers/app.ts'
+import { attachWindow, beginServiceTurn, MOD_META, startTestApp } from '../helpers/app.ts'
 import type { TestApp } from '../helpers/app.ts'
 import { withDatabase } from '../helpers/db-url.ts'
 import { MIGRATIONS_DIR } from '../helpers/env.ts'
@@ -157,7 +157,7 @@ describe('migraciones de la v2 sobre datos de la v1', () => {
   let before: Record<string, number>
   let t: TestApp
 
-  it('0001 → 0003 se aplican sin perder ninguna fila ni ningún valor', async () => {
+  it('0001 → 0004 se aplican sin perder ninguna fila ni ningún valor', async () => {
     const sql = handle.sql
     before = await countAll(sql)
     const snapshot = await sql`
@@ -175,7 +175,7 @@ describe('migraciones de la v2 sobre datos de la v1', () => {
     ).toEqual(snapshot)
     const applied = await sql<{ n: number }[]>`
       select count(*)::int as n from drizzle.__drizzle_migrations`
-    expect(applied[0]!.n).toBe(4)
+    expect(applied[0]!.n).toBe(5)
 
     // Columnas nuevas vacías en las filas viejas; los idiomas guardados siguen ahí.
     const [cols] = await sql<{ n: number }[]>`
@@ -193,6 +193,11 @@ describe('migraciones de la v2 sobre datos de la v1', () => {
     const [broke] = await sql<{ n: number }[]>`
       select count(*)::int as n from wallets where broke_at is not null`
     expect(broke!.n).toBe(0)
+    // 0004: los usuarios de antes no tienen la fecha de creación de GitHub (se rellena en su
+    // próximo login; mientras tanto cuentan como antiguos para el ranking).
+    const [dated] = await sql<{ n: number }[]>`
+      select count(*)::int as n from users where github_created_at is not null`
+    expect(dated!.n).toBe(0)
 
     // Los checks nuevos están y funcionan.
     await expect(sql`update users set locale = 'xx_YY' where id = ${USER_C}`).rejects.toThrow(
@@ -248,6 +253,7 @@ describe('migraciones de la v2 sobre datos de la v1', () => {
       const window = attachWindow(t, USER_A)
       t.rng.fix(5)
       for (const id of ['v2-turn-0001', 'v2-turn-0002']) {
+        await beginServiceTurn(t, USER_A, id)
         const r = await t.services.game.turnEnd(USER_A, {
           v: 1,
           turnId: id,

@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Tiradas pendientes contra Postgres real: se guardan con la ventana cerrada u oculta, se juegan
 // en directo con una visible, tope y descarte, idempotencia, gastar (una y en modo rápido), ritmo,
-// concurrencia, jackpot conservado y caducidad al cerrar la temporada.
+// una tirada por bola en directo, concurrencia, jackpot conservado y caducidad al cerrar la
+// temporada.
 import { meResponseSchema, turnEndResponseSchema } from '@vibe-gambling/shared'
 import type { ServerMessage, TurnEndResponse } from '@vibe-gambling/shared'
 import { and, eq } from 'drizzle-orm'
@@ -9,7 +10,17 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { hallOfRuin, rounds, wallets } from '../../src/db/schema.ts'
 import { AppError } from '../../src/lib/errors.ts'
-import { attachWindow, createUser, MOD_META, START, startTestApp, turnId } from '../helpers/app.ts'
+import {
+  afterBall,
+  afterMinTurn,
+  attachWindow,
+  beginTurn,
+  createUser,
+  MOD_META,
+  START,
+  startTestApp,
+  turnId,
+} from '../helpers/app.ts'
 import type { TestApp } from '../helpers/app.ts'
 
 let t: TestApp
@@ -33,7 +44,22 @@ async function start(headers: Headers, id: string) {
   expect(res.statusCode, res.body).toBe(200)
 }
 
+/**
+ * Un prompt como lo manda el mod: `turn/start` (no hace nada si ya se mandó), la duración mínima
+ * del turno y `turn/end`.
+ */
 async function end(
+  headers: Headers,
+  id = turnId(),
+  extra: Partial<{ gitPushOk: boolean; testFailed: boolean }> = {},
+  app: TestApp = t,
+): Promise<TurnEndResponse> {
+  await beginTurn(app, headers, id)
+  return rawEnd(headers, id, extra, app)
+}
+
+/** Solo el `turn/end`, sin `turn/start` ni esperar nada. */
+async function rawEnd(
   headers: Headers,
   id = turnId(),
   extra: Partial<{ gitPushOk: boolean; testFailed: boolean }> = {},
@@ -131,10 +157,10 @@ describe('acumular', () => {
     expect(row?.status).toBe('deferred')
   })
 
-  it('un turn/end sin turn/start y sin nadie mirando no anuncia ninguna ronda', async () => {
+  it('un turn/end sin turn/start no se guarda ni anuncia nada (no hay turno que medir)', async () => {
     const { bearer, window } = await createUser(t, undefined, { window: 'hidden' })
-    expect((await end(bearer)).status).toBe('queued')
-    expect(types(window?.received ?? [])).toEqual(['pending'])
+    expect(await rawEnd(bearer)).toMatchObject({ status: 'no_round', wallet: { pendingSpins: 0 } })
+    expect(types(window?.received ?? [])).toEqual([])
   })
 
   it('con una ventana visible se juega en directo; si se oculta, se guarda', async () => {
@@ -149,7 +175,9 @@ describe('acumular', () => {
     expect(hidden.status).toBe('queued')
     expect(hidden.wallet).toMatchObject({ spins: 1, pendingSpins: 1 })
 
-    // Otra ventana visible basta para volver a jugar en directo.
+    // Otra ventana visible basta para volver a jugar en directo (una vez caída la bola de la
+    // primera: si no, también se guardaría; ver «una tirada por bola»).
+    afterBall(t)
     const other = attachWindow(t, user.id, true)
     try {
       expect((await end(bearer)).status).toBe('resolved')
@@ -453,6 +481,128 @@ describe('temporadas', () => {
     } finally {
       own.clock.set(START)
       await own.close()
+    }
+  })
+})
+
+describe('una tirada por bola', () => {
+  it('con la bola de la anterior aún cayendo, el turno se guarda; cuando cae, vuelve el directo', async () => {
+    const { user, bearer, window } = await createUser(t, undefined, { window: 'visible' })
+    if (!window) throw new Error('sin ventana')
+    t.rng.fix(5)
+    const first = await end(bearer)
+    if (first.status !== 'resolved') throw new Error('debía resolverse')
+    const revealAt = Date.parse(first.round.revealAt)
+
+    // El siguiente prompt termina antes de que la bola caiga: no se tira, se guarda.
+    window.received.length = 0
+    const id = turnId()
+    await beginTurn(t, bearer, id)
+    expect(t.clock.now().getTime()).toBeLessThan(revealAt)
+    const second = await rawEnd(bearer, id)
+    expect(second).toMatchObject({ status: 'queued', dropped: false })
+    expect(second.wallet).toMatchObject({ spins: 1, pendingSpins: 1 })
+    // La ventana vio empezar la ronda (turn/start) y recibe `pending`, no `round.resolved`.
+    expect(types(window.received)).toEqual(['round.started', 'pending'])
+    expect(window.received.at(-1)).toMatchObject({ event: 'queued', wallet: { pendingSpins: 1 } })
+    // Reintento: lo mismo, sin guardar otra.
+    expect(await rawEnd(bearer, id)).toEqual(second)
+
+    // Un milisegundo antes de `revealAt` sigue cayendo…
+    const third = turnId()
+    await beginTurn(t, bearer, third)
+    t.clock.set(new Date(revealAt - 1))
+    expect((await rawEnd(bearer, third)).status).toBe('queued')
+    // …y en cuanto ha caído, el siguiente vuelve a ser en directo.
+    const fourth = turnId()
+    await beginTurn(t, bearer, fourth)
+    expect(t.clock.now().getTime()).toBeGreaterThanOrEqual(revealAt)
+    const live = await rawEnd(bearer, fourth)
+    expect(live.status).toBe('resolved')
+    expect(live.wallet).toMatchObject({ spins: 2, pendingSpins: 2 })
+    const list = await roundsOf(user.id)
+    expect(list.filter(r => r.status === 'resolved')).toHaveLength(2)
+    expect(list.filter(r => r.status === 'deferred')).toHaveLength(2)
+  })
+
+  it('el tope de pendientes y el descarte también valen por este camino', async () => {
+    const { user, bearer, window } = await createUser(t, undefined, { window: 'hidden' })
+    if (!window) throw new Error('sin ventana')
+    const max = t.config.game.pendingSpins.max
+    for (let i = 0; i < max; i++) expect((await end(bearer)).status).toBe('queued')
+    window.setVisible(true)
+    expect((await end(bearer)).status).toBe('resolved')
+    window.received.length = 0
+    const over = await end(bearer)
+    expect(over).toMatchObject({ status: 'queued', dropped: true, wallet: { pendingSpins: max } })
+    expect(window.received.at(-1)).toMatchObject({ type: 'pending', event: 'dropped' })
+    const list = await roundsOf(user.id)
+    expect(list.filter(r => r.status === 'deferred')).toHaveLength(max)
+    expect(list.filter(r => r.status === 'expired')).toHaveLength(1)
+  })
+
+  it('N turnos simultáneos de distintas sesiones: como mucho una tirada por bola, y el saldo cuadra', async () => {
+    const { user, bearer, window } = await createUser(t, undefined, { window: 'visible' })
+    if (!window) throw new Error('sin ventana')
+    const sessions = [
+      bearer,
+      ...(await Promise.all(
+        Array.from({ length: 7 }, async () => ({
+          authorization: `Bearer ${await t.services.auth.createSession(user.id, 'mod')}`,
+        })),
+      )),
+    ]
+    // Una tanda: todas las sesiones empiezan su turno (comparten la única ronda abierta) y
+    // terminan a la vez.
+    const batch = async () => {
+      const ids = sessions.map(() => turnId())
+      await Promise.all(sessions.map((h, i) => t.services.game.turnStart(user.id, ids[i] ?? '')))
+      afterMinTurn(t)
+      return Promise.all(sessions.map((h, i) => rawEnd(h, ids[i])))
+    }
+    t.rng.fix(2)
+    const live = await batch()
+    expect(live.filter(r => r.status === 'resolved')).toHaveLength(1)
+    expect(live.filter(r => r.status !== 'resolved').every(r => r.status === 'no_round')).toBe(true)
+    // Otra tanda con la bola aún cayendo: ninguna se tira; una se guarda.
+    const rolling = await batch()
+    expect(rolling.filter(r => r.status === 'resolved')).toHaveLength(0)
+    expect(rolling.filter(r => r.status === 'queued')).toHaveLength(1)
+    expect(types(window.received).filter(x => x === 'round.resolved')).toHaveLength(1)
+
+    const [wallet] = await t.db.db
+      .select()
+      .from(wallets)
+      .where(and(eq(wallets.userId, user.id), eq(wallets.seasonId, '2026-10')))
+    const list = await roundsOf(user.id)
+    const resolved = list.filter(r => r.status === 'resolved')
+    expect(resolved).toHaveLength(1)
+    expect(list.filter(r => r.status === 'deferred')).toHaveLength(1)
+    expect(wallet?.spins).toBe(1)
+    const flow = resolved.reduce((acc, r) => acc + (r.returned ?? 0) - (r.staked ?? 0), 0)
+    expect(wallet?.balance).toBe(t.config.game.startingBalance + flow)
+  })
+
+  it('un turno y un GIRAR a la vez, sin bola cayendo: solo uno de los dos tira', async () => {
+    const game = t.services.game
+    for (let i = 0; i < 10; i++) {
+      const { user, bearer, window } = await createUser(t, undefined, { window: 'hidden' })
+      await end(bearer)
+      window?.setVisible(true)
+      const id = turnId()
+      await beginTurn(t, bearer, id)
+      const [turn, spend] = await Promise.all([
+        rawEnd(bearer, id),
+        codeOf(game.spendPending(user.id, { quick: false, requestId: requestId() })),
+      ])
+      const live = (turn.status === 'resolved' ? 1 : 0) + (spend === 'ok' ? 1 : 0)
+      expect(live).toBe(1)
+      if (turn.status !== 'resolved') expect(turn.status).toBe('queued')
+      // El GIRAR pierde contra una ronda en directo (`conflict`) o contra su bola (`rate_limited`).
+      if (spend !== 'ok') expect(['conflict', 'rate_limited']).toContain(spend)
+      const list = await roundsOf(user.id)
+      expect(list.filter(r => r.status === 'resolved')).toHaveLength(1)
+      afterMinTurn(t)
     }
   })
 })

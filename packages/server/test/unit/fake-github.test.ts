@@ -11,6 +11,7 @@ const env = {
   FAKE_GITHUB_CLIENT_ID: 'fake-client',
   FAKE_GITHUB_USER_ID: 31337,
   FAKE_GITHUB_USER_LOGIN: 'fake-dev',
+  FAKE_GITHUB_USER_CREATED_AT: '2016-02-29T08:30:00Z',
   FAKE_GITHUB_INTERVAL_SECONDS: 1,
   FAKE_GITHUB_EXPIRES_IN_SECONDS: 60,
   LOG_LEVEL: 'silent' as const,
@@ -63,6 +64,7 @@ describe('GitHub falso', () => {
       id: 31337,
       login: 'fake-dev',
       avatar_url: 'http://fake.test/avatars/31337.svg',
+      created_at: '2016-02-29T08:30:00Z',
     })
     const avatar = await app.inject({ method: 'GET', url: '/avatars/31337.svg' })
     expect(avatar.headers['content-type']).toContain('image/svg+xml')

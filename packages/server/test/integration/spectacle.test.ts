@@ -3,13 +3,23 @@
 // logros de broma (una sola vez, también con concurrencia, y en cascada al borrar la cuenta) y los
 // datos de las pantallas ESTADÍSTICAS y BANCO.
 import { ACHIEVEMENT_IDS, meResponseSchema } from '@vibe-gambling/shared'
-import type { BetSelection, ServerMessage } from '@vibe-gambling/shared'
+import type { BetSelection, ServerMessage, TurnEndRequest } from '@vibe-gambling/shared'
 import { and, eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { achievements, wallets } from '../../src/db/schema.ts'
 import { AppError } from '../../src/lib/errors.ts'
-import { createUser, createWatchingUser, MOD_META, startTestApp, turnId } from '../helpers/app.ts'
+import {
+  afterBall,
+  afterMinTurn,
+  beginServiceTurn,
+  beginTurn,
+  createUser,
+  createWatchingUser,
+  MOD_META,
+  startTestApp,
+  turnId,
+} from '../helpers/app.ts'
 import type { TestApp } from '../helpers/app.ts'
 
 let t: TestApp
@@ -24,8 +34,9 @@ afterAll(async () => {
 const STRAIGHT = (n: number): BetSelection => ({ kind: 'straight', numbers: [n] })
 
 /**
- * Juega un turno en directo: pone las fichas, fija el número y termina el turno. Avanza el reloj
- * un segundo después para que cada tirada tenga su instante.
+ * Juega un turno en directo: pone las fichas, fija el número y termina el turno. Después avanza el
+ * reloj hasta que haya caído la bola: así cada tirada tiene su instante y la siguiente también se
+ * juega en directo (una tirada por bola; con la bola aún cayendo se guardaría como pendiente).
  */
 async function play(
   app: TestApp,
@@ -42,7 +53,7 @@ async function play(
     await app.services.game.placeBet(userId, selection, amount)
   }
   app.rng.fix(opts.result)
-  const res = await app.services.game.turnEnd(userId, {
+  const res = await serviceTurnEnd(app, userId, {
     v: 1,
     turnId: opts.id ?? turnId(),
     durationMs: 5,
@@ -51,8 +62,26 @@ async function play(
     ...MOD_META,
   })
   if (res.status !== 'resolved') throw new Error(`se esperaba una ronda resuelta: ${res.status}`)
-  app.clock.advance(1000)
+  afterBall(app)
   return res
+}
+
+/** `turn/end` de un prompt como lo manda el mod: antes su `turn/start` y la duración mínima. */
+async function serviceTurnEnd(app: TestApp, userId: string, req: TurnEndRequest) {
+  await beginServiceTurn(app, userId, req.turnId)
+  return app.services.game.turnEnd(userId, req)
+}
+
+/** Lo mismo por HTTP, con un turno nuevo. */
+async function httpTurnEnd(app: TestApp, headers: Record<string, string>) {
+  const id = turnId()
+  await beginTurn(app, headers, id)
+  return app.app.inject({
+    method: 'POST',
+    url: '/api/turn/end',
+    headers,
+    payload: { v: 1, turnId: id, durationMs: 5, gitPushOk: false, testFailed: false, ...MOD_META },
+  })
 }
 
 const types = (list: ServerMessage[]) => list.map(m => m.type)
@@ -78,6 +107,8 @@ describe('nivel de espectáculo en round.resolved', () => {
     const { user, window } = await createWatchingUser(t, 'pleno')
     if (!window) throw new Error('sin ventana')
     window.received.length = 0
+    // El turno termina pasada la duración mínima desde ahora (`play` empieza por el turn/start).
+    const at = new Date(t.clock.now().getTime() + t.config.game.turn.minDurationMs).toISOString()
     const first = await play(t, user.id, { bets: [[STRAIGHT(7), 10]], result: 7 })
     expect(first.round.spectacle).toMatchObject({
       tier: 'straight',
@@ -101,8 +132,7 @@ describe('nivel de espectáculo en round.resolved', () => {
     ])
     expect(msgs[1]).toMatchObject({ round: { spectacle: first.round.spectacle } })
     expect(unlockedIds(msgs)).toEqual(['first_spin', 'big_win', 'mega_win'])
-    // Con la fecha del momento de la tirada (el reloj avanzó 1 s después) y su temporada.
-    const at = new Date(t.clock.now().getTime() - 1000).toISOString()
+    // Con la fecha del momento de la tirada (`play` adelanta el reloj después) y su temporada.
     for (const m of msgs.slice(2)) {
       expect(m).toMatchObject({
         achievement: { unlockedAt: at, seasonId: '2026-10', progress: null },
@@ -196,7 +226,7 @@ describe('nivel de espectáculo en round.resolved', () => {
       // Jueves 15 (Madrid): push con la ventana cerrada; se gasta el viernes 16.
       const { user } = await createUser(own, 'push-jueves')
       await own.services.game.placeBet(user.id, { kind: 'red' }, 10)
-      const queued = await own.services.game.turnEnd(user.id, {
+      const queued = await serviceTurnEnd(own, user.id, {
         v: 1,
         turnId: turnId(),
         durationMs: 5,
@@ -219,7 +249,7 @@ describe('nivel de espectáculo en round.resolved', () => {
       // Viernes 16: push con la ventana cerrada; se gasta el sábado 17. Cuenta.
       const other = await createUser(own, 'push-viernes')
       await own.services.game.placeBet(other.user.id, { kind: 'red' }, 10)
-      await own.services.game.turnEnd(other.user.id, {
+      await serviceTurnEnd(own, other.user.id, {
         v: 1,
         turnId: turnId(),
         durationMs: 5,
@@ -347,18 +377,27 @@ describe('logros', () => {
     const { user, window } = await createWatchingUser(t, 'concurrente')
     if (!window) throw new Error('sin ventana')
     t.rng.fix(1)
-    await Promise.all(
-      Array.from({ length: 8 }, () =>
-        t.services.game.turnEnd(user.id, {
-          v: 1,
-          turnId: turnId(),
-          durationMs: 5,
-          gitPushOk: false,
-          testFailed: false,
-          ...MOD_META,
-        }),
-      ),
-    )
+    // Una tirada por bola: ya no hay 8 tiradas a la vez. En cada tanda, 8 turnos (que comparten
+    // la ronda abierta) terminan a la vez y uno la tira; la tanda siguiente, cuando cae la bola.
+    for (let wave = 0; wave < 8; wave++) {
+      const ids = Array.from({ length: 8 }, () => turnId())
+      await Promise.all(ids.map(id => t.services.game.turnStart(user.id, id)))
+      afterMinTurn(t)
+      const results = await Promise.all(
+        ids.map(id =>
+          t.services.game.turnEnd(user.id, {
+            v: 1,
+            turnId: id,
+            durationMs: 5,
+            gitPushOk: false,
+            testFailed: false,
+            ...MOD_META,
+          }),
+        ),
+      )
+      expect(results.filter(r => r.status === 'resolved')).toHaveLength(1)
+      afterBall(t)
+    }
     const rows = await achievementRows(t, user.id)
     expect(rows.filter(r => r.achievementId === 'first_spin')).toHaveLength(1)
     expect(unlockedIds(window.received).filter(id => id === 'first_spin')).toHaveLength(1)
@@ -374,7 +413,7 @@ describe('logros', () => {
     await play(t, user.id, { result: 1, id })
     const before = window.received.length
     t.rng.fix(1)
-    const again = await t.services.game.turnEnd(user.id, {
+    const again = await serviceTurnEnd(t, user.id, {
       v: 1,
       turnId: id,
       durationMs: 5,
@@ -391,37 +430,13 @@ describe('logros', () => {
     if (!window) throw new Error('sin ventana')
     const max = t.config.game.pendingSpins.max
     for (let i = 0; i < max; i++) {
-      const res = await t.app.inject({
-        method: 'POST',
-        url: '/api/turn/end',
-        headers: bearer,
-        payload: {
-          v: 1,
-          turnId: turnId(),
-          durationMs: 5,
-          gitPushOk: false,
-          testFailed: false,
-          ...MOD_META,
-        },
-      })
+      const res = await httpTurnEnd(t, bearer)
       expect(res.json()).toMatchObject({ status: 'queued', dropped: false })
     }
     expect(types(window.received).slice(-2)).toEqual(['pending', 'achievement.unlocked'])
     expect(unlockedIds(window.received)).toEqual(['queue_full'])
     // Con la cola llena, el siguiente prompt se descarta y el logro no se repite.
-    await t.app.inject({
-      method: 'POST',
-      url: '/api/turn/end',
-      headers: bearer,
-      payload: {
-        v: 1,
-        turnId: turnId(),
-        durationMs: 5,
-        gitPushOk: false,
-        testFailed: false,
-        ...MOD_META,
-      },
-    })
+    await httpTurnEnd(t, bearer)
     expect(types(window.received).at(-1)).toBe('pending')
     const rows = await achievementRows(t, user.id)
     expect(rows.map(r => r.achievementId)).toEqual(['queue_full'])
@@ -443,19 +458,7 @@ describe('logros', () => {
 
     await t.services.game.placeBet(user.id, STRAIGHT(0), 10)
     t.rng.fix(0)
-    await t.app.inject({
-      method: 'POST',
-      url: '/api/turn/end',
-      headers: bearer,
-      payload: {
-        v: 1,
-        turnId: turnId(),
-        durationMs: 5,
-        gitPushOk: false,
-        testFailed: false,
-        ...MOD_META,
-      },
-    })
+    await httpTurnEnd(t, bearer)
     // Sin ventana se guardó como pendiente: la gasta para que cuente.
     t.clock.advance(1)
     await t.services.game.spendPending(user.id, { quick: true, requestId: `req-${turnId()}` })
