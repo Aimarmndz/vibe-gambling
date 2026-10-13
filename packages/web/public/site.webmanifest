@@ -1,0 +1,28 @@
+{
+  "name": "vibe-gambling — every prompt is a spin",
+  "short_name": "vibe-gambling",
+  "description": "A PS1-style roulette that pops up while Claude Code thinks. Fake coins, real addiction (not really). Global leaderboard of the most broke devs.",
+  "lang": "en",
+  "start_url": "/",
+  "scope": "/",
+  "display": "browser",
+  "background_color": "#08070d",
+  "theme_color": "#08070d",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

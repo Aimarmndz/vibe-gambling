@@ -39,9 +39,19 @@ body.privacy {
 }
 
 .brand {
+  display: inline-flex;
+  gap: 12px;
+  align-items: center;
   color: var(--gold);
   text-decoration: none;
   letter-spacing: 0;
+}
+
+/* La ficha de docs/brand/ a ×1 (1 píxel de la rejilla = 1 px CSS): nítida a cualquier zoom entero. */
+.brand-mark {
+  display: block;
+  flex: none;
+  image-rendering: pixelated;
 }
 
 .topnav {
