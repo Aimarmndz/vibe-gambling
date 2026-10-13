@@ -116,6 +116,18 @@ describe('traducción', () => {
     expect(translator('de').meta.bcp47).toBe('de-DE')
   })
 
+  it('singular y plural según las reglas de cada idioma (en francés, el 0 también es singular)', () => {
+    const es = translator('es')
+    expect(es.plural('bank.interestRow', 1, { n: es.n(1) })).toBe('INTERESES · 1 TIRADA')
+    expect(es.plural('bank.interestRow', 3, { n: es.n(3) })).toBe('INTERESES · 3 TIRADAS')
+    expect(es.plural('pending.noticeLine3', 1)).toBe('PENDIENTE')
+    const fr = translator('fr')
+    expect(fr.plural('menu.item.stats.hint', 0, { n: fr.n(0) })).toBe('0 tour cette saison.')
+    expect(fr.plural('menu.item.stats.hint', 2, { n: fr.n(2) })).toBe('2 tours cette saison.')
+    // Sin forma de singular, la de siempre.
+    expect(es.plural('status.thinking', 1)).toBe(es.t('status.thinking'))
+  })
+
   it('agrupa cifras con el separador del idioma y sin decimales', () => {
     expect(groupDigits(999, '.')).toBe('999')
     expect(groupDigits(1000, '.')).toBe('1.000')

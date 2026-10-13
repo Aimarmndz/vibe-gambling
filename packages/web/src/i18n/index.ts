@@ -119,6 +119,11 @@ export interface Translator {
   /** Frases de ludópata de este idioma. */
   readonly phrases: PhraseCatalog
   t(key: MessageKey, vars?: Vars): string
+  /**
+   * Como `t`, pero con la forma de singular (`<clave>.one`, si el idioma la tiene) cuando `count`
+   * es "uno" según las reglas del idioma (`Intl.PluralRules`: en francés también el 0).
+   */
+  plural(key: MessageKey, count: number, vars?: Vars): string
   /** ¿Existe esta clave? (para claves que llegan de fuera, como los códigos de error). */
   has(key: string): key is MessageKey
   /** Número entero con el separador de miles del idioma (también en las de cuatro cifras). */
@@ -138,13 +143,19 @@ export function createTranslator(locale: Locale, catalog: Catalog): Translator {
   const { meta } = languageOf(locale)
   const texts = catalog.texts
   const n = (value: number) => groupDigits(value, meta.groupSeparator)
+  const rules = new Intl.PluralRules(meta.bcp47)
+  const t = (key: string, vars?: Vars) => {
+    const text = texts[key] ?? key
+    return vars ? fillTemplate(text, vars) : text
+  }
   return {
     locale,
     meta,
     phrases: catalog.phrases,
-    t: (key, vars) => {
-      const text = texts[key] ?? key
-      return vars ? fillTemplate(text, vars) : text
+    t,
+    plural: (key, count, vars) => {
+      const one = `${key}.one`
+      return t(rules.select(count) === 'one' && one in texts ? one : key, vars)
     },
     has: (key): key is MessageKey => key in texts,
     n,
