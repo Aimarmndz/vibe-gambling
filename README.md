@@ -1,12 +1,10 @@
 <div align="center">
 
-<a href="https://vibe.aimar.dev">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/brand/logo.svg">
-    <source media="(prefers-color-scheme: light)" srcset="docs/brand/logo-light.svg">
-    <img alt="VIBE GAMBLING" src="docs/brand/logo-light.svg" width="516">
-  </picture>
-</a>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/brand/png/logo@8x.png">
+  <source media="(prefers-color-scheme: light)" srcset="docs/brand/png/logo-light@8x.png">
+  <img alt="VIBE GAMBLING" src="docs/brand/png/logo@8x.png" width="516" height="132">
+</picture>
 
 ### 🎰 Every prompt is a spin.
 
