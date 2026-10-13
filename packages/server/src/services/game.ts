@@ -82,6 +82,8 @@ interface SpinInput {
 /** Cómo se tira: giro mínimo y, al gastar una pendiente, el instante en que empieza a girar. */
 interface SpinOptions {
   spinMs: number
+  /** Caída de la bola tras resolver: `revealAt` nunca queda antes de ahora + esto. */
+  landingMs: number
   openedAt?: Date
   spendRequestId?: string
 }
@@ -190,7 +192,10 @@ export class GameService {
     const attentive = this.#d.notifier.isAttentive(userId)
     const settle = (tx: Tx, wallet: WalletRow, round: RoundRow) =>
       attentive
-        ? this.#resolve(tx, wallet, round, req, now, { spinMs: this.#d.game.spin.minSpinMs })
+        ? this.#resolve(tx, wallet, round, req, now, {
+            spinMs: this.#d.game.spin.minSpinMs,
+            landingMs: this.#d.game.spin.landingMs,
+          })
         : this.#defer(tx, wallet, round, req, now)
 
     const result = await this.#d.db.transaction(async tx => {
@@ -347,6 +352,7 @@ export class GameService {
         now,
         {
           spinMs: opts.quick ? cfg.pendingSpins.quickSpinMs : cfg.spin.minSpinMs,
+          landingMs: opts.quick ? cfg.pendingSpins.quickLandingMs : cfg.spin.landingMs,
           openedAt: now,
           spendRequestId: opts.requestId,
         },
@@ -782,7 +788,11 @@ export class GameService {
     const wentBroke = wallet.brokeAt === null && worth <= 0
 
     const openedAt = opts.openedAt ?? round.openedAt
-    const revealAt = new Date(Math.max(openedAt.getTime() + opts.spinMs, now.getTime()))
+    // Ni antes del giro mínimo ni antes de que la bola termine de caer en la ventana: si Claude
+    // tarda más que el giro, el resultado no se puede enseñar (ni el mod destriparlo) hasta entonces.
+    const revealAt = new Date(
+      Math.max(openedAt.getTime() + opts.spinMs, now.getTime() + opts.landingMs),
+    )
     const [resolved] = await tx
       .update(rounds)
       .set({

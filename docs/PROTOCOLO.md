@@ -3913,6 +3913,7 @@ Una de estas variantes:
 | `loan`            | `object` (ver JSON Schema) | sí          |
 | `jackpot`         | `object` (ver JSON Schema) | sí          |
 | `minSpinMs`       | `integer`                  | sí          |
+| `landingMs`       | `integer` ≥ 0              | sí          |
 | `colorWarningAt`  | `integer`                  | sí          |
 | `seasonTimeZone`  | `string`                   | sí          |
 | `seasonStartDay`  | `integer` 1–28             | sí          |
@@ -3954,6 +3955,7 @@ Una de estas variantes:
       "additionalProperties": false
     },
     "minSpinMs": { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 },
+    "landingMs": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
     "colorWarningAt": {
       "type": "integer",
       "minimum": -9007199254740991,
@@ -3965,9 +3967,10 @@ Una de estas variantes:
       "type": "object",
       "properties": {
         "max": { "type": "integer", "exclusiveMinimum": 0, "maximum": 9007199254740991 },
-        "quickSpinMs": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+        "quickSpinMs": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+        "quickLandingMs": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
       },
-      "required": ["max", "quickSpinMs"],
+      "required": ["max", "quickSpinMs", "quickLandingMs"],
       "additionalProperties": false
     },
     "bigWin": {
@@ -3989,6 +3992,7 @@ Una de estas variantes:
     "loan",
     "jackpot",
     "minSpinMs",
+    "landingMs",
     "colorWarningAt",
     "seasonTimeZone",
     "seasonStartDay",

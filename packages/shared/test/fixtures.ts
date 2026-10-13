@@ -22,10 +22,10 @@ export function testGameConfig(overrides: Partial<GameConfig> = {}): GameConfig 
     jackpot: { gitPushMultiplier: 2 },
     season: { timeZone: 'Europe/Madrid', startDay: 1 },
     hallOfRuinSize: 10,
-    spin: { minSpinMs: 4000 },
+    spin: { minSpinMs: 4000, landingMs: 4200 },
     round: { staleAfterMs: 1_800_000 },
     streak: { colorWarningAt: 5, historySize: 50, onFireAt: 5 },
-    pendingSpins: { max: 100, quickSpinMs: 1200 },
+    pendingSpins: { max: 100, quickSpinMs: 1200, quickLandingMs: 900 },
     bigWin: { minNetMultiple: 5, megaNetMultiple: 15 },
     achievements: {
       proDebtorLoans: 5,

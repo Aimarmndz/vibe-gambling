@@ -171,15 +171,12 @@ export const webClientConfigSchema = z
       .strict(),
     spin: z
       .object({
-        /** Duración mínima de la caída de la bola (frenado + rebotes) en ms. */
-        landingMs: ms.min(500),
-        /** Igual, con `prefers-reduced-motion`. */
-        reducedLandingMs: ms.min(100),
         /**
-         * Caída mínima en GIRAR TODAS. El servidor marca el ritmo con `pendingSpins.quickSpinMs`
-         * (la bola cae hasta su `revealAt`); esto es solo el suelo de la animación.
+         * Caída con `prefers-reduced-motion` (ms). La normal y la rápida de GIRAR TODAS son
+         * `game.landingMs` y `game.pendingSpins.quickLandingMs` de `/config.json`: las comparte con
+         * el servidor, que nunca pone `revealAt` antes de que la bola termine de caer.
          */
-        quickLandingMs: ms.min(100),
+        reducedLandingMs: ms.min(100),
       })
       .strict(),
     leaderboard: z

@@ -134,7 +134,7 @@ describe('turnos', () => {
     expect(turn?.endedAt).not.toBeNull()
   })
 
-  it('revealAt respeta el giro mínimo: max(openedAt + minSpinMs, resolvedAt)', async () => {
+  it('revealAt respeta el giro mínimo y la caída: max(openedAt + minSpinMs, resolvedAt + landingMs)', async () => {
     const { bearer } = await createWatchingUser(t)
     const quick = turnId()
     await start(bearer, quick)
@@ -150,7 +150,11 @@ describe('turnos', () => {
     t.clock.advance(t.config.game.spin.minSpinMs * 3)
     const late = await end(bearer, slow)
     if (late.status !== 'resolved') throw new Error('debía resolverse')
-    expect(late.round.revealAt).toBe(late.round.resolvedAt)
+    // Claude tardó más que el giro: el resultado no se enseña hasta que la bola termina de caer
+    // (si no, el toast del mod lo destriparía mientras la ventana aún lo está animando).
+    expect(Date.parse(late.round.revealAt) - Date.parse(late.round.resolvedAt)).toBe(
+      t.config.game.spin.landingMs,
+    )
   })
 
   it('sin boleto: primero la apuesta por defecto, luego se repite la última', async () => {

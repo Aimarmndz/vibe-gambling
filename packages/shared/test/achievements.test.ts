@@ -39,7 +39,7 @@ const rules: AchievementRules = {
     addictSpins: 10,
     nightOwl: { fromHour: 3, toHour: 6 },
   },
-  pendingSpins: { max: 4, quickSpinMs: 100 },
+  pendingSpins: { max: 4, quickSpinMs: 100, quickLandingMs: 100 },
   loan: cfg.loan,
   bigWin: cfg.bigWin,
   streak: { onFireAt: 3, colorWarningAt: 4 },

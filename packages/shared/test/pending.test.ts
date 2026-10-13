@@ -125,15 +125,18 @@ describe('GIRAR TODAS se para solo', () => {
 describe('configuración de las tiradas pendientes', () => {
   it('se publica a la web el tope, el giro rápido y el umbral del premio gordo', () => {
     const pub = toPublicGameConfig(testGameConfig())
-    expect(pub.pendingSpins).toEqual({ max: 100, quickSpinMs: 1200 })
+    expect(pub.pendingSpins).toEqual({ max: 100, quickSpinMs: 1200, quickLandingMs: 900 })
     expect(pub.bigWin).toEqual({ minNetMultiple: 5, megaNetMultiple: 15 })
   })
 
   it('el giro rápido no puede durar más que el normal', () => {
     const cfg = testGameConfig()
-    const bad = { ...cfg, pendingSpins: { max: 10, quickSpinMs: cfg.spin.minSpinMs + 1 } }
+    const bad = {
+      ...cfg,
+      pendingSpins: { ...cfg.pendingSpins, max: 10, quickSpinMs: cfg.spin.minSpinMs + 1 },
+    }
     expect(gameConfigSchema.safeParse(bad).success).toBe(false)
-    const zero = { ...cfg, pendingSpins: { max: 0, quickSpinMs: 0 } }
+    const zero = { ...cfg, pendingSpins: { max: 0, quickSpinMs: 0, quickLandingMs: 0 } }
     expect(gameConfigSchema.safeParse(zero).success).toBe(false)
   })
 })

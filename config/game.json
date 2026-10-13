@@ -3,27 +3,61 @@
   "chips": [10, 50, 100, 500, 1000],
   "allIn": true,
   "maxBetsPerRound": 40,
-  "defaultBet": { "selection": { "kind": "red" }, "amount": 10 },
+  "defaultBet": {
+    "selection": {
+      "kind": "red"
+    },
+    "amount": 10
+  },
   "loan": {
     "amount": 1000,
     "displayApr": 4200,
     "interestPerSpin": 0.02,
     "maxDebt": 1000000000000000
   },
-  "jackpot": { "gitPushMultiplier": 2 },
-  "season": { "timeZone": "Europe/Madrid", "startDay": 1 },
+  "jackpot": {
+    "gitPushMultiplier": 2
+  },
+  "season": {
+    "timeZone": "Europe/Madrid",
+    "startDay": 1
+  },
   "hallOfRuinSize": 10,
-  "spin": { "minSpinMs": 4000 },
-  "round": { "staleAfterMs": 1800000 },
-  "streak": { "colorWarningAt": 5, "historySize": 50, "onFireAt": 5 },
-  "pendingSpins": { "max": 100, "quickSpinMs": 1200 },
-  "bigWin": { "minNetMultiple": 5, "megaNetMultiple": 15 },
+  "spin": {
+    "minSpinMs": 4000,
+    "landingMs": 4200
+  },
+  "round": {
+    "staleAfterMs": 1800000
+  },
+  "streak": {
+    "colorWarningAt": 5,
+    "historySize": 50,
+    "onFireAt": 5
+  },
+  "pendingSpins": {
+    "max": 100,
+    "quickSpinMs": 1200,
+    "quickLandingMs": 900
+  },
+  "bigWin": {
+    "minNetMultiple": 5,
+    "megaNetMultiple": 15
+  },
   "achievements": {
     "proDebtorLoans": 5,
     "compoundInterestDebt": 100000,
     "zeroCollectorZeros": 5,
     "addictSpins": 500,
-    "nightOwl": { "fromHour": 3, "toHour": 6 }
+    "nightOwl": {
+      "fromHour": 3,
+      "toHour": 6
+    }
   },
-  "stats": { "recentRounds": 18, "seriesPoints": 280, "loanMarks": 100, "bankHistory": 50 }
+  "stats": {
+    "recentRounds": 18,
+    "seriesPoints": 280,
+    "loanMarks": 100,
+    "bankHistory": 50
+  }
 }

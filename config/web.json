@@ -19,9 +19,7 @@
     "counterBumpMs": 450
   },
   "spin": {
-    "landingMs": 4200,
-    "reducedLandingMs": 1200,
-    "quickLandingMs": 900
+    "reducedLandingMs": 1200
   },
   "leaderboard": {
     "pageLimit": 25,
@@ -43,23 +41,48 @@
   },
   "fx": {
     "reducedMaxMs": 1200,
-    "reduced": { "greenTintMs": 600, "pushBandMs": 600, "loanMs": 800 },
+    "reduced": {
+      "greenTintMs": 600,
+      "pushBandMs": 600,
+      "loanMs": 800
+    },
     "maxCoins": 40,
-    "shake": { "x": 3, "y": -2, "decayMs": 260 },
+    "shake": {
+      "x": 3,
+      "y": -2,
+      "decayMs": 260
+    },
     "bigWin": {
       "flashMs": 80,
       "impactStepMs": 87,
-      "countMs": { "big": 1400, "mega": 1800, "pleno": 2200 },
+      "countMs": {
+        "big": 1400,
+        "mega": 1800,
+        "pleno": 2200
+      },
       "holdMs": 2600,
-      "coins": { "big": 10, "mega": 26, "pleno": 26 },
+      "coins": {
+        "big": 10,
+        "mega": 26,
+        "pleno": 26
+      },
       "gravityPxS2": 600,
       "raysDegPerS": 6,
       "sheenEveryMs": 1200,
       "tickMs": 50,
       "reducedStepMs": 150
     },
-    "green": { "blinkMs": 160, "blinks": 3, "chainMs": 600, "holdMs": 1400 },
-    "push": { "terminalMs": 700, "rocketMs": 400, "stampMs": 400 },
+    "green": {
+      "blinkMs": 160,
+      "blinks": 3,
+      "chainMs": 600,
+      "holdMs": 1400
+    },
+    "push": {
+      "terminalMs": 700,
+      "rocketMs": 400,
+      "stampMs": 400
+    },
     "loan": {
       "contractMs": 450,
       "signMs": 900,
@@ -68,24 +91,56 @@
       "debtMs": 700,
       "finePrintPxPerS": 400
     },
-    "bankrupt": { "desaturateMs": 600, "glitchMs": 600, "countFrom": 9, "tickMs": 1000 },
-    "onFire": { "introMs": 1500, "outroMs": 600, "spriteFps": 15 },
-    "fallacy": { "holdMs": 3200 },
-    "achievement": { "inMs": 220, "holdMs": 2800, "outMs": 200, "gapMs": 150 },
-    "pending": { "rollMs": 180, "floatMs": 600, "flyMs": 400 }
+    "bankrupt": {
+      "desaturateMs": 600,
+      "glitchMs": 600,
+      "countFrom": 9,
+      "tickMs": 1000
+    },
+    "onFire": {
+      "introMs": 1500,
+      "outroMs": 600,
+      "spriteFps": 15
+    },
+    "fallacy": {
+      "holdMs": 3200
+    },
+    "achievement": {
+      "inMs": 220,
+      "holdMs": 2800,
+      "outMs": 200,
+      "gapMs": 150
+    },
+    "pending": {
+      "rollMs": 180,
+      "floatMs": 600,
+      "flyMs": 400
+    }
   },
   "demo": {
     "thinkMs": 5000,
     "pauseMs": 9000,
     "login": "demo-player",
-    "stats": { "recentRounds": 18, "seriesPoints": 280, "loanMarks": 100, "bankHistory": 50 },
-    "showcase": { "seed": 136, "spins": 142, "pending": 20 },
+    "stats": {
+      "recentRounds": 18,
+      "seriesPoints": 280,
+      "loanMarks": 100,
+      "bankHistory": 50
+    },
+    "showcase": {
+      "seed": 136,
+      "spins": 142,
+      "pending": 20
+    },
     "achievements": {
       "proDebtorLoans": 5,
       "compoundInterestDebt": 100000,
       "zeroCollectorZeros": 5,
       "addictSpins": 500,
-      "nightOwl": { "fromHour": 3, "toHour": 6 }
+      "nightOwl": {
+        "fromHour": 3,
+        "toHour": 6
+      }
     }
   }
 }

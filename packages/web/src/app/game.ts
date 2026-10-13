@@ -605,8 +605,10 @@ export class Game implements AppContext {
         const quick = this.spinLoop.active
         const normalMs = this.reducedMotion
           ? this.client.spin.reducedLandingMs
-          : this.client.spin.landingMs
-        const minMs = quick ? Math.min(normalMs, this.client.spin.quickLandingMs) : normalMs
+          : this.web.game.landingMs
+        const minMs = quick
+          ? Math.min(normalMs, this.web.game.pendingSpins.quickLandingMs)
+          : normalMs
         const untilReveal = localRevealAt(this.game, effect.round) - Date.now()
         this.motion.land(effect.round.result, Math.max(minMs, untilReveal) / 1000)
         this.world.setWinner(null)

@@ -67,6 +67,12 @@ export const gameConfigSchema = z
       .object({
         /** Duración mínima de la animación de giro (ms), aunque el turno sea más corto. */
         minSpinMs: z.number().int().min(0).max(60_000),
+        /**
+         * Lo que tarda la bola en caer desde que se resuelve la ronda (ms). El servidor nunca pone
+         * `revealAt` antes de "ahora + caída", así ni el mod ni la web destripan el resultado
+         * cuando Claude tarda más que el giro mínimo.
+         */
+        landingMs: z.number().int().min(0).max(60_000),
       })
       .strict(),
     round: z
@@ -97,6 +103,8 @@ export const gameConfigSchema = z
          * también el ritmo: no se puede gastar otra hasta que se haya enseñado la anterior.
          */
         quickSpinMs: z.number().int().min(0).max(60_000),
+        /** Caída de la bola en una tirada rápida (GIRAR TODAS), en ms. */
+        quickLandingMs: z.number().int().min(0).max(60_000),
       })
       .strict(),
     bigWin: z
@@ -157,6 +165,10 @@ export const gameConfigSchema = z
       .strict(),
   })
   .strict()
+  .refine(cfg => cfg.pendingSpins.quickLandingMs <= cfg.spin.landingMs, {
+    message: 'la caída rápida no puede durar más que la normal',
+    path: ['pendingSpins', 'quickLandingMs'],
+  })
   .refine(cfg => cfg.pendingSpins.quickSpinMs <= cfg.spin.minSpinMs, {
     message: 'el giro rápido no puede durar más que el normal',
     path: ['pendingSpins', 'quickSpinMs'],
@@ -183,12 +195,17 @@ export const publicGameConfigSchema = z
     loan: z.object({ amount: coins, displayApr: z.number(), interestPerSpin: z.number() }).strict(),
     jackpot: z.object({ gitPushMultiplier: z.number() }).strict(),
     minSpinMs: z.number().int(),
+    landingMs: z.number().int().min(0),
     colorWarningAt: z.number().int(),
     seasonTimeZone: z.string(),
     /** Día del mes en que empieza cada temporada (para calcular cuánto le queda). */
     seasonStartDay: z.number().int().min(1).max(28),
     pendingSpins: z
-      .object({ max: z.number().int().positive(), quickSpinMs: z.number().int().min(0) })
+      .object({
+        max: z.number().int().positive(),
+        quickSpinMs: z.number().int().min(0),
+        quickLandingMs: z.number().int().min(0),
+      })
       .strict(),
     bigWin: z
       .object({ minNetMultiple: z.number().min(1), megaNetMultiple: z.number().min(1) })
@@ -212,10 +229,15 @@ export function toPublicGameConfig(cfg: GameConfig): PublicGameConfig {
     },
     jackpot: { gitPushMultiplier: cfg.jackpot.gitPushMultiplier },
     minSpinMs: cfg.spin.minSpinMs,
+    landingMs: cfg.spin.landingMs,
     colorWarningAt: cfg.streak.colorWarningAt,
     seasonTimeZone: cfg.season.timeZone,
     seasonStartDay: cfg.season.startDay,
-    pendingSpins: { max: cfg.pendingSpins.max, quickSpinMs: cfg.pendingSpins.quickSpinMs },
+    pendingSpins: {
+      max: cfg.pendingSpins.max,
+      quickSpinMs: cfg.pendingSpins.quickSpinMs,
+      quickLandingMs: cfg.pendingSpins.quickLandingMs,
+    },
     bigWin: {
       minNetMultiple: cfg.bigWin.minNetMultiple,
       megaNetMultiple: cfg.bigWin.megaNetMultiple,

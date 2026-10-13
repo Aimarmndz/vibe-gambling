@@ -22,10 +22,10 @@ export const testGame = gameConfigSchema.parse({
   jackpot: { gitPushMultiplier: 3 },
   season: { timeZone: 'UTC', startDay: 1 },
   hallOfRuinSize: 5,
-  spin: { minSpinMs: 1000 },
+  spin: { minSpinMs: 1000, landingMs: 500 },
   round: { staleAfterMs: 60_000 },
   streak: { colorWarningAt: 3, historySize: 20, onFireAt: 3 },
-  pendingSpins: { max: 50, quickSpinMs: 400 },
+  pendingSpins: { max: 50, quickSpinMs: 400, quickLandingMs: 200 },
   bigWin: { minNetMultiple: 5, megaNetMultiple: 15 },
   achievements: {
     proDebtorLoans: 2,

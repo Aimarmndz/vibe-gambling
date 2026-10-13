@@ -46,6 +46,8 @@ export interface DemoTurnOptions {
   thinkMs?: number
   /** Giro mínimo de esta ronda (las pendientes de GIRAR TODAS van más rápido). */
   minSpinMs?: number
+  /** Caída de la bola de esta ronda (las pendientes de GIRAR TODAS caen más rápido). */
+  landingMs?: number
 }
 
 /** Mandos del modo demo para los tests y las capturas (`window.__vgDemo`). */
@@ -72,7 +74,7 @@ export function demoGameConfig(pub: PublicGameConfig): GameConfig {
     jackpot: { ...pub.jackpot },
     season: { timeZone: pub.seasonTimeZone, startDay: pub.seasonStartDay },
     hallOfRuinSize: 10,
-    spin: { minSpinMs: pub.minSpinMs },
+    spin: { minSpinMs: pub.minSpinMs, landingMs: pub.landingMs },
     round: { staleAfterMs: 30 * 60 * 1000 },
     streak: { colorWarningAt: pub.colorWarningAt, historySize: 50, onFireAt: pub.onFireAt },
     pendingSpins: { ...pub.pendingSpins },
@@ -396,6 +398,7 @@ export class DemoLink implements Link {
     void this.turn({
       thinkMs: 0,
       minSpinMs: quick ? this.cfg.pendingSpins.quickSpinMs : this.cfg.spin.minSpinMs,
+      landingMs: quick ? this.cfg.pendingSpins.quickLandingMs : this.cfg.spin.landingMs,
     })
   }
 
@@ -489,7 +492,11 @@ export class DemoLink implements Link {
       interestCharged: debt - debtBefore,
       colorStreak: colorStreak(this.history.slice(-this.cfg.streak.historySize)),
       revealAt: new Date(
-        Math.max(now, openedAt.getTime() + (options.minSpinMs ?? this.cfg.spin.minSpinMs)),
+        // Las mismas reglas que el servidor: ni antes del giro mínimo ni antes de la caída.
+        Math.max(
+          now + (options.landingMs ?? this.cfg.spin.landingMs),
+          openedAt.getTime() + (options.minSpinMs ?? this.cfg.spin.minSpinMs),
+        ),
       ).toISOString(),
     }
     // El espectáculo con las mismas reglas que el servidor (shared).
