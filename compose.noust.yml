@@ -1,0 +1,70 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Compose de PRODUCCIÓN para desplegar con Noust (https://github.com/Perkybeet/noust).
+# Es deploy/docker-compose.yml con una diferencia: la imagen del servidor se construye en la
+# propia VPS desde este código (el Dockerfile de la raíz) en vez de descargarla de GHCR, así que
+# no hace falta un token para un paquete privado. Está en la raíz porque Noust escribe el .env
+# del despliegue junto al código, y Compose lee el .env de la carpeta del compose.
+#   noust create -d vibe.aimar.dev -s git@github.com:Aimarmndz/vibe-gambling.git \
+#     -t docker-compose --compose-file compose.noust.yml --follow-tags 'v*' --env-file vibe.env
+# Guía completa: docs/DESPLIEGUE.md, sección «Desplegar con Noust».
+name: vibe-gambling
+
+services:
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: vibe-gambling-server:local
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:?}:${POSTGRES_PASSWORD:?}@postgres:5432/${POSTGRES_DB:?}
+    ports:
+      - '127.0.0.1:${PORT:?}:${PORT:?}'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [vibe]
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
+    stop_grace_period: 15s
+    logging:
+      driver: json-file
+      options: { max-size: 10m, max-file: '5' }
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+      POSTGRES_DB: ${POSTGRES_DB:?}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks: [vibe]
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/run/postgresql
+    security_opt: ['no-new-privileges:true']
+    shm_size: 128m
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    logging:
+      driver: json-file
+      options: { max-size: 10m, max-file: '5' }
+
+networks:
+  vibe:
+    ipam:
+      config:
+        - subnet: ${DOCKER_SUBNET:?}
+
+volumes:
+  pgdata:
