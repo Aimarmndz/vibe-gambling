@@ -36,6 +36,7 @@ Los dos sí/no se calculan **en tu ordenador** mirando las órdenes de Bash, que
 | Dato                                                                                                                                                                                                       | Para qué                                |
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
 | De GitHub: id numérico, login y URL del avatar                                                                                                                                                             | Identificarte y mostrarte en el ranking |
+| De GitHub: fecha de creación de tu cuenta de GitHub (`created_at` del perfil público, se actualiza en cada login)                                                                                          | Antiabuso del ranking (abajo)           |
 | Tus ajustes: oculto o no en el ranking, idioma                                                                                                                                                             | Respetar tus preferencias               |
 | El juego: cartera de cada temporada, rondas y turnos (cuándo empezó y terminó cada uno, resultado, apuestas, duración del turno y los dos sí/no), préstamos, rachas, logros conseguidos, Salón de la Ruina | Que el juego funcione y el ranking      |
 | Sesiones: el **hash** de cada token, su tipo (plugin o ventana) y fechas de uso y caducidad                                                                                                                | Mantenerte con la sesión iniciada       |
@@ -50,6 +51,8 @@ Los dos sí/no se calculan **en tu ordenador** mirando las órdenes de Bash, que
 ### Ranking público
 
 Por defecto apareces en el ranking público con tu login, tu avatar y tus estadísticas; te lo avisamos al iniciar sesión. Ocúltate cuando quieras con `/vibe-hide` (o desde los ajustes de la ventana): desapareces del ranking y del Salón de la Ruina, también de temporadas pasadas. `/vibe-show` te vuelve a mostrar.
+
+**Cuentas de GitHub nuevas.** Para que no compense crear cuentas en masa para inflar el ranking, una cuenta de GitHub con menos de **30 días** (`leaderboard.minAccountAgeDays` en `config/game.json`) juega con normalidad, pero no sale en el ranking ni en el Salón de la Ruina hasta cumplirlos; al iniciar sesión, la ventana y `/balance` te dicen desde qué día. Es el único uso de la fecha de creación de tu cuenta de GitHub, que se guarda hasta que borres tu cuenta. Las cuentas que ya existían antes de esta regla no tienen el dato hasta su próximo login y, mientras tanto, cuentan como antiguas.
 
 ### Dónde
 
@@ -69,6 +72,7 @@ Una sola cookie, **de sesión** (`HttpOnly`, `Secure`, `SameSite=Strict`), para 
 | Dato                                     | Plazo                                                                  |
 | ---------------------------------------- | ---------------------------------------------------------------------- |
 | Cuenta, partidas y Salón de la Ruina     | Hasta que borres tu cuenta                                             |
+| Fecha de creación de tu cuenta de GitHub | Hasta que borres tu cuenta (se reescribe en cada login)                |
 | Sesión del plugin / de la ventana        | 1 año / 30 días desde el login, o hasta cerrar sesión; luego se borran |
 | Enlace para abrir la ventana             | 60 segundos y un solo uso; luego se borra                              |
 | Login de GitHub a medias                 | Hasta que termina o caduca (~15 min); luego se borra                   |
@@ -77,10 +81,10 @@ Una sola cookie, **de sesión** (`HttpOnly`, `Secure`, `SameSite=Strict`), para 
 
 ### Tus derechos y cómo borrar la cuenta
 
-- **Borrar la cuenta**: `/vibe-delete-account <tu-login>` en Claude Code. Se borra **todo** lo tuyo al momento (sesiones, partidas, apuestas, préstamos, logros, Salón de la Ruina) y se cierran tus ventanas.
+- **Borrar la cuenta**: `/vibe-delete-account <tu-login>` en Claude Code. Se borra **todo** lo tuyo al momento (sesiones, partidas, apuestas, préstamos, logros, Salón de la Ruina, la fecha de creación de tu cuenta de GitHub) y se cierran tus ventanas.
 - **Oponerte al ranking público**: `/vibe-hide`.
 - **Acceder a tus datos**: `/balance` y la ventana enseñan lo que hay; para una copia completa, pídela (abajo).
-- **Rectificar**: tu login y tu avatar se actualizan desde GitHub cada vez que inicias sesión.
+- **Rectificar**: tu login, tu avatar y la fecha de creación de tu cuenta se actualizan desde GitHub cada vez que inicias sesión.
 - Si crees que algo no se ha hecho bien, puedes reclamar ante la **Agencia Española de Protección de Datos** ([aepd.es](https://www.aepd.es/)).
 
 ### Contacto
@@ -117,6 +121,7 @@ Both yes/no flags are computed **on your computer** by looking at Bash commands,
 | Data                                                                                                                                                                                | Why                                             |
 | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
 | From GitHub: numeric id, login and avatar URL                                                                                                                                       | To identify you and show you on the leaderboard |
+| From GitHub: the date your GitHub account was created (`created_at` of the public profile, refreshed at every login)                                                                | Leaderboard anti-abuse (below)                  |
 | Your settings: hidden from the leaderboard or not, language                                                                                                                         | To respect your preferences                     |
 | The game: wallet per season, rounds and turns (when each one started and ended, result, bets, turn duration and the two flags), loans, streaks, unlocked achievements, Hall of Ruin | To run the game and the leaderboard             |
 | Sessions: the **hash** of each token, its kind (plugin or window), usage and expiry dates                                                                                           | To keep you logged in                           |
@@ -131,6 +136,8 @@ Both yes/no flags are computed **on your computer** by looking at Bash commands,
 ### Public leaderboard
 
 By default you appear on the public leaderboard with your login, avatar and stats; you are told so when you log in. Hide any time with `/vibe-hide` (or in the window settings): you disappear from the leaderboard and the Hall of Ruin, past seasons included. `/vibe-show` brings you back.
+
+**New GitHub accounts.** So that mass-creating accounts to inflate the leaderboard is not worth it, a GitHub account younger than **30 days** (`leaderboard.minAccountAgeDays` in `config/game.json`) plays as usual but does not appear on the leaderboard or in the Hall of Ruin until it turns 30 days old; at login, the window and `/balance` tell you from which day. That is the only use of your GitHub account's creation date, which is kept until you delete your account. Accounts that existed before this rule do not have the date until their next login and, meanwhile, count as old.
 
 ### Where
 
@@ -147,21 +154,22 @@ One **session** cookie (`HttpOnly`, `Secure`, `SameSite=Strict`) so the window k
 
 ### For how long
 
-| Data                            | Retention                                                       |
-| ------------------------------- | --------------------------------------------------------------- |
-| Account, games and Hall of Ruin | Until you delete your account                                   |
-| Plugin / window session         | 1 year / 30 days from login, or until you log out; then deleted |
-| Link that opens the window      | 60 seconds, single use; then deleted                            |
-| Unfinished GitHub login         | Until it finishes or expires (~15 min); then deleted            |
-| Backups                         | 14 days: a deleted account may remain in them until then        |
-| Server logs (no personal data)  | Rotated by size                                                 |
+| Data                                | Retention                                                       |
+| ----------------------------------- | --------------------------------------------------------------- |
+| Account, games and Hall of Ruin     | Until you delete your account                                   |
+| Your GitHub account's creation date | Until you delete your account (rewritten at every login)        |
+| Plugin / window session             | 1 year / 30 days from login, or until you log out; then deleted |
+| Link that opens the window          | 60 seconds, single use; then deleted                            |
+| Unfinished GitHub login             | Until it finishes or expires (~15 min); then deleted            |
+| Backups                             | 14 days: a deleted account may remain in them until then        |
+| Server logs (no personal data)      | Rotated by size                                                 |
 
 ### Your rights and deleting your account
 
-- **Delete your account**: `/vibe-delete-account <your-login>` in Claude Code. **Everything** about you is deleted at once (sessions, games, bets, loans, achievements, Hall of Ruin) and your windows are closed.
+- **Delete your account**: `/vibe-delete-account <your-login>` in Claude Code. **Everything** about you is deleted at once (sessions, games, bets, loans, achievements, Hall of Ruin, your GitHub account's creation date) and your windows are closed.
 - **Object to the public leaderboard**: `/vibe-hide`.
 - **Access your data**: `/balance` and the window show what there is; ask (below) for a full copy.
-- **Rectification**: your login and avatar are refreshed from GitHub every time you log in.
+- **Rectification**: your login, avatar and account creation date are refreshed from GitHub every time you log in.
 - If you think something was not handled properly, you can complain to a data protection authority (in Spain, the [AEPD](https://www.aepd.es/)).
 
 ### Contact

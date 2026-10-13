@@ -85,7 +85,7 @@ sequenceDiagram
   U->>W: (opcional) apuesta con el ratón o el teclado → bet.place
   U->>CC: (opcional) /bet 200 red → POST /api/bet
   CC->>S: POST /api/turn/end {v, turnId, durationMs, gitPushOk, testFailed, pluginVersion, os}
-  S->>DB: BEGIN · FOR UPDATE cartera · randomInt(0, 37) · resuelve el boleto<br/>(o repite la última apuesta, o la de por defecto) · interés · jackpot · COMMIT
+  S->>DB: BEGIN · FOR UPDATE cartera · ¿turno ≥ turn.minDurationMs? · ¿bajo el tope diario?<br/>· ¿bola anterior ya caída? · randomInt(0, 37) · resuelve el boleto<br/>(o repite la última apuesta, o la de por defecto) · interés · jackpot · COMMIT
   S-->>W: round.resolved {round, wallet} (revealAt = giro mínimo)
   S-->>CC: {status: resolved, round, wallet}
   W->>W: la bola cae en la casilla y enseña el resultado en revealAt
@@ -98,6 +98,10 @@ sequenceDiagram
 - **Jackpot dev**: con `gitPushOk`, la ganancia se multiplica por `jackpot.gitPushMultiplier`.
 - **`claude -p`**: el mod espera a `turn/end` como mucho `turnTimeoutMs` antes de que el proceso termine y no abre ventanas.
 - **Sin nadie mirando**: el diagrama de arriba es el turno con una ventana conectada **y visible**. Si no hay ninguna (o todas están ocultas), la tirada se guarda como pendiente: ver abajo.
+- **Antiabuso** (detalle en [PROTOCOLO.md](PROTOCOLO.md#antiabuso-ritmo-duración-mínima-y-tope-diario)), todo con la cartera bloqueada y los números de `config/game.json`:
+  - **Una tirada por bola**: con la bola de la tirada anterior aún cayendo (`revealAt` en el futuro), el `turn/end` no tira en directo; se guarda como pendiente.
+  - **Duración mínima**: el servidor mide el turno entre su `turn/start` y su `turn/end`; por debajo de `turn.minDurationMs` (o sin `turn/start`) no hay tirada (`no_round`) y queda una línea `turn_too_short` en el log, sin datos personales.
+  - **Tope diario**: con `dailySpinLimit` tiradas jugadas hoy (día de la zona de la temporada), ni turnos ni GIRAR tiran: `daily_limit` con la hora a la que reabre la mesa.
 
 ## Una tirada pendiente
 
@@ -115,7 +119,7 @@ sequenceDiagram
   Note over W: cerrada, o abierta pero oculta:<br/>presence {visible: false} en visibilitychange
   U->>CC: manda un prompt
   CC->>S: POST /api/turn/start · POST /api/turn/end {…, gitPushOk, testFailed}
-  S->>S: ¿alguna ventana conectada y visible? → no
+  S->>S: ¿alguna ventana conectada y visible, y la bola anterior ya ha caído? → no
   S->>DB: BEGIN · FOR UPDATE cartera · cuenta las pendientes de la temporada<br/>· ronda → deferred (turnId, gitPushOk, testFailed, durationMs) · COMMIT
   S-->>W: pending {event: queued, wallet.pendingSpins: 20} (si hay ventanas ocultas)
   S-->>CC: {status: queued, dropped: false, wallet}
@@ -168,11 +172,11 @@ sequenceDiagram
     S-->>CC: {status: pending | slow_down, interval}
   end
   S->>GH: GET /user (con el token)
-  GH-->>S: id, login, avatar_url
-  S->>S: upsert del usuario · olvida el token de GitHub · crea sesión "mod"
+  GH-->>S: id, login, avatar_url, created_at
+  S->>S: upsert del usuario (con la fecha de creación de la cuenta de GitHub) · olvida el token de GitHub · crea sesión "mod"
   S-->>CC: {status: ok, token, user, isNew}
   CC->>CC: guarda el token en $.store (clave por servidor)
-  CC->>U: "Welcome to the table" + aviso de ranking público si isNew
+  CC->>U: "Welcome to the table" + aviso de ranking público (o, con user.newAccount, desde qué día sale)
 ```
 
 - La OAuth App solo necesita _Enable Device Flow_ y su `client_id` (`GITHUB_CLIENT_ID`): el Device Flow no usa _client secret_.
@@ -229,7 +233,7 @@ erDiagram
     bigint github_id UK "id numérico de GitHub"
     text login
     text avatar_url
-    boolean hidden "fuera del ranking"
+    timestamptz github_created_at "alta de la cuenta de GitHub (antiabuso) o null"
     text locale "idioma de locales/ o null"
     jsonb last_bets "apuesta a repetir"
     timestamptz created_at
@@ -345,6 +349,7 @@ Reglas que garantiza la base de datos además del código:
 - **Logros**: clave primaria `(user_id, achievement_id)` + `INSERT … ON CONFLICT DO NOTHING RETURNING`: cada logro se guarda y se anuncia una sola vez aunque dos transacciones lo intenten a la vez.
 - **Tiradas pendientes**: rondas `deferred` (con `deferred_at` y el turno que las guardó, por `CHECK`), en cola por el índice parcial `(user_id, season_id, deferred_at) WHERE status = 'deferred'`; `(user_id, spend_request_id)` único para que un GIRAR repetido no tire dos veces.
 - **Borrado de cuenta**: todo lo que cuelga de `users` es `ON DELETE CASCADE`.
+- **Cuentas de GitHub nuevas fuera del ranking**: `users.github_created_at` (el `created_at` del perfil público de GitHub, reescrito en cada login) decide quién sale en los rankings, en el puesto propio de `/api/me` y en el Salón de la Ruina: solo las cuentas con al menos `leaderboard.minAccountAgeDays` días (de 24 h, contra el reloj inyectado) o sin el dato (las de antes de la regla, hasta su próximo login). Se borra con la cuenta.
 - **Tokens**: solo hashes SHA-256 (`sessions`, `link_codes`, `device_auths`). El token de GitHub no se guarda nunca.
 
 ## Temporadas
@@ -354,7 +359,7 @@ Una temporada es un mes natural que empieza el día `season.startDay` a las 00:0
 Cada `SEASON_CHECK_INTERVAL_MS`, un job del servidor:
 
 1. toma `pg_try_advisory_xact_lock` (si hubiera dos instancias, solo una trabaja);
-2. cierra las temporadas vencidas: caduca sus rondas abiertas y sus tiradas pendientes, devuelve al saldo las fichas de los boletos, guarda el top `hallOfRuinSize` de arruinados no ocultos en `hall_of_ruin` y marca `closed_at`;
+2. cierra las temporadas vencidas: caduca sus rondas abiertas y sus tiradas pendientes, devuelve al saldo las fichas de los boletos, guarda el top `hallOfRuinSize` de arruinados no ocultos y con cuenta de GitHub de al menos `leaderboard.minAccountAgeDays` días en `hall_of_ruin` y marca `closed_at`;
 3. crea la fila de la temporada nueva y avisa a las ventanas con `season.changed`;
 4. purga códigos de enlace usados o caducados, logins de GitHub a medias y sesiones caducadas o revocadas.
 
@@ -383,7 +388,7 @@ Nada configurable está escrito en el código:
 | Dónde                                                     | Qué                                                                                                           | Lo valida                                  |
 | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
 | Variables de entorno (`deploy/.env.example`)              | URLs, puertos, base de datos, GitHub, sesiones, rate limits, WebSocket, cachés, proxy                         | `packages/server/src/config.ts` (zod)      |
-| `config/game.json`                                        | Saldo inicial, fichas, préstamo y TAE, jackpot, temporada, giro mínimo, rachas                                | `gameConfigSchema` (shared)                |
+| `config/game.json`                                        | Saldo inicial, fichas, préstamo y TAE, jackpot, temporada, giro mínimo, rachas, edad mínima para el ranking   | `gameConfigSchema` (shared)                |
 | `config/site.json`                                        | Autor, repo, comando de instalación, enlaces de ayuda, otros proyectos, datos de la instancia para `/privacy` | `siteConfigSchema` (server)                |
 | `config/web.json`                                         | Ping y reconexión del WebSocket, tiempos de la interfaz, ranking, demo                                        | `webClientConfigSchema` (web, en la build) |
 | `userConfig` de `packages/mod/.claude-plugin/plugin.json` | URL del servidor, apertura automática, idioma, timeouts del mod                                               | el engine (rangos `min`/`max`) y el mod    |

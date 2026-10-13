@@ -8,6 +8,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Security
+
+- **New GitHub accounts stay off the leaderboard**: accounts younger than 30 days (`leaderboard.minAccountAgeDays` in `config/game.json`) play as usual but only appear on the leaderboards and in the Hall of Ruin once they turn 30 days old, so mass-creating accounts to inflate the leaderboard is not worth it. The plugin (at login and in `/balance`), the game window and the landing page say so, with the date you will appear. The server now stores your GitHub account's creation date (from the public profile, no new permissions), deleted with your account; accounts from before the rule count as old until their next login.
+- **One spin per ball**: while the ball of your last spin is still falling, a new prompt is not played live; it is saved as a pending spin instead (with the usual cap). Nothing is lost when you play with Claude, but a script can no longer chain turns faster than the wheel can show them (at most one spin per landing, about 14 a minute).
+- **Minimum turn length**: the server times each turn itself, from `turn/start` to `turn/end` (never trusting the plugin's `durationMs`). A turn shorter than `turn.minDurationMs` (800 ms) gives no spin and no pending spin, and a `turn/end` without its `turn/start` no longer counts as a spin. The server logs the fact and the duration only, with no personal data.
+- **Daily spin limit**: at most `dailySpinLimit` (2,500) spins played per player and day, from midnight to midnight in the season's time zone (daylight saving days included). After that, prompts neither spin nor queue and SPIN is refused until midnight; the plugin and the game window close the table with a new batch of closing-time jokes in every language, the time it reopens and, quietly, a real gambling-help line.
+
 ## [0.2.0] - 2026-10-13
 
 The show release: every spin now gets the arcade treatment it deserves.

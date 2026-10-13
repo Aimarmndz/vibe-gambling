@@ -190,7 +190,7 @@ Premios gordos por niveles (**BIG WIN**, **MEGA WIN**, **¡PLENO!**), la mesa en
 | Tu token de sesión, y lo que escribes en `/apostar` y al confirmar        | El id de sesión de Claude Code ni tu token de GitHub (jamás) |
 
 - Los dos sí/no se calculan **en tu ordenador** mirando las órdenes de Bash, que después se olvidan.
-- El servidor guarda tu id, login y URL del avatar de GitHub, tus ajustes, tus partidas, préstamos y logros de mentira y el **hash** de tus tokens de sesión. No guarda la versión del plugin ni el SO (se comprueban y se tiran), ni si tu ventana está a la vista (solo en memoria mientras está conectada), ni tu IP (un minuto en memoria para el límite de peticiones; nunca en los logs).
+- El servidor guarda tu id, login, URL del avatar y fecha de creación de tu cuenta de GitHub (las cuentas de menos de 30 días juegan, pero salen en el ranking al cumplirlos), tus ajustes, tus partidas, préstamos y logros de mentira y el **hash** de tus tokens de sesión. No guarda la versión del plugin ni el SO (se comprueban y se tiran), ni si tu ventana está a la vista (solo en memoria mientras está conectada), ni tu IP (un minuto en memoria para el límite de peticiones; nunca en los logs).
 - Sin analíticas, sin anuncios, sin cookies de seguimiento: una cookie de sesión y punto. Los datos están en un servidor de la UE.
 - Lo borras todo, al momento, con `/vibe-delete-account <tu-login>`.
 

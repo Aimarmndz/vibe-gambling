@@ -190,7 +190,7 @@ Big wins by tiers (**BIG WIN**, **MEGA WIN**, **STRAIGHT UP!**), the table blink
 | Your session token, and what you type in `/bet` and confirmations | Claude Code's session id, or your GitHub token (ever) |
 
 - The two yes/no flags are computed **on your machine** from the Bash commands, which are then forgotten.
-- The server stores your GitHub id, login and avatar URL, your settings, your fake games, loans and achievements, and the **hash** of your session tokens. Not the plugin version or OS (checked and dropped), not whether your window is visible (memory only, while connected), not your IP (a minute in memory for rate limiting; never in the logs).
+- The server stores your GitHub id, login, avatar URL and account creation date (GitHub accounts under 30 days old play, but only join the leaderboard at 30 days), your settings, your fake games, loans and achievements, and the **hash** of your session tokens. Not the plugin version or OS (checked and dropped), not whether your window is visible (memory only, while connected), not your IP (a minute in memory for rate limiting; never in the logs).
 - No analytics, no ads, no tracking cookies: one session cookie. Data lives on a server in the EU.
 - Delete everything, right now, with `/vibe-delete-account <your-login>`.
 

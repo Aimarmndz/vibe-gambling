@@ -15,6 +15,7 @@ Diagramas de los flujos en [ARQUITECTURA.md](ARQUITECTURA.md).
 - [Rutas HTTP](#rutas-http)
 - [Idempotencia de los turnos](#idempotencia-de-los-turnos)
 - [Tiradas pendientes](#tiradas-pendientes)
+- [Antiabuso: ritmo, duración mínima y tope diario](#antiabuso-ritmo-duración-mínima-y-tope-diario)
 - [Espectáculo, bancarrota y logros](#espectáculo-bancarrota-y-logros)
 - [Enlace de un solo uso](#enlace-de-un-solo-uso)
 - [WebSocket `/ws`](#websocket-ws)
@@ -75,6 +76,7 @@ Toda respuesta que no es 2xx tiene el cuerpo [`ErrorResponse`](#errorresponse): 
 | `too_many_bets`      | 422         |
 | `invalid_bet`        | 422         |
 | `loan_not_allowed`   | 422         |
+| `daily_limit`        | 429         |
 | `protocol_mismatch`  | 400         |
 | `github_unavailable` | 502         |
 | `internal`           | 500         |
@@ -734,9 +736,10 @@ Content-Type: application/json
 El mod la llama al terminar el turno (`turn.complete` sin `agentId`). El servidor tira la ruleta (`crypto.randomInt(0, 37)`), resuelve las apuestas del boleto (o repite la última apuesta, o la apuesta por defecto), cobra el interés de la deuda, aplica el jackpot si `gitPushOk` y avisa a las ventanas con `round.resolved`. `revealAt` es el instante a partir del cual se puede enseñar el resultado (giro mínimo `spin.minSpinMs`): la web y el toast del mod esperan hasta entonces.
 
 - `resolved`: la tirada de este turno.
-- `no_round`: ya no había ronda que resolver para este turno (caducó tras `round.staleAfterMs`, o la resolvió otra sesión de Claude Code que la compartía).
-- `queued`: el usuario no tenía **ninguna ventana visible** (ninguna conectada, o todas ocultas según su último `presence`): la ronda no se tira, se guarda como [tirada pendiente](#tiradas-pendientes) con el `gitPushOk` y el `testFailed` de este turno, y el contador sube en `wallet.pendingSpins`. Con `dropped: true`, ya estaba en el tope (`pendingSpins.max`) y este prompt se ha descartado. Las ventanas (ocultas) reciben `pending`, que también cierra la ronda que vieran girar.
-- Si nunca llegó el `turn/start` (red, timeout), el servidor abre y resuelve la ronda en el acto: cada prompt sigue siendo una tirada.
+- `no_round`: este turno no tira. O ya no había ronda que resolver (caducó tras `round.staleAfterMs`, o la resolvió otra sesión de Claude Code que la compartía), o el turno ha durado menos de `turn.minDurationMs` medido por el servidor desde su `turn/start` (ver [duración mínima](#duración-mínima-del-turno)), o no hubo `turn/start`.
+- `queued`: el usuario no tenía **ninguna ventana visible** (ninguna conectada, o todas ocultas según su último `presence`), **o la bola de su tirada anterior aún estaba cayendo** (su `revealAt` no había llegado: [una tirada por bola](#una-tirada-por-bola)): la ronda no se tira, se guarda como [tirada pendiente](#tiradas-pendientes) con el `gitPushOk` y el `testFailed` de este turno, y el contador sube en `wallet.pendingSpins`. Con `dropped: true`, ya estaba en el tope (`pendingSpins.max`) y este prompt se ha descartado. Las ventanas reciben `pending`, que también cierra la ronda que vieran girar.
+- `daily_limit`: ya se han jugado hoy `dailySpinLimit` tiradas ([tope diario](#tope-diario)): ni se tira ni se guarda. Trae `limit` y `reopensAt` (la próxima medianoche en la zona horaria de la temporada); las ventanas reciben `daily_limit`. Un mod anterior a este estado lo trata como respuesta desconocida ("offline" en ese turno).
+- Sin `turn/start` previo no hay duración que medir: `no_round`, sin abrir ninguna ronda. El mod nunca manda un `turn/end` si su `turn/start` falló.
 
 Lo único que cuenta el mod: `turnId`, `durationMs`, dos booleanos calculados en local (`gitPushOk`: hubo un `git push` con éxito; `testFailed`: falló un comando de tests), la versión del plugin y el SO genérico.
 
@@ -911,6 +914,16 @@ Una de estas variantes:
   | `dropped` | `boolean`         | sí          |
   | `wallet`  | [Wallet](#wallet) | sí          |
 
+- `status: "daily_limit"`
+
+  | Campo       | Tipo                                                                                                                                                                                                                                                                                                       | Obligatorio |
+  | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+  | `v`         | `1`                                                                                                                                                                                                                                                                                                        | sí          |
+  | `status`    | `"daily_limit"`                                                                                                                                                                                                                                                                                            | sí          |
+  | `limit`     | `integer` > 0                                                                                                                                                                                                                                                                                              | sí          |
+  | `reopensAt` | `string` (date-time, `/^(?:(?:\d\d[2468][048]\|\d\d[13579][26]\|\d\d0[48]\|[02468][048]00\|[13579][26]00)-02-29\|\d{4}-(?:(?:0[13578]\|1[02])-(?:0[1-9]\|[12]\d\|3[01])\|(?:0[469]\|11)-(?:0[1-9]\|[12]\d\|30)\|(?:02)-(?:0[1-9]\|1\d\|2[0-8])))T(?:(?:[01]\d\|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$/`) | sí          |
+  | `wallet`    | [Wallet](#wallet)                                                                                                                                                                                                                                                                                          | sí          |
+
 <details><summary>JSON Schema</summary>
 
 ```json
@@ -946,6 +959,22 @@ Una de estas variantes:
         "wallet": { "$ref": "#/$defs/Wallet" }
       },
       "required": ["v", "status", "dropped", "wallet"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "v": { "type": "number", "const": 1 },
+        "status": { "type": "string", "const": "daily_limit" },
+        "limit": { "type": "integer", "exclusiveMinimum": 0, "maximum": 9007199254740991 },
+        "reopensAt": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+        },
+        "wallet": { "$ref": "#/$defs/Wallet" }
+      },
+      "required": ["v", "status", "limit", "reopensAt", "wallet"],
       "additionalProperties": false
     }
   ]
@@ -1065,7 +1094,7 @@ Errores propios (`422`): `invalid_bet` (casilla que no existe, cantidad bajo la 
 
 ### me
 
-Estado del usuario: perfil, cartera de la temporada en curso (si aún no ha jugado, una cartera "virtual" con el saldo inicial), boleto, ronda abierta, puesto en el ranking de arruinados (`null` si está oculto o aún no ha tirado) y el catálogo de logros con lo conseguido. Lo usa `/balance`.
+Estado del usuario: perfil, cartera de la temporada en curso (si aún no ha jugado, una cartera "virtual" con el saldo inicial), boleto, ronda abierta, puesto en el ranking de arruinados (`null` si está oculto, aún no ha tirado o su cuenta de GitHub es demasiado nueva: entonces `user.newAccount` dice desde qué día sale) y el catálogo de logros con lo conseguido. Lo usa `/balance`.
 
 <!-- BEGIN GENERATED route:me -->
 
@@ -1240,7 +1269,7 @@ Errores propios: `400 invalid_request` si `confirm` no es tu login.
 
 ### leaderboard
 
-Rankings públicos de una temporada (por defecto, la actual): `broke` (patrimonio neto más bajo, el ranking estrella), `rich` (más alto) y `spins` (más tiradas). Solo salen usuarios no ocultos con al menos una tirada en esa temporada; los empates se ordenan por tiradas y luego por id, así que los puestos son estables. `seasons` lista las temporadas que existen (para el selector) y `players` cuántos jugadores tiene la tabla.
+Rankings públicos de una temporada (por defecto, la actual): `broke` (patrimonio neto más bajo, el ranking estrella), `rich` (más alto) y `spins` (más tiradas). Solo salen usuarios no ocultos, con al menos una tirada en esa temporada y con una cuenta de GitHub de al menos `leaderboard.minAccountAgeDays` días (antiabuso; las cuentas sin fecha, de antes de la regla, cuentan como antiguas); los empates se ordenan por tiradas y luego por id, así que los puestos son estables. `seasons` lista las temporadas que existen (para el selector) y `players` cuántos jugadores tiene la tabla.
 
 Errores propios: `404 not_found` si la temporada no existe.
 
@@ -1314,7 +1343,7 @@ GET /api/leaderboard?season=2026-10&board=broke&limit=25 HTTP/1.1
 
 ### hallOfRuin
 
-El Salón de la Ruina: el top `hallOfRuinSize` de arruinados de cada temporada **cerrada**, guardado al cerrarla. Al leerlo se quitan los usuarios que se han ocultado después y se renumera.
+El Salón de la Ruina: el top `hallOfRuinSize` de arruinados de cada temporada **cerrada**, guardado al cerrarla (sin ocultos ni cuentas de GitHub demasiado nuevas en ese instante). Al leerlo se quitan los usuarios que se han ocultado después o cuya cuenta resultó demasiado nueva al volver a iniciar sesión, y se renumera.
 
 <!-- BEGIN GENERATED route:hallOfRuin -->
 
@@ -1360,30 +1389,48 @@ El Salón de la Ruina: el top `hallOfRuinSize` de arruinados de cada temporada *
 
 El mod genera un `turnId` propio (`crypto.randomUUID()`; nunca el id interno de Claude Code) y lo manda en `turn/start` y `turn/end`. El servidor guarda cada turno en la tabla `turns` con la clave `(user_id, turn_id)`:
 
-| Situación                                                    | Respuesta                                                                       |
-| ------------------------------------------------------------ | ------------------------------------------------------------------------------- |
-| `turn/start` repetido (reintento)                            | La misma ronda y el mismo `reused`; no se abre otra.                            |
-| `turn/start` con otra ronda ya abierta (otra sesión)         | Se reutiliza esa ronda (`reused: true`).                                        |
-| `turn/end` repetido de un turno que resolvió su ronda        | La misma ronda resuelta (`resolved`), sin tirar otra vez.                       |
-| `turn/end` de un turno cuya ronda resolvió otra sesión       | `no_round` con la cartera actual.                                               |
-| `turn/end` sin `turn/start` previo                           | Se abre y se resuelve la ronda en el acto (`round.started` + `round.resolved`). |
-| `turn/end` de una ronda abierta hace más de `staleAfterMs`   | La ronda caduca sin tirada (`round.expired`) y la respuesta es `no_round`.      |
-| `turn/end` repetido de un turno que se guardó como pendiente | `queued` otra vez (con la cartera actual), sin guardar otra pendiente.          |
-| `turn/end` repetido de un turno descartado por el tope       | `queued` con `dropped: true`, sin guardar nada.                                 |
+| Situación                                                      | Respuesta                                                                                        |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `turn/start` repetido (reintento)                              | La misma ronda y el mismo `reused`; no se abre otra.                                             |
+| `turn/start` con otra ronda ya abierta (otra sesión)           | Se reutiliza esa ronda (`reused: true`).                                                         |
+| `turn/end` repetido de un turno que resolvió su ronda          | La misma ronda resuelta (`resolved`), sin tirar otra vez.                                        |
+| `turn/end` de un turno cuya ronda resolvió otra sesión         | `no_round` con la cartera actual.                                                                |
+| `turn/end` sin `turn/start` previo                             | `no_round`, sin abrir ni tirar ninguna ronda (no hay duración que medir).                        |
+| `turn/end` antes de `turn.minDurationMs` desde su `turn/start` | `no_round`; la ronda se cierra sin tirar (`round.expired`) si no la comparte otro turno abierto. |
+| `turn/end` con el tope diario alcanzado                        | `daily_limit` (también en sus reintentos), sin tirar ni guardar.                                 |
+| `turn/end` de una ronda abierta hace más de `staleAfterMs`     | La ronda caduca sin tirada (`round.expired`) y la respuesta es `no_round`.                       |
+| `turn/end` repetido de un turno que se guardó como pendiente   | `queued` otra vez (con la cartera actual), sin guardar otra pendiente.                           |
+| `turn/end` repetido de un turno descartado por el tope         | `queued` con `dropped: true`, sin guardar nada.                                                  |
 
 Todo esto ocurre dentro de una transacción que empieza bloqueando la fila de la cartera del usuario (`SELECT … FOR UPDATE`), así que dos peticiones simultáneas del mismo usuario se serializan. Un índice único parcial en `rounds` (`WHERE status = 'open'`) garantiza además una sola ronda abierta por usuario.
 
 ## Tiradas pendientes
 
-Modelo híbrido: si al terminar el turno el usuario tiene alguna ventana conectada **y visible**, la tirada se juega en directo (`resolved`). Si no, se guarda como **tirada pendiente** (`queued`) y se gasta después desde la ventana.
+Modelo híbrido: si al terminar el turno el usuario tiene alguna ventana conectada **y visible** (y la bola de su tirada anterior ya ha caído), la tirada se juega en directo (`resolved`). Si no, se guarda como **tirada pendiente** (`queued`) y se gasta después desde la ventana.
 
 - **Visibilidad.** La ventana manda `presence { visible }` (de `document.visibilityState`) al conectar y en cada cambio. El servidor la guarda por conexión, en memoria; una conexión que aún no la ha mandado cuenta como visible (así se comportan las ventanas anteriores a este mensaje).
 - **Guardar.** La ronda del turno pasa a `deferred` con el `turnId`, `gitPushOk`, `testFailed` y `durationMs` de su turno: el jackpot del `git push` y la frase de los tests fallidos se conservan para cuando se gaste. Si el usuario ya tiene `pendingSpins.max` pendientes en la temporada, el prompt se descarta (`dropped: true`) y la ronda caduca sin tirada.
 - **Gastar.** `spin.pending { quick, requestId }` gasta la pendiente más antigua: en la misma transacción que bloquea la cartera, el servidor tira con el RNG criptográfico **en ese momento** y con las reglas de siempre (boleto, o la última apuesta, o la apuesta por defecto; intereses; rachas; jackpot si su turno hizo `git push`). Responde a todas las ventanas con `round.started` y `round.resolved` (`revealAt` = ahora + `spin.minSpinMs`, o + `pendingSpins.quickSpinMs` si `quick`), cuya cartera ya lleva el contador rebajado. La tirada cuenta en `spins` (y en el ranking) al gastarse.
-- **Ritmo.** No se puede gastar otra mientras la anterior no se haya enseñado (su `revealAt` aún no ha llegado): `error` con `rate_limited`. Mientras gira una ronda en directo (Claude pensando): `error` con `conflict`. Sin pendientes: `error` con `not_found`.
+- **Ritmo.** No se puede gastar otra mientras la anterior no se haya enseñado (su `revealAt` aún no ha llegado): `error` con `rate_limited`. Mientras gira una ronda en directo (Claude pensando): `error` con `conflict`. Con el tope diario alcanzado: `daily_limit` a todas las ventanas y `error` con `daily_limit` a la que lo pidió (la pendiente se queda para mañana). Sin pendientes: `error` con `not_found`.
 - **Idempotencia.** Un `spin.pending` repetido con el mismo `requestId` no tira otra vez: el servidor reenvía a esa ventana el `round.resolved` de la tirada que ya hizo.
 - **GIRAR TODAS** es un bucle de la ventana con `quick: true` que se para solo en un premio gordo (jackpot, pleno o un neto de al menos `bigWin.minNetMultiple` veces lo apostado), cuando sale el verde, en bancarrota o si el jugador pulsa ○ (lógica pura en `shared`: `spinAllStopReason`).
 - **Caducidad.** Al cerrar una temporada sus pendientes caducan (ronda `expired`) **antes** de guardar el Salón de la Ruina. El contador de la temporada nueva empieza en 0.
+
+## Antiabuso: ritmo, duración mínima y tope diario
+
+Tres reglas del servidor que no nota quien juega con Claude y frenan a quien lo haría con un script y un token de mod. Las tres se deciden dentro de la transacción que bloquea la cartera, así que dos peticiones simultáneas no se las saltan, y ninguna tiene un número escrito en el código: salen de `config/game.json`.
+
+### Una tirada por bola
+
+No se tira una nueva mientras la bola de la anterior siga cayendo (el `revealAt` más reciente del usuario está en el futuro). Un `turn/end` que llega entonces no se pierde: se guarda como pendiente (`queued`, con su tope y su descarte) y la ventana recibe `pending` en vez de `round.resolved`. GIRAR ya tenía esta regla (`rate_limited`). El máximo absoluto es una tirada por caída: con la configuración por defecto, unas 14 por minuto.
+
+### Duración mínima del turno
+
+El servidor mide cada turno con su propio reloj, desde que recibe su `turn/start` hasta su `turn/end` (nunca usa el `durationMs` del cliente). Si dura menos de `turn.minDurationMs`, no da tirada ni pendiente: la respuesta es `no_round` y la ronda se cierra sin tirar (salvo que otro turno abierto la comparta). Un `turn/end` sin `turn/start` tampoco cuenta. El servidor deja una línea en el log (`turn_too_short`, con la duración medida) sin usuario, sesión ni turno.
+
+### Tope diario
+
+Como mucho `dailySpinLimit` tiradas jugadas (en directo y pendientes gastadas) por usuario y día; el día va de 00:00 a 00:00 en la zona horaria de la temporada (`season.timeZone`), así que el del cambio de hora dura 23 o 25 horas. Al llegar, `turn/end` responde `daily_limit` (no tira ni guarda) y GIRAR responde `error` con `daily_limit`; las ventanas reciben [`daily_limit`](#daily_limit) con `limit` y `reopensAt` (la medianoche siguiente) y enseñan el aviso de mesa cerrada.
 
 ## Espectáculo, bancarrota y logros
 
@@ -1638,7 +1685,7 @@ Dirección: cliente → servidor.
 
 #### spin.pending
 
-GIRAR: gasta la tirada pendiente más antigua. `quick: true` en cada vuelta de GIRAR TODAS (giro rápido). `requestId` lo genera la ventana (aleatorio) para que un reintento no tire dos veces. Respuesta: `round.started` y `round.resolved` a todas las ventanas; si no se puede, `error` (`not_found`, `conflict` o `rate_limited`; ver [tiradas pendientes](#tiradas-pendientes)).
+GIRAR: gasta la tirada pendiente más antigua. `quick: true` en cada vuelta de GIRAR TODAS (giro rápido). `requestId` lo genera la ventana (aleatorio) para que un reintento no tire dos veces. Respuesta: `round.started` y `round.resolved` a todas las ventanas; si no se puede, `error` (`not_found`, `conflict`, `rate_limited` o `daily_limit`, este último con [`daily_limit`](#daily_limit) a todas las ventanas; ver [tiradas pendientes](#tiradas-pendientes)).
 
 <!-- example: clientMessageSchema -->
 
@@ -2102,12 +2149,12 @@ Respuesta a un `bet.place` o `bet.clear` que no se pudo hacer.
 
 Dirección: servidor → cliente.
 
-| Campo     | Tipo                                                                                                                                                                                                                                                                                                | Obligatorio |
-| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
-| `v`       | `1`                                                                                                                                                                                                                                                                                                 | sí          |
-| `type`    | `"bet.rejected"`                                                                                                                                                                                                                                                                                    | sí          |
-| `error`   | `"invalid_request"` \| `"unauthorized"` \| `"forbidden"` \| `"not_found"` \| `"conflict"` \| `"rate_limited"` \| `"payload_too_large"` \| `"insufficient_funds"` \| `"too_many_bets"` \| `"invalid_bet"` \| `"loan_not_allowed"` \| `"protocol_mismatch"` \| `"github_unavailable"` \| `"internal"` | sí          |
-| `message` | `string` (0–500 car.)                                                                                                                                                                                                                                                                               | sí          |
+| Campo     | Tipo                                                                                                                                                                                                                                                                                                                   | Obligatorio |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| `v`       | `1`                                                                                                                                                                                                                                                                                                                    | sí          |
+| `type`    | `"bet.rejected"`                                                                                                                                                                                                                                                                                                       | sí          |
+| `error`   | `"invalid_request"` \| `"unauthorized"` \| `"forbidden"` \| `"not_found"` \| `"conflict"` \| `"rate_limited"` \| `"payload_too_large"` \| `"insufficient_funds"` \| `"too_many_bets"` \| `"invalid_bet"` \| `"loan_not_allowed"` \| `"daily_limit"` \| `"protocol_mismatch"` \| `"github_unavailable"` \| `"internal"` | sí          |
+| `message` | `string` (0–500 car.)                                                                                                                                                                                                                                                                                                  | sí          |
 
 <details><summary>JSON Schema</summary>
 
@@ -2131,6 +2178,7 @@ Dirección: servidor → cliente.
         "too_many_bets",
         "invalid_bet",
         "loan_not_allowed",
+        "daily_limit",
         "protocol_mismatch",
         "github_unavailable",
         "internal"
@@ -2217,7 +2265,7 @@ Dirección: servidor → cliente.
 
 #### pending
 
-Un prompt terminó sin ninguna ventana visible: se ha guardado como tirada pendiente (`queued`) o se ha descartado por el tope (`dropped`). El contador nuevo va en `wallet.pendingSpins`. Al gastar una pendiente no llega este mensaje: el contador rebajado viene en la cartera de `round.resolved`.
+Un prompt terminó sin ninguna ventana visible, o con la bola de la tirada anterior aún cayendo (una tirada por bola): se ha guardado como tirada pendiente (`queued`) o se ha descartado por el tope (`dropped`). El contador nuevo va en `wallet.pendingSpins`. Al gastar una pendiente no llega este mensaje: el contador rebajado viene en la cartera de `round.resolved`.
 
 <!-- example: serverMessageSchema -->
 
@@ -2270,6 +2318,69 @@ Dirección: servidor → cliente.
 </details>
 
 <!-- END GENERATED ws-server:pending -->
+
+#### daily_limit
+
+Se ha llegado al [tope diario](#tope-diario) (`dailySpinLimit` tiradas jugadas hoy): un prompt no ha tirado ni se ha guardado, o un GIRAR se ha rechazado (quien lo pidió recibe además `error` con `daily_limit`). Como `pending`, cierra la ronda que la ventana viera girar. La ventana enseña el aviso de mesa cerrada con una frase de la categoría `dailyLimit`, la hora de `reopensAt` (la próxima medianoche en la zona horaria de la temporada) y, discreta, la línea de ayuda de su idioma.
+
+<!-- example: serverMessageSchema -->
+
+```json
+{
+  "v": 1,
+  "type": "daily_limit",
+  "limit": 2500,
+  "reopensAt": "2026-10-15T22:00:00.000Z",
+  "wallet": {
+    "seasonId": "2026-10",
+    "balance": 800,
+    "debt": 0,
+    "netWorth": 800,
+    "spins": 2500,
+    "loans": 0,
+    "currentStreak": 0,
+    "bestStreak": 3,
+    "pendingSpins": 0
+  }
+}
+```
+
+<!-- BEGIN GENERATED ws-server:daily_limit -->
+
+Dirección: servidor → cliente.
+
+| Campo       | Tipo                                                                                                                                                                                                                                                                                                       | Obligatorio |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| `v`         | `1`                                                                                                                                                                                                                                                                                                        | sí          |
+| `type`      | `"daily_limit"`                                                                                                                                                                                                                                                                                            | sí          |
+| `limit`     | `integer` > 0                                                                                                                                                                                                                                                                                              | sí          |
+| `reopensAt` | `string` (date-time, `/^(?:(?:\d\d[2468][048]\|\d\d[13579][26]\|\d\d0[48]\|[02468][048]00\|[13579][26]00)-02-29\|\d{4}-(?:(?:0[13578]\|1[02])-(?:0[1-9]\|[12]\d\|3[01])\|(?:0[469]\|11)-(?:0[1-9]\|[12]\d\|30)\|(?:02)-(?:0[1-9]\|1\d\|2[0-8])))T(?:(?:[01]\d\|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$/`) | sí          |
+| `wallet`    | [Wallet](#wallet)                                                                                                                                                                                                                                                                                          | sí          |
+
+<details><summary>JSON Schema</summary>
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "v": { "type": "number", "const": 1 },
+    "type": { "type": "string", "const": "daily_limit" },
+    "limit": { "type": "integer", "exclusiveMinimum": 0, "maximum": 9007199254740991 },
+    "reopensAt": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+    },
+    "wallet": { "$ref": "#/$defs/Wallet" }
+  },
+  "required": ["v", "type", "limit", "reopensAt", "wallet"],
+  "additionalProperties": false
+}
+```
+
+</details>
+
+<!-- END GENERATED ws-server:daily_limit -->
 
 #### achievement.unlocked
 
@@ -2549,13 +2660,13 @@ Un mensaje no válido o una acción que falló (que no es una apuesta).
 
 Dirección: servidor → cliente.
 
-| Campo     | Tipo                                                                                                                                                                                                                                                                                                | Obligatorio |
-| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
-| `v`       | `1`                                                                                                                                                                                                                                                                                                 | sí          |
-| `type`    | `"error"`                                                                                                                                                                                                                                                                                           | sí          |
-| `error`   | `"invalid_request"` \| `"unauthorized"` \| `"forbidden"` \| `"not_found"` \| `"conflict"` \| `"rate_limited"` \| `"payload_too_large"` \| `"insufficient_funds"` \| `"too_many_bets"` \| `"invalid_bet"` \| `"loan_not_allowed"` \| `"protocol_mismatch"` \| `"github_unavailable"` \| `"internal"` | sí          |
-| `message` | `string` (0–500 car.)                                                                                                                                                                                                                                                                               | sí          |
-| `re`      | `"bet.place"` \| `"bet.clear"` \| `"loan.request"` \| `"settings.update"` \| `"sync"` \| `"ping"` \| `"presence"` \| `"spin.pending"` \| `"stats.request"` \| `"bank.request"`                                                                                                                      | no          |
+| Campo     | Tipo                                                                                                                                                                                                                                                                                                                   | Obligatorio |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| `v`       | `1`                                                                                                                                                                                                                                                                                                                    | sí          |
+| `type`    | `"error"`                                                                                                                                                                                                                                                                                                              | sí          |
+| `error`   | `"invalid_request"` \| `"unauthorized"` \| `"forbidden"` \| `"not_found"` \| `"conflict"` \| `"rate_limited"` \| `"payload_too_large"` \| `"insufficient_funds"` \| `"too_many_bets"` \| `"invalid_bet"` \| `"loan_not_allowed"` \| `"daily_limit"` \| `"protocol_mismatch"` \| `"github_unavailable"` \| `"internal"` | sí          |
+| `message` | `string` (0–500 car.)                                                                                                                                                                                                                                                                                                  | sí          |
+| `re`      | `"bet.place"` \| `"bet.clear"` \| `"loan.request"` \| `"settings.update"` \| `"sync"` \| `"ping"` \| `"presence"` \| `"spin.pending"` \| `"stats.request"` \| `"bank.request"`                                                                                                                                         | no          |
 
 <details><summary>JSON Schema</summary>
 
@@ -2579,6 +2690,7 @@ Dirección: servidor → cliente.
         "too_many_bets",
         "invalid_bet",
         "loan_not_allowed",
+        "daily_limit",
         "protocol_mismatch",
         "github_unavailable",
         "internal"
@@ -2918,6 +3030,7 @@ Las tablas de arriba enlazan aquí cuando un campo es una de estas piezas.
 | `hidden`     | `boolean`                                                                                                                                                                                                                                                                                                  | sí          |
 | `locale`     | `"en"` \| `"es"` \| `"fr"` \| `"de"` \| `null`                                                                                                                                                                                                                                                             | sí          |
 | `createdAt`  | `string` (date-time, `/^(?:(?:\d\d[2468][048]\|\d\d[13579][26]\|\d\d0[48]\|[02468][048]00\|[13579][26]00)-02-29\|\d{4}-(?:(?:0[13578]\|1[02])-(?:0[1-9]\|[12]\d\|3[01])\|(?:0[469]\|11)-(?:0[1-9]\|[12]\d\|30)\|(?:02)-(?:0[1-9]\|1\d\|2[0-8])))T(?:(?:[01]\d\|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$/`) | sí          |
+| `newAccount` | `object` (ver JSON Schema) \| `null`                                                                                                                                                                                                                                                                       | no          |
 
 <details><summary>JSON Schema</summary>
 
@@ -2936,6 +3049,24 @@ Las tablas de arriba enlazan aquí cuando un campo es una de estas piezas.
       "type": "string",
       "format": "date-time",
       "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+    },
+    "newAccount": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "minAgeDays": { "type": "integer", "exclusiveMinimum": 0, "maximum": 9007199254740991 },
+            "rankedFrom": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+            }
+          },
+          "required": ["minAgeDays", "rankedFrom"],
+          "additionalProperties": false
+        },
+        { "type": "null" }
+      ]
     }
   },
   "required": ["login", "avatarUrl", "profileUrl", "hidden", "locale", "createdAt"],
@@ -3922,22 +4053,23 @@ Una de estas variantes:
 
 **PublicGameConfig** (`publicGameConfigSchema`)
 
-| Campo             | Tipo                       | Obligatorio |
-| ----------------- | -------------------------- | ----------- |
-| `startingBalance` | `integer` > 0              | sí          |
-| `chips`           | `integer` > 0[]            | sí          |
-| `allIn`           | `boolean`                  | sí          |
-| `maxBetsPerRound` | `integer`                  | sí          |
-| `loan`            | `object` (ver JSON Schema) | sí          |
-| `jackpot`         | `object` (ver JSON Schema) | sí          |
-| `minSpinMs`       | `integer`                  | sí          |
-| `landingMs`       | `integer` ≥ 0              | sí          |
-| `colorWarningAt`  | `integer`                  | sí          |
-| `seasonTimeZone`  | `string`                   | sí          |
-| `seasonStartDay`  | `integer` 1–28             | sí          |
-| `pendingSpins`    | `object` (ver JSON Schema) | sí          |
-| `bigWin`          | `object` (ver JSON Schema) | sí          |
-| `onFireAt`        | `integer` ≥ 2              | sí          |
+| Campo               | Tipo                       | Obligatorio |
+| ------------------- | -------------------------- | ----------- |
+| `startingBalance`   | `integer` > 0              | sí          |
+| `chips`             | `integer` > 0[]            | sí          |
+| `allIn`             | `boolean`                  | sí          |
+| `maxBetsPerRound`   | `integer`                  | sí          |
+| `loan`              | `object` (ver JSON Schema) | sí          |
+| `jackpot`           | `object` (ver JSON Schema) | sí          |
+| `minSpinMs`         | `integer`                  | sí          |
+| `landingMs`         | `integer` ≥ 0              | sí          |
+| `colorWarningAt`    | `integer`                  | sí          |
+| `seasonTimeZone`    | `string`                   | sí          |
+| `seasonStartDay`    | `integer` 1–28             | sí          |
+| `pendingSpins`      | `object` (ver JSON Schema) | sí          |
+| `bigWin`            | `object` (ver JSON Schema) | sí          |
+| `onFireAt`          | `integer` ≥ 2              | sí          |
+| `minAccountAgeDays` | `integer` ≥ 0              | sí          |
 
 <details><summary>JSON Schema</summary>
 
@@ -4000,7 +4132,8 @@ Una de estas variantes:
       "required": ["minNetMultiple", "megaNetMultiple"],
       "additionalProperties": false
     },
-    "onFireAt": { "type": "integer", "minimum": 2, "maximum": 9007199254740991 }
+    "onFireAt": { "type": "integer", "minimum": 2, "maximum": 9007199254740991 },
+    "minAccountAgeDays": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
   },
   "required": [
     "startingBalance",
@@ -4016,7 +4149,8 @@ Una de estas variantes:
     "seasonStartDay",
     "pendingSpins",
     "bigWin",
-    "onFireAt"
+    "onFireAt",
+    "minAccountAgeDays"
   ],
   "additionalProperties": false
 }
@@ -4032,11 +4166,11 @@ Una de estas variantes:
 
 **ErrorResponse** (`errorResponseSchema`)
 
-| Campo     | Tipo                                                                                                                                                                                                                                                                                                | Obligatorio |
-| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
-| `v`       | `1`                                                                                                                                                                                                                                                                                                 | sí          |
-| `error`   | `"invalid_request"` \| `"unauthorized"` \| `"forbidden"` \| `"not_found"` \| `"conflict"` \| `"rate_limited"` \| `"payload_too_large"` \| `"insufficient_funds"` \| `"too_many_bets"` \| `"invalid_bet"` \| `"loan_not_allowed"` \| `"protocol_mismatch"` \| `"github_unavailable"` \| `"internal"` | sí          |
-| `message` | `string` (0–500 car.)                                                                                                                                                                                                                                                                               | sí          |
+| Campo     | Tipo                                                                                                                                                                                                                                                                                                                   | Obligatorio |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| `v`       | `1`                                                                                                                                                                                                                                                                                                                    | sí          |
+| `error`   | `"invalid_request"` \| `"unauthorized"` \| `"forbidden"` \| `"not_found"` \| `"conflict"` \| `"rate_limited"` \| `"payload_too_large"` \| `"insufficient_funds"` \| `"too_many_bets"` \| `"invalid_bet"` \| `"loan_not_allowed"` \| `"daily_limit"` \| `"protocol_mismatch"` \| `"github_unavailable"` \| `"internal"` | sí          |
+| `message` | `string` (0–500 car.)                                                                                                                                                                                                                                                                                                  | sí          |
 
 <details><summary>JSON Schema</summary>
 
@@ -4059,6 +4193,7 @@ Una de estas variantes:
         "too_many_bets",
         "invalid_bet",
         "loan_not_allowed",
+        "daily_limit",
         "protocol_mismatch",
         "github_unavailable",
         "internal"
