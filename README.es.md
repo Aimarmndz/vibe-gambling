@@ -5,7 +5,8 @@
 ### 🎰 Cada prompt es una tirada.
 
 Una ruleta estilo PS1 que aparece mientras Claude Code piensa.<br>
-Monedas de mentira, vicio de verdad (que no). Ranking mundial de los devs más arruinados.
+Puedes perder el 100 %, pero también puedes ganar infinito. Dinero real en juego: cero, legal y espiritualmente.<br>
+Ranking mundial de los devs más arruinados.
 
 [![CI](https://github.com/Aimarmndz/vibe-gambling/actions/workflows/ci.yml/badge.svg)](https://github.com/Aimarmndz/vibe-gambling/actions/workflows/ci.yml)
 [![Versión](https://img.shields.io/github/v/release/Aimarmndz/vibe-gambling?include_prereleases&sort=semver&color=f2c14e&label=versi%C3%B3n)](https://github.com/Aimarmndz/vibe-gambling/releases)
@@ -30,9 +31,13 @@ Monedas de mentira, vicio de verdad (que no). Ranking mundial de los devs más a
 
 Ni compras, ni dinero real, ni enlaces a casas de apuestas. Nunca. Las monedas son tan de verdad como los usuarios de tu side project, y lo único que te juegas es la dignidad, encima en un ranking público.
 
+Nuestra tokenomics cabe en una línea: cero tokens, cero valor, cero whitepaper. No se puede retirar, recargar, hacer staking, mintear ni rug-pullear nada, porque no hay nada.
+
+<sub>Letra pequeña: rentabilidades pasadas del rojo no garantizan rentabilidades futuras. Las futuras tampoco garantizan nada. Las monedas no tienen valor de cambio, ni de reventa, ni, pasadas unas temporadas, sentimental.</sub>
+
 ## Instalación
 
-En una sesión de Claude Code en la terminal:
+Onboarding sin fricción en tres pasos. Sin KYC, sin frase semilla y sin tarjeta «solo para verificar tu identidad». En una sesión de Claude Code en la terminal:
 
 ```text
 /plugin install vibe-gambling --marketplace Aimarmndz/vibe-gambling
@@ -40,7 +45,7 @@ En una sesión de Claude Code en la terminal:
 
 Claude Code te pregunta **`Add marketplace?`** por `github:Aimarmndz/vibe-gambling`: contesta `y`, elige el ámbito (el de usuario es el primero: Intro), echa un ojo a las opciones del plugin (servidor, abrir la ventana sola, idioma…; las de serie valen) y verás `Installed vibe-gambling. Plugin is now active.`
 
-Ahora, siéntate a la mesa:
+Ahora, siéntate a la mesa (la primera ronda de arrepentimiento corre a cuenta de la casa):
 
 ```text
 /vibe-login
@@ -52,7 +57,7 @@ Te da un código de GitHub (`🎰 Ve a https://github.com/login/device y escribe
 2. Cuando Claude termina, cae la bola. El resultado te llega en un aviso y el saldo, en la barra de estado (`🎰 750 🪙`).
 3. Y una frase de ludópata que nadie te ha pedido. Eso es el producto.
 
-Lo que conviene saber:
+Lo que conviene saber (las condiciones, pero con un tamaño de letra que se lee):
 
 - **Nunca frena a Claude.** Todas las peticiones van en segundo plano y con 1,5 s de tope. Si el casino se cae, la barra de estado pone `🎰 sin conexión` y a seguir programando.
 - **Hace falta un navegador.** Con Chrome, Chromium, Brave, Edge o Vivaldi la ventana se abre como app sin marco de 960×720; si no, en tu navegador de siempre. Linux, macOS y Windows.
@@ -62,6 +67,8 @@ Lo que conviene saber:
 ## Cómo se juega
 
 No hay botón de girar. **Tus prompts son las tiradas.** Cada turno abre una ronda; cuando Claude termina, el servidor gira la ruleta y paga (o cobra) tus apuestas.
+
+En el pitch deck esto se llama _engagement AI-native impulsado por prompts_. En cristiano: cuanto más programas, más apuestas, y a la casa le parecen bien las dos cosas.
 
 ### En directo o pendiente
 
@@ -88,15 +95,15 @@ Apuesta en la ventana (ratón, teclado o mando: flechas para moverte, ✕ para s
 | Docena · Columna                    | 2:1  |
 | Rojo/Negro · Par/Impar · Falta/Pasa | 1:1  |
 
-Cuando sale el 0, todas las sencillas pierden. Sin _la partage_: la casa quiere tus monedas de mentira.
+Cuando sale el 0, todas las sencillas pierden. Sin _la partage_: la casa quiere tus monedas de mentira. La casa siempre gana; tu código, a veces, compila.
 
 ### Las normas de la casa
 
-Son los valores de la instancia oficial; todos están en [`config/game.json`](config/game.json).
+Son los valores de la instancia oficial; todos están en [`config/game.json`](config/game.json). Sujeto a condiciones. Las condiciones, a su vez, sujetas a otras condiciones.
 
 - **1.000 monedas** al empezar cada temporada. Fichas de 10, 50, 100, 500, 1.000 y ALL-IN.
 - **¿No has apostado?** Se repite tu última apuesta. ¿No has apostado nunca? Tu subconsciente pone 10 al rojo.
-- **Ludo-Crédito Express.** ¿No te llega ni para la ficha más pequeña? La ventana te ofrece un préstamo de 1.000 monedas a una **TAE del 4.200 %**. La deuda crece un 2 % en cada tirada. Botón de devolver no hay. Letra pequeña sí, y pasa demasiado rápido para leerla.
+- **Ludo-Crédito Express.** ¿No te llega ni para la ficha más pequeña? La ventana te ofrece un préstamo preconcedido de 1.000 monedas a una **TAE del 4.200 %**, sin preguntas, sin aval y sin futuro. La deuda crece un 2 % en cada tirada. Botón de devolver no hay. Letra pequeña sí, y pasa demasiado rápido para leerla.
 - **Patrimonio** = saldo − deuda. Puede ser muy negativo. Esa es la gracia.
 - **Bote dev.** Si en el turno hubo un `git push` que salió bien, tus ganancias se pagan **×2**. _Push to prod = bonus._
 - **Tests en rojo**: frase de consuelo. ¿Cinco rojos seguidos? La ventana te recordará que ahora TIENE que salir negro. No tiene: es la falacia del jugador, y ahí está el chiste.
@@ -109,9 +116,11 @@ Por defecto sales en el ranking público (login, avatar y estadísticas), y te l
 
 ### Cuatro idiomas
 
-🇬🇧 English · 🇪🇸 Español · 🇫🇷 Français · 🇩🇪 Deutsch. Entero: el juego, la landing, la política de privacidad, los mensajes del plugin y más de 60 frases de ludópata por idioma, adaptadas y no traducidas a pelo. Las banderas son pixel art dibujado a mano. La ventana arranca en el idioma de tu navegador, el plugin en el de tu sistema, y lo cambias cuando quieras en los ajustes del juego. [Añadir un idioma](locales/README.md#resumen-en-español) es copiar una carpeta.
+🇬🇧 English · 🇪🇸 Español · 🇫🇷 Français · 🇩🇪 Deutsch. Entero: el juego, la landing, la política de privacidad, los mensajes del plugin y más de 60 frases de ludópata por idioma, adaptadas y no traducidas a pelo. Las banderas son pixel art dibujado a mano. La ventana arranca en el idioma de tu navegador, el plugin en el de tu sistema, y lo cambias cuando quieras en los ajustes del juego. [Añadir un idioma](locales/README.md#resumen-en-español) es copiar una carpeta. Expansión internacional: cuatro mercados, cero ingresos, ejecución impecable.
 
 ### Comandos
+
+Toda la superficie de la API. No hay plan premium: todos los comandos son gratis, y todas las pérdidas también.
 
 | Comando                        | Alias      | Qué hace                                                              |
 | ------------------------------ | ---------- | --------------------------------------------------------------------- |
@@ -128,7 +137,7 @@ Las opciones del plugin (servidor, apertura automática, idioma, tiempos de espe
 
 ## El espectáculo
 
-Todo pasa dentro de un framebuffer de 320×240, con vértices que tiemblan, tramado, filtro CRT y sonidos sintetizados. Cada animación se puede saltar (✕, ○ o clic), tiene una versión corta y quieta con `prefers-reduced-motion` y nunca te destripa el resultado antes de que caiga la bola.
+Tecnología puntera de 1997, servida en 4:3. Todo pasa dentro de un framebuffer de 320×240, con vértices que tiemblan, tramado, filtro CRT y sonidos sintetizados. Cada animación se puede saltar (✕, ○ o clic), tiene una versión corta y quieta con `prefers-reduced-motion` y nunca te destripa el resultado antes de que caiga la bola.
 
 <table>
   <tr>
@@ -178,6 +187,8 @@ Premios gordos por niveles (**BIG WIN**, **MEGA WIN**, **¡PLENO!**), la mesa en
 
 ## Privacidad
 
+Probablemente el único casino de la historia que no quiere saber nada de ti.
+
 **El plugin no sabe nada de tu trabajo.** Un test intercepta cada petición que hace el plugin (los turnos, todos los comandos, el login y los caminos de error) y falla si lleva algo más.
 
 | Se envía al servidor                                                      | No se envía nunca                                            |
@@ -198,20 +209,20 @@ La política entera: [docs/PRIVACIDAD.md](docs/PRIVACIDAD.md#español) y [vibe.a
 
 ## Tu propio casino
 
-Monta uno para tu equipo: Docker Compose con Postgres (y, si quieres, un Caddy con HTTPS automático), tu propia OAuth App de GitHub y `/vibe-server https://tu.dominio` en Claude Code. Todas las normas de la casa (saldo, fichas, TAE, bote, topes, zona horaria de las temporadas) son una línea de `config/game.json`. Paso a paso: [docs/SELF-HOSTING.md](docs/SELF-HOSTING.md); el despliegue de la instancia oficial, en [docs/DESPLIEGUE.md](docs/DESPLIEGUE.md).
+¡Oportunidad exclusiva de franquicia! Sin cuota de entrada, sin downline y sin pirámide: solo Postgres. Monta uno para tu equipo: Docker Compose con Postgres (y, si quieres, un Caddy con HTTPS automático), tu propia OAuth App de GitHub y `/vibe-server https://tu.dominio` en Claude Code. Todas las normas de la casa (saldo, fichas, TAE, bote, topes, zona horaria de las temporadas) son una línea de `config/game.json`. Paso a paso: [docs/SELF-HOSTING.md](docs/SELF-HOSTING.md); el despliegue de la instancia oficial, en [docs/DESPLIEGUE.md](docs/DESPLIEGUE.md).
 
 ## Por dentro
 
-Por fuera, un shitpost; por dentro, un monorepo de TypeScript que se deja leer: `shared` (el contrato en esquemas zod y la lógica pura de la ruleta), `server` (Fastify + WebSocket + Drizzle/Postgres, la única autoridad), `web` (Vite + Three.js con un pipeline PS1 hecho a mano) y `mod` (el plugin de Claude Code, sin dependencias).<br>
+Por fuera, un shitpost; por dentro, un monorepo de TypeScript que se deja leer (tipado fuerte, justificación débil): `shared` (el contrato en esquemas zod y la lógica pura de la ruleta), `server` (Fastify + WebSocket + Drizzle/Postgres, la única autoridad), `web` (Vite + Three.js con un pipeline PS1 hecho a mano) y `mod` (el plugin de Claude Code, sin dependencias).<br>
 Nada configurable está escrito en el código. Cómo encaja todo: [arquitectura](docs/ARQUITECTURA.md) · [protocolo](docs/PROTOCOLO.md) · [despliegue](docs/DESPLIEGUE.md) · [decisiones](docs/DECISIONES.md).
 
 ## Versiones
 
-Una sola versión para todo (plugin, servidor, web e imagen de Docker), con [SemVer](https://semver.org/lang/es/) y `0.x` mientras el protocolo pueda cambiar. Cada [release](https://github.com/Aimarmndz/vibe-gambling/releases) trae el plugin en zip, el servidor en tar.gz para Node.js sin Docker, un SBOM SPDX y `SHA256SUMS`, con atestaciones de procedencia que compruebas con `gh attestation verify`; la imagen multiarquitectura va a `ghcr.io/aimarmndz/vibe-gambling`. Qué ha cambiado: [CHANGELOG.md](CHANGELOG.md). Cómo se saca y se verifica una versión: [docs/RELEASING.md](docs/RELEASING.md).
+Hoja de ruta pública, burn rate cero y sin necesidad de ronda de financiación. Una sola versión para todo (plugin, servidor, web e imagen de Docker), con [SemVer](https://semver.org/lang/es/) y `0.x` mientras el protocolo pueda cambiar. Cada [release](https://github.com/Aimarmndz/vibe-gambling/releases) trae el plugin en zip, el servidor en tar.gz para Node.js sin Docker, un SBOM SPDX y `SHA256SUMS`, con atestaciones de procedencia que compruebas con `gh attestation verify`; la imagen multiarquitectura va a `ghcr.io/aimarmndz/vibe-gambling`. Qué ha cambiado: [CHANGELOG.md](CHANGELOG.md). Cómo se saca y se verifica una versión: [docs/RELEASING.md](docs/RELEASING.md).
 
 ## Contribuir
 
-La casa siempre quiere más:
+La casa siempre quiere más. Únete a la red (es una lista de contribuidores, no un esquema piramidal; lo hemos comprobado):
 
 - **Frases de ludópata**, en cualquiera de los cuatro idiomas, en [`locales/<idioma>/phrases.json`](locales/README.md) o con la plantilla de issue _New funny phrase_. Humor sobre la ludopatía de mentira y la cultura dev; nunca sobre personas, colectivos ni la adicción real de nadie.
 - **Idiomas**: copia `locales/en`, tradúcelo y dibuja la bandera en pixel art. [Paso a paso](locales/README.md#add-a-language).
