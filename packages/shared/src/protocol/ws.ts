@@ -157,9 +157,24 @@ export const serverMessageSchema = z.discriminatedUnion('type', [
     .strict(),
   z.object({ v: versionSchema, type: z.literal('wallet'), wallet: walletSchema }).strict(),
   /**
-   * Un prompt terminó sin ninguna ventana visible: se ha guardado como tirada pendiente
-   * (`queued`) o se ha descartado por el tope (`dropped`). El contador va en la cartera.
+   * Un prompt terminó sin ninguna ventana visible, o con la bola de la tirada anterior aún
+   * cayendo: se ha guardado como tirada pendiente (`queued`) o se ha descartado por el tope
+   * (`dropped`). El contador va en la cartera.
    */
+  /**
+   * Tope diario alcanzado (`dailySpinLimit`): un prompt o un GIRAR no ha tirado. Cierra la ronda
+   * que la ventana viera girar; la mesa reabre en `reopensAt`.
+   */
+  z
+    .object({
+      v: versionSchema,
+      type: z.literal('daily_limit'),
+      /** El tope (`dailySpinLimit`), para las frases del aviso. */
+      limit: z.number().int().positive(),
+      reopensAt: z.iso.datetime(),
+      wallet: walletSchema,
+    })
+    .strict(),
   z
     .object({
       v: versionSchema,

@@ -63,6 +63,16 @@ export const gameConfigSchema = z
       .strict(),
     /** Cuántos arruinados de cada temporada entran en el Salón de la Ruina. */
     hallOfRuinSize: z.number().int().min(1).max(100),
+    leaderboard: z
+      .object({
+        /**
+         * Antiabuso: una cuenta de GitHub con menos días que estos juega con normalidad, pero no
+         * sale en los rankings públicos ni en el Salón de la Ruina hasta cumplirlos (días de
+         * 24 h desde su `created_at` en GitHub). 0 lo desactiva.
+         */
+        minAccountAgeDays: z.number().int().min(0).max(3650),
+      })
+      .strict(),
     spin: z
       .object({
         /** Duración mínima de la animación de giro (ms), aunque el turno sea más corto. */
@@ -81,6 +91,21 @@ export const gameConfigSchema = z
         staleAfterMs: z.number().int().positive(),
       })
       .strict(),
+    turn: z
+      .object({
+        /**
+         * Duración mínima de un turno (ms), medida por el servidor entre `turn/start` y
+         * `turn/end` (nunca la `durationMs` del cliente). Un turno más corto no da tirada ni
+         * pendiente: ningún prompt real de Claude dura tan poco, un script sí.
+         */
+        minDurationMs: z.number().int().min(0).max(60_000),
+      })
+      .strict(),
+    /**
+     * Tope de tiradas jugadas (en directo y pendientes gastadas) por usuario y día, de 00:00 a
+     * 00:00 en la zona horaria de la temporada. Al llegar, la mesa cierra hasta el día siguiente.
+     */
+    dailySpinLimit: z.number().int().min(1).max(1_000_000),
     streak: z
       .object({
         /** A partir de cuántos colores iguales seguidos sale el aviso de "falacia del jugador". */
@@ -212,6 +237,11 @@ export const publicGameConfigSchema = z
       .strict(),
     /** Victorias seguidas para el "ON FIRE". */
     onFireAt: z.number().int().min(2),
+    /**
+     * Días que tiene que tener una cuenta de GitHub para salir en los rankings (0: sin mínimo).
+     * La landing lo explica junto al ranking.
+     */
+    minAccountAgeDays: z.number().int().min(0),
   })
   .strict()
 export type PublicGameConfig = z.output<typeof publicGameConfigSchema>
@@ -243,5 +273,6 @@ export function toPublicGameConfig(cfg: GameConfig): PublicGameConfig {
       megaNetMultiple: cfg.bigWin.megaNetMultiple,
     },
     onFireAt: cfg.streak.onFireAt,
+    minAccountAgeDays: cfg.leaderboard.minAccountAgeDays,
   }
 }

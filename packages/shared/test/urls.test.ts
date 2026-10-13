@@ -109,6 +109,28 @@ describe('URLs del contrato', () => {
     }
   })
 
+  it('usuario propio: newAccount opcional (servidores viejos), nulo o con fecha y días', () => {
+    const self = {
+      login: 'octo',
+      avatarUrl: 'https://avatars.test/1',
+      profileUrl: 'https://github.test/octo',
+      hidden: false,
+      locale: null,
+      createdAt: '2026-10-01T00:00:00.000Z',
+    }
+    const ok = (extra: object) => selfUserSchema.safeParse({ ...self, ...extra }).success
+    expect(ok({})).toBe(true)
+    expect(ok({ newAccount: null })).toBe(true)
+    expect(ok({ newAccount: { minAgeDays: 30, rankedFrom: '2026-10-31T00:00:00.000Z' } })).toBe(
+      true,
+    )
+    expect(ok({ newAccount: { minAgeDays: 0, rankedFrom: '2026-10-31T00:00:00.000Z' } })).toBe(
+      false,
+    )
+    expect(ok({ newAccount: { minAgeDays: 30, rankedFrom: 'soon' } })).toBe(false)
+    expect(ok({ newAccount: { minAgeDays: 30 } })).toBe(false)
+  })
+
   it('meta, Device Flow y enlace de la ventana: solo http(s)', () => {
     const token = 'a'.repeat(43)
     expect(opaqueTokenSchema.safeParse(token).success).toBe(true)

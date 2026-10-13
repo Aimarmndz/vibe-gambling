@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Tiradas pendientes: los prompts que terminan sin ninguna ventana visible se guardan y se gastan
-// después con GIRAR (una) o GIRAR TODAS (en bucle, con giro rápido). Lógica pura: la usan el
+// Tiradas pendientes: los prompts que terminan sin ninguna ventana visible (o con la bola de la
+// tirada anterior aún cayendo) se guardan y se gastan después con GIRAR (una) o GIRAR TODAS (en bucle, con giro rápido). Lógica pura: la usan el
 // servidor (tope), la web (cuándo se para GIRAR TODAS) y los tests.
 import type { ResolvedRound, Wallet } from '../protocol/common.ts'
 

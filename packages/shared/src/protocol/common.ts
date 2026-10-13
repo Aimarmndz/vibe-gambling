@@ -113,6 +113,16 @@ export const selfUserSchema = publicUserSchema
     hidden: z.boolean(),
     locale: localeSchema.nullable(),
     createdAt: z.iso.datetime(),
+    /**
+     * Antiabuso: si la cuenta de GitHub tiene menos de `minAgeDays` días, juega igual pero no sale
+     * en los rankings públicos ni en el Salón de la Ruina hasta `rankedFrom`. `null` si ya sale
+     * (o si no hay dato). Opcional por compatibilidad (`v: 1`).
+     */
+    newAccount: z
+      .object({ minAgeDays: z.number().int().positive(), rankedFrom: z.iso.datetime() })
+      .strict()
+      .nullable()
+      .optional(),
   })
   .strict()
 export type SelfUser = z.output<typeof selfUserSchema>
@@ -129,8 +139,9 @@ export const walletSchema = z
     currentStreak: z.number().int(),
     bestStreak: z.number().int().min(0),
     /**
-     * Tiradas pendientes de la temporada: prompts que terminaron sin ninguna ventana visible y
-     * esperan a que el jugador las gaste con GIRAR. Cuentan en `spins` cuando se gastan.
+     * Tiradas pendientes de la temporada: prompts que terminaron sin ninguna ventana visible (o
+     * con la bola de la anterior aún cayendo) y esperan a que el jugador las gaste con GIRAR.
+     * Cuentan en `spins` cuando se gastan.
      */
     pendingSpins: z.number().int().min(0),
   })
@@ -231,6 +242,7 @@ export const ERROR_CODES = [
   'too_many_bets',
   'invalid_bet',
   'loan_not_allowed',
+  'daily_limit',
   'protocol_mismatch',
   'github_unavailable',
   'internal',

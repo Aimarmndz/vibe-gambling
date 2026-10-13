@@ -1,7 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { describe, expect, it } from 'vitest'
 
-import { nextSeasonId, seasonAt, seasonBounds, zonedMidnight, zonedParts } from '../src/index.ts'
+import {
+  dayAt,
+  nextSeasonId,
+  seasonAt,
+  seasonBounds,
+  zonedMidnight,
+  zonedParts,
+} from '../src/index.ts'
 
 const TZ = 'Europe/Madrid'
 
@@ -57,5 +64,45 @@ describe('temporadas en Europe/Madrid', () => {
       minute: 30,
       second: 15,
     })
+  })
+})
+
+describe('día de pared (tope diario)', () => {
+  const day = (instant: string, tz = 'Europe/Madrid') => {
+    const d = dayAt(new Date(instant), tz)
+    return [d.startsAt.toISOString(), d.endsAt.toISOString()]
+  }
+
+  it('de 00:00 a 00:00 en la zona horaria, no en UTC', () => {
+    // 23:30 UTC del 15 de octubre ya es el 16 en Madrid (CEST, +2).
+    expect(day('2026-10-15T23:30:00Z')).toEqual([
+      '2026-10-15T22:00:00.000Z',
+      '2026-10-16T22:00:00.000Z',
+    ])
+    expect(day('2026-10-15T23:30:00Z', 'UTC')).toEqual([
+      '2026-10-15T00:00:00.000Z',
+      '2026-10-16T00:00:00.000Z',
+    ])
+  })
+
+  it('con el cambio de hora el día dura 25 h (octubre) o 23 h (marzo)', () => {
+    expect(day('2026-10-25T12:00:00Z')).toEqual([
+      '2026-10-24T22:00:00.000Z',
+      '2026-10-25T23:00:00.000Z',
+    ])
+    expect(day('2026-03-29T12:00:00Z')).toEqual([
+      '2026-03-28T23:00:00.000Z',
+      '2026-03-29T22:00:00.000Z',
+    ])
+  })
+
+  it('la medianoche es del día siguiente (cambio de mes y de año) y el límite es exacto', () => {
+    expect(day('2026-12-31T12:00:00Z')).toEqual([
+      '2026-12-30T23:00:00.000Z',
+      '2026-12-31T23:00:00.000Z',
+    ])
+    // Justo a medianoche ya es el día nuevo.
+    expect(day('2026-12-31T23:00:00Z')[0]).toBe('2026-12-31T23:00:00.000Z')
+    expect(day('2026-12-31T22:59:59.999Z')[1]).toBe('2026-12-31T23:00:00.000Z')
   })
 })

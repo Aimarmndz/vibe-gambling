@@ -52,6 +52,20 @@ describe('configuración del juego', () => {
     expect(gameConfigSchema.safeParse({ ...base, extra: true }).success).toBe(false)
   })
 
+  it('edad mínima de la cuenta de GitHub para el ranking: entera, de 0 (sin regla) en adelante', () => {
+    const base = testGameConfig()
+    const withAge = (minAccountAgeDays: unknown) =>
+      gameConfigSchema.safeParse({ ...base, leaderboard: { minAccountAgeDays } }).success
+    expect(withAge(0)).toBe(true)
+    expect(withAge(30)).toBe(true)
+    expect(withAge(-1)).toBe(false)
+    expect(withAge(1.5)).toBe(false)
+    expect(withAge('30')).toBe(false)
+    const { leaderboard: _, ...without } = base
+    expect(gameConfigSchema.safeParse(without).success).toBe(false)
+    expect(toPublicGameConfig(base).minAccountAgeDays).toBe(30)
+  })
+
   it('la ficha mínima es la primera y la config pública no filtra lo interno', () => {
     const cfg = testGameConfig()
     expect(minBet(cfg)).toBe(10)

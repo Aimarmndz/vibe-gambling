@@ -93,6 +93,24 @@ export function seasonAt(instant: Date, timeZone: string, startDay: number): Sea
   return seasonBounds(idOf(year, month), timeZone, startDay)
 }
 
+export interface DayBounds {
+  startsAt: Date
+  endsAt: Date
+}
+
+/**
+ * Día de pared (de 00:00 a 00:00) en una zona horaria que contiene un instante. Con el cambio de
+ * hora el día dura 23 o 25 horas: los límites son las medianoches de verdad, no "+24 h".
+ */
+export function dayAt(instant: Date, timeZone: string): DayBounds {
+  const p = zonedParts(instant, timeZone)
+  return {
+    startsAt: zonedMidnight(p.year, p.month, p.day, timeZone),
+    // Date.UTC normaliza el día 32 al 1 del mes siguiente (y el 13.º mes al año siguiente).
+    endsAt: zonedMidnight(p.year, p.month, p.day + 1, timeZone),
+  }
+}
+
 /** Temporada siguiente a una dada. */
 export function nextSeasonId(id: SeasonId): SeasonId {
   const [year, month] = seasonIdSchema.parse(id).split('-').map(Number) as [number, number]

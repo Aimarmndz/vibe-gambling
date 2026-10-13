@@ -179,13 +179,28 @@ export const turnEndResponseSchema = z.discriminatedUnion('status', [
     .object({
       v: versionSchema,
       /**
-       * No había ninguna ventana visible: la tirada no se juega ahora, se guarda como pendiente
-       * (con el `git push` y los tests de este turno) para gastarla luego con GIRAR. El contador
-       * está en `wallet.pendingSpins`.
+       * No había ninguna ventana visible, o la bola de la tirada anterior aún estaba cayendo (su
+       * `revealAt` no había llegado): la tirada no se juega ahora, se guarda como pendiente (con
+       * el `git push` y los tests de este turno) para gastarla luego con GIRAR. El contador está
+       * en `wallet.pendingSpins`.
        */
       status: z.literal('queued'),
       /** true si ya estaba en el tope (`pendingSpins.max`): este prompt se ha descartado. */
       dropped: z.boolean(),
+      wallet: walletSchema,
+    })
+    .strict(),
+  z
+    .object({
+      v: versionSchema,
+      /**
+       * Ya se han jugado `dailySpinLimit` tiradas hoy (día de la zona horaria de la temporada):
+       * este prompt no tira ni se guarda. La mesa reabre en `reopensAt` (la próxima medianoche).
+       */
+      status: z.literal('daily_limit'),
+      /** El tope (`dailySpinLimit`), para las frases ("{limit} tiradas…"). */
+      limit: z.number().int().positive(),
+      reopensAt: z.iso.datetime(),
       wallet: walletSchema,
     })
     .strict(),
@@ -229,7 +244,10 @@ export const meResponseSchema = z
     wallet: walletSchema,
     slip: slipSchema,
     round: openRoundSchema.nullable(),
-    /** Puesto en el ranking de arruinados (null si está oculto o aún no ha jugado). */
+    /**
+     * Puesto en el ranking de arruinados (null si está oculto, aún no ha jugado o su cuenta de
+     * GitHub es demasiado nueva: ver `user.newAccount`).
+     */
     brokeRank: z.number().int().positive().nullable(),
     /** Logros (como en el `hello`). Opcional en el esquema por compatibilidad (`v: 1`). */
     achievements: z.array(achievementSchema).optional(),

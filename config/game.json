@@ -23,6 +23,9 @@
     "startDay": 1
   },
   "hallOfRuinSize": 10,
+  "leaderboard": {
+    "minAccountAgeDays": 30
+  },
   "spin": {
     "minSpinMs": 4000,
     "landingMs": 4200
@@ -30,6 +33,10 @@
   "round": {
     "staleAfterMs": 1800000
   },
+  "turn": {
+    "minDurationMs": 800
+  },
+  "dailySpinLimit": 2500,
   "streak": {
     "colorWarningAt": 5,
     "historySize": 50,
