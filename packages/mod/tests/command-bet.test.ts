@@ -74,7 +74,7 @@ test(
     expect((await command($, 'bet')).text).toContain('Usage: /bet <amount> <square>')
     expect((await command($, 'bet', '200')).text).toContain('Usage')
     expect((await command($, 'bet', 'lots red')).text).toBe(
-      '"lots" is not an amount. Whole fake coins only (or "all-in").',
+      '"lots" is not an amount. Whole fake coins only (or "all-in"). Fractional ruin is not supported.',
     )
     expect((await command($, 'bet', `10 ${'x'.repeat(40)}`)).text).toContain(
       'too long to be a square',
@@ -91,7 +91,7 @@ test('/bet explains what the server refused', { options: TEST_OPTIONS }, async (
   expect((await command($, 'bet', '5000 red')).text).toContain('Not enough fake coins')
   next = 'invalid_bet'
   expect((await command($, 'bet', '10 purple')).text).toBe(
-    '"purple" is not a square on this table.',
+    '"purple" is not a square on this table. Try a number, a colour or a dozen.',
   )
   next = 'too_many_bets'
   expect((await command($, 'bet', '10 red')).text).toContain('Too many chips')
@@ -101,7 +101,7 @@ test('/bet needs a session', { options: TEST_OPTIONS }, async ($, on) => {
   const w = world(on)
   await startSession($, w)
   expect((await command($, 'bet', '10 red')).text).toBe(
-    "You're not logged in. Run /vibe-login first.",
+    "You're not logged in. Run /vibe-login first. No seat, no spin.",
   )
   expect(w.requests).toHaveLength(0)
 })

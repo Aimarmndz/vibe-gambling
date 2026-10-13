@@ -140,7 +140,7 @@ test(
     await startSession($, w)
     expect(w.lastStatus()).toBe('🎰 /vibe-login')
     const { text } = await command($, 'balance')
-    expect(text).toBe("You're not logged in. Run /vibe-login first.")
+    expect(text).toBe("You're not logged in. Run /vibe-login first. No seat, no spin.")
   },
 )
 
