@@ -773,6 +773,14 @@ export class Game implements AppContext {
         this.toast(text, 'error')
         return
       }
+      case 'commission':
+        this.fx.commission({
+          amount: effect.amount,
+          capped: effect.capped,
+          commissions: effect.commissions,
+          cap: effect.cap,
+        })
+        return
       case 'season':
         this.spinLoop.stop('error')
         this.toast(tr.t('toast.seasonChanged', { season: effect.seasonId }), 'money')

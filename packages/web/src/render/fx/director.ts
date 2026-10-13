@@ -56,6 +56,25 @@ const PANEL = { x: 222, y: 4, w: 94 } as const
 /** Recuerdo de los últimos números vistos (para el historial de la falacia). */
 const RECENT_MAX = 20
 
+/** Comisión de afiliado cobrada (o con el tope ya lleno), como aviso de la cola. */
+export interface CommissionNotice {
+  readonly id: string
+  readonly commission: {
+    readonly amount: number
+    readonly capped: boolean
+    readonly commissions: number
+    readonly cap: number
+  }
+}
+
+/** Lo que sale en la ventana de avisos: un logro o una comisión. */
+type Notice = Achievement | CommissionNotice
+
+const isCommission = (n: Notice): n is CommissionNotice => 'commission' in n
+
+/** Fichas que vuelan del aviso de comisión al saldo del HUD (arriba a la izquierda). */
+const COMMISSION_COINS = 5
+
 interface FireIntro {
   ms: number
   streak: number
@@ -67,7 +86,9 @@ export class FxDirector {
   readonly kit: FxKit
   readonly coins: FxScene3d
   private readonly deps: DirectorDeps
-  private readonly notices: NoticeQueue
+  private readonly notices: NoticeQueue<Notice>
+  /** Para que dos comisiones seguidas no se tomen por el mismo aviso. */
+  private commissionSeq = 0
   private readonly recent: number[] = []
   private screen: FxScreen | null = null
   private steps: FxStep[] = []
@@ -91,7 +112,7 @@ export class FxDirector {
       maxCoins: cfg.maxCoins,
       snap: !deps.reduced,
     })
-    this.notices = new NoticeQueue(cfg.achievement, deps.reduced)
+    this.notices = new NoticeQueue<Notice>(cfg.achievement, deps.reduced)
     this.flames = new DoomFire(30, 10)
     const rays = new Rays(RAYS_CENTER.x, RAYS_CENTER.y)
     this.kit = {
@@ -124,7 +145,7 @@ export class FxDirector {
 
   /** Logro cuyo aviso está en pantalla (para los tests E2E). */
   get notice(): string | null {
-    return this.notices.shown?.achievement.id ?? null
+    return this.notices.shown?.item.id ?? null
   }
 
   /** Logros esperando su turno (para los tests). */
@@ -245,6 +266,14 @@ export class FxDirector {
     this.notices.push(a)
   }
 
+  /**
+   * Comisión de afiliado: mismo aviso que un logro, con su propio título, en la misma cola (sale
+   * cuando la mesa está libre, nunca encima de la caída de la bola).
+   */
+  commission(c: CommissionNotice['commission']): void {
+    this.notices.push({ id: `commission:${++this.commissionSeq}`, commission: { ...c } })
+  }
+
   private startFire(streak: number): void {
     const { ctx } = this.deps
     ctx.sfx.playFx('fireWhoosh')
@@ -316,7 +345,25 @@ export class FxDirector {
       state.phase !== 'result' &&
       this.deps.tableVisible()
     const started = this.notices.tick(ms, ready)
-    if (started) {
+    if (started && isCommission(started)) {
+      const c = started.commission
+      ctx.sfx.playFx('kaching')
+      this.deps.announce(
+        c.capped
+          ? ctx.tr.t('a11y.fx.commissionCapped', { cap: ctx.tr.n(c.cap) })
+          : ctx.tr.t('a11y.fx.commission', {
+              amount: ctx.tr.n(c.amount),
+              n: ctx.tr.n(c.commissions),
+              cap: ctx.tr.n(c.cap),
+            }),
+      )
+      if (!c.capped && !this.deps.reduced) {
+        // Unas fichas saltan del aviso al saldo: el dinero llega de la pirámide.
+        for (let i = 0; i < COMMISSION_COINS; i++) {
+          this.coins.fly({ x: 300 - i * 6, y: NOTICE.y + 16 }, { x: 40, y: 12 }, 0.6 + i * 0.08)
+        }
+      }
+    } else if (started) {
       ctx.sfx.playFx('trophy')
       const vars = started.params
       this.deps.announce(
@@ -365,9 +412,18 @@ export class FxDirector {
       return
     }
     const { tr } = this.deps.ctx
-    const a = shown.achievement
-    const title = tr.t(`achievements.${a.id}.title` as MessageKey, a.params)
-    const head = tr.t('fx.achievement.unlocked')
+    const item = shown.item
+    const commission = isCommission(item) ? item.commission : null
+    const title = commission
+      ? commission.capped
+        ? tr.t('fx.commission.capped')
+        : tr.t('fx.commission.amount', {
+            amount: tr.n(commission.amount),
+            n: tr.n(commission.commissions),
+            cap: tr.n(commission.cap),
+          })
+      : tr.t(`achievements.${item.id}.title` as MessageKey, (item as Achievement).params)
+    const head = commission ? tr.t('fx.commission.title') : tr.t('fx.achievement.unlocked')
     const w = Math.min(316, Math.max(NOTICE.minW, measure(title) + 40, measure(head) + 40))
     const pose = this.notices.pose(shown.ms, w)
     if (pose.done) {
@@ -388,6 +444,12 @@ export class FxDirector {
       const sx = x + Math.round(pose.sheen * (w + NOTICE.h)) - NOTICE.h
       for (let y = 0; y < NOTICE.h; y++) g.fillRect(sx + (NOTICE.h - y), NOTICE.y + y, 6, 1)
       g.restore()
+    }
+    if (commission) {
+      // En vez de la copa, una pirámide escalonada en pixel art (oro, con la cima clara).
+      this.coins.setTrophy(0, null)
+      drawPyramid(g, x + 16, NOTICE.y + 9)
+      return
     }
     const angle = this.deps.reduced ? 0.6 : ((shown.ms / this.deps.trophySpinMs) % 1) * Math.PI * 2
     this.coins.setTrophy(0, { x: x + 16, y: NOTICE.y + 16, size: 10, angle })
@@ -441,4 +503,16 @@ export class FxDirector {
     if (!busy && this.overlayOn) p.removeOverlay(this.coins.scene)
     this.overlayOn = busy
   }
+}
+
+/** Pirámide escalonada de 4 pisos (16 px de base) centrada en `cx`, con la cima en `top`. */
+function drawPyramid(g: CanvasRenderingContext2D, cx: number, top: number): void {
+  const tiers = [PALETTE.goldHi, PALETTE.gold, PALETTE.gold, PALETTE.goldDark]
+  tiers.forEach((color, i) => {
+    const w = 4 + i * 4
+    g.fillStyle = PALETTE.ink
+    g.fillRect(cx - w / 2 - 1, top + i * 4 - 1, w + 2, 5)
+    g.fillStyle = color
+    g.fillRect(cx - w / 2, top + i * 4, w, 3)
+  })
 }

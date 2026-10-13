@@ -4,6 +4,7 @@
 // con sus acciones, lo que se anuncia por `aria-live` y que todo lo que se pinta existe en la
 // fuente y no deja marcadores sin rellenar, en los cuatro idiomas.
 import { LOCALES } from '@vibe-gambling/shared/i18n'
+import { ACHIEVEMENTS } from '@vibe-gambling/shared'
 import type { LeaderboardResponse } from '@vibe-gambling/shared'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -65,14 +66,27 @@ beforeEach(() => {
 
 describe('rejilla del menú principal', () => {
   it('←→ dan la vuelta en la fila y ↑↓ cambian de fila sin saltar de columna', () => {
-    expect(gridMove(0, 'left')).toBe(4)
-    expect(gridMove(4, 'right')).toBe(0)
-    expect(gridMove(2, 'down')).toBe(7)
-    expect(gridMove(7, 'down')).toBe(2)
-    expect(gridMove(6, 'up')).toBe(1)
+    // 6 arriba y 5 abajo, cada fila centrada: ↑↓ van a la casilla de centro más cercano.
+    expect(gridMove(0, 'left')).toBe(5)
+    expect(gridMove(5, 'right')).toBe(0)
+    expect(gridMove(6, 'left')).toBe(10)
+    expect(gridMove(10, 'right')).toBe(6)
+    expect(gridMove(2, 'down')).toBe(8)
+    expect(gridMove(8, 'down')).toBe(2)
+    expect(gridMove(6, 'up')).toBe(0)
+    expect(gridMove(5, 'down')).toBe(10)
+    expect(gridMove(10, 'up')).toBe(4)
     expect(gridMove(3, 'accept')).toBe(3)
-    expect(tileRect(9)).toEqual({ x: 256, y: 88, w: 56, h: 52 })
-    expect(MAIN_ITEMS).toHaveLength(10)
+    expect(tileRect(0)).toEqual({ x: 10, y: 30, w: 46, h: 52 })
+    expect(tileRect(10)).toEqual({ x: 239, y: 87, w: 46, h: 52 })
+    expect(MAIN_ITEMS).toHaveLength(11)
+    // Ninguna casilla se sale de la pantalla ni pisa la ventana de información (y = 150).
+    MAIN_ITEMS.forEach((_, i) => {
+      const r = tileRect(i)
+      expect(r.x).toBeGreaterThanOrEqual(8)
+      expect(r.x + r.w).toBeLessThanOrEqual(312)
+      expect(r.y + r.h).toBeLessThan(150)
+    })
   })
 
   it('teclas: mover suena y se anuncia; ✕ abre; ○ en la primera cierra el menú', () => {
@@ -101,6 +115,7 @@ describe('rejilla del menú principal', () => {
       'stats',
       'achievements',
       'leaderboard',
+      'referral',
       'bank',
       'memoryCard',
       'settings',
@@ -128,7 +143,7 @@ describe('rejilla del menú principal', () => {
     const page = new MainMenuPage(host)
     ctx.hover = 'menu:tile:bank'
     page.draw(fakeCanvas2d(), 0)
-    expect(page.index).toBe(5)
+    expect(page.index).toBe(6)
     expect(ctx.sounds).toContain('move')
     const r = tileRect(2)
     ctx.hits.at(r.x + 3, r.y + 3)?.onClick()
@@ -431,12 +446,14 @@ describe('datos del servidor', () => {
   it('LOGROS: ↑↓ mueven (con desplazamiento) y anuncian la fila', () => {
     const ctx = fakeContext()
     const page = new AchievementsPage(fakeHost(ctx))
-    for (let i = 0; i < 20; i++) press(page, 'down')
+    // Hasta el último secreto del catálogo ("Demasiado grande para caer").
+    const lastHidden = ACHIEVEMENTS.map(a => a.hidden).lastIndexOf(true)
+    for (let i = 0; i < lastHidden; i++) press(page, 'down')
     expect(ctx.announced.at(-1)).toMatch(/\?\?\?/)
     page.wheel(-1)
     page.draw(fakeCanvas2d(), 0)
     expect(painted.map(p => p.text)).toContain('???')
-    expect(page.headerRight()).toBe('2/17 · 11 %')
+    expect(page.headerRight()).toBe(`2/${ACHIEVEMENTS.length} · 10 %`)
   })
 })
 

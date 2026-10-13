@@ -1,14 +1,26 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Peticiones de las pantallas ESTADÍSTICAS y BANCO (`stats.request` → `stats`, `bank.request` →
-// `bank`). El servidor responde solo a la ventana que pregunta y sin id de petición, así que aquí
+// Peticiones de las pantallas ESTADÍSTICAS, BANCO y AFILIADOS (`stats.request` → `stats`,
+// `bank.request` → `bank`, `referral.request` → `referral`). El servidor responde solo a la ventana que pregunta y sin id de petición, así que aquí
 // se empareja cada respuesta con la petición más antigua de su tipo que siga esperando.
-import type { BankStatement, SeasonStats, ServerMessage } from '@vibe-gambling/shared'
+import type {
+  BankStatement,
+  ReferralStatus,
+  SeasonStats,
+  ServerMessage,
+} from '@vibe-gambling/shared'
 
-export type ProgressKind = 'stats' | 'bank'
+export type ProgressKind = 'stats' | 'bank' | 'referral'
 export interface ProgressData {
   stats: SeasonStats
   bank: BankStatement
+  referral: ReferralStatus
 }
+
+const REQUEST_TYPE = {
+  stats: 'stats.request',
+  bank: 'bank.request',
+  referral: 'referral.request',
+} as const
 
 /** La petición no tuvo respuesta a tiempo o no se pudo mandar. */
 export class ProgressError extends Error {
@@ -29,12 +41,16 @@ interface Waiting<K extends ProgressKind> {
 }
 
 export type ProgressSend = (msg: {
-  type: 'stats.request' | 'bank.request'
+  type: (typeof REQUEST_TYPE)[ProgressKind]
   seasonId?: string
 }) => boolean
 
 export class ProgressRequests {
-  private readonly waiting: { [K in ProgressKind]: Waiting<K>[] } = { stats: [], bank: [] }
+  private readonly waiting: { [K in ProgressKind]: Waiting<K>[] } = {
+    stats: [],
+    bank: [],
+    referral: [],
+  }
   private readonly send: ProgressSend
   private readonly timeoutMs: number
 
@@ -46,7 +62,7 @@ export class ProgressRequests {
   /** Pide las estadísticas o el banco de una temporada (sin `seasonId`, la en curso). */
   request<K extends ProgressKind>(kind: K, seasonId?: string): Promise<ProgressData[K]> {
     return new Promise<ProgressData[K]>((resolve, reject) => {
-      const type = kind === 'stats' ? 'stats.request' : 'bank.request'
+      const type = REQUEST_TYPE[kind]
       if (!this.send(seasonId ? { type, seasonId } : { type })) {
         reject(new ProgressError('offline'))
         return
@@ -68,13 +84,14 @@ export class ProgressRequests {
 
   /** ¿Hay alguna petición esperando? (un `error` del servidor puede ser su respuesta). */
   get busy(): boolean {
-    return this.waiting.stats.length + this.waiting.bank.length > 0
+    return this.waiting.stats.length + this.waiting.bank.length + this.waiting.referral.length > 0
   }
 
   /** Mensaje del servidor. Devuelve true si era la respuesta de una petición. */
   receive(msg: ServerMessage): boolean {
     if (msg.type === 'stats') return this.settle('stats', msg.stats)
     if (msg.type === 'bank') return this.settle('bank', msg.bank)
+    if (msg.type === 'referral') return this.settle('referral', msg.referral)
     // Una temporada en la que no jugó responde `not_found`; solo puede ser de una petición con
     // temporada explícita (la en curso siempre existe). El servidor dice a qué mensaje responde
     // (`re`): un `not_found` de `spin.pending` (GIRAR TODAS) no es de estas pantallas.
@@ -106,7 +123,7 @@ export class ProgressRequests {
     // La respuesta de la temporada pedida; si no la hay (la en curso), la más antigua.
     const i = Math.max(
       0,
-      list.findIndex(w => w.seasonId === data.seasonId),
+      list.findIndex(w => 'seasonId' in data && w.seasonId === data.seasonId),
     )
     const entry = list.splice(i, 1)[0]
     if (!entry) return false
@@ -117,7 +134,7 @@ export class ProgressRequests {
 
   /** Se cae la conexión: lo que esperaba ya no llegará. */
   failAll(): void {
-    for (const kind of ['stats', 'bank'] as const) {
+    for (const kind of ['stats', 'bank', 'referral'] as const) {
       for (const entry of this.waiting[kind].splice(0)) {
         clearTimeout(entry.timer)
         entry.reject(new ProgressError('offline'))

@@ -4,7 +4,8 @@
 @import './base.css';
 
 body.landing,
-body.privacy {
+body.privacy,
+body.invite {
   min-height: 100vh;
   background: radial-gradient(ellipse 80% 50% at 70% 0%, #1d2a5e 0%, transparent 70%), var(--ink);
 }
@@ -433,6 +434,45 @@ h2 {
 
 .prose p {
   margin: 0 0 16px;
+}
+
+/* ------------------------------------------------------------ invitación (/r/<código>) */
+.invite-hero {
+  padding-bottom: 24px;
+}
+
+.invite-from {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+  overflow-wrap: anywhere;
+}
+
+.invite-avatar {
+  width: 48px;
+  height: 48px;
+}
+
+.invite-steps {
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+}
+
+.step-body {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.fine {
+  max-width: 72ch;
+  margin: 24px 0 0;
+}
+
+.invite-links {
+  margin: 16px 0 0;
 }
 
 @media (min-width: 720px) {

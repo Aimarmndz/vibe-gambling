@@ -18,6 +18,7 @@ Diagramas de los flujos en [ARQUITECTURA.md](ARQUITECTURA.md).
 - [Antiabuso: ritmo, duración mínima y tope diario](#antiabuso-ritmo-duración-mínima-y-tope-diario)
 - [Espectáculo, bancarrota y logros](#espectáculo-bancarrota-y-logros)
 - [Enlace de un solo uso](#enlace-de-un-solo-uso)
+- [Programa de afiliados](#programa-de-afiliados)
 - [WebSocket `/ws`](#websocket-ws)
 - [Rutas fuera de `/api`](#rutas-fuera-de-api)
 - [Piezas comunes](#piezas-comunes)
@@ -105,22 +106,25 @@ Los límites configurables (tamaño del cuerpo, rate limits, conexiones por usua
 
 <!-- BEGIN GENERATED routes -->
 
-| Nombre                            | Método | Ruta                     | Auth     |
-| --------------------------------- | ------ | ------------------------ | -------- |
-| [`meta`](#meta)                   | GET    | `/api/meta`              | `public` |
-| [`deviceStart`](#devicestart)     | POST   | `/api/auth/device/start` | `public` |
-| [`devicePoll`](#devicepoll)       | POST   | `/api/auth/device/poll`  | `public` |
-| [`link`](#link)                   | POST   | `/api/auth/link`         | `mod`    |
-| [`redeem`](#redeem)               | POST   | `/api/auth/redeem`       | `public` |
-| [`logout`](#logout)               | POST   | `/api/auth/logout`       | `any`    |
-| [`turnStart`](#turnstart)         | POST   | `/api/turn/start`        | `mod`    |
-| [`turnEnd`](#turnend)             | POST   | `/api/turn/end`          | `mod`    |
-| [`bet`](#bet)                     | POST   | `/api/bet`               | `mod`    |
-| [`me`](#me)                       | GET    | `/api/me`                | `any`    |
-| [`settings`](#settings)           | POST   | `/api/me/settings`       | `any`    |
-| [`deleteAccount`](#deleteaccount) | POST   | `/api/me/delete`         | `any`    |
-| [`leaderboard`](#leaderboard)     | GET    | `/api/leaderboard`       | `public` |
-| [`hallOfRuin`](#hallofruin)       | GET    | `/api/hall-of-ruin`      | `public` |
+| Nombre                              | Método | Ruta                     | Auth     |
+| ----------------------------------- | ------ | ------------------------ | -------- |
+| [`meta`](#meta)                     | GET    | `/api/meta`              | `public` |
+| [`deviceStart`](#devicestart)       | POST   | `/api/auth/device/start` | `public` |
+| [`devicePoll`](#devicepoll)         | POST   | `/api/auth/device/poll`  | `public` |
+| [`link`](#link)                     | POST   | `/api/auth/link`         | `mod`    |
+| [`redeem`](#redeem)                 | POST   | `/api/auth/redeem`       | `public` |
+| [`logout`](#logout)                 | POST   | `/api/auth/logout`       | `any`    |
+| [`turnStart`](#turnstart)           | POST   | `/api/turn/start`        | `mod`    |
+| [`turnEnd`](#turnend)               | POST   | `/api/turn/end`          | `mod`    |
+| [`bet`](#bet)                       | POST   | `/api/bet`               | `mod`    |
+| [`me`](#me)                         | GET    | `/api/me`                | `any`    |
+| [`settings`](#settings)             | POST   | `/api/me/settings`       | `any`    |
+| [`deleteAccount`](#deleteaccount)   | POST   | `/api/me/delete`         | `any`    |
+| [`leaderboard`](#leaderboard)       | GET    | `/api/leaderboard`       | `public` |
+| [`hallOfRuin`](#hallofruin)         | GET    | `/api/hall-of-ruin`      | `public` |
+| [`referral`](#referral)             | GET    | `/api/referral`          | `any`    |
+| [`referralRedeem`](#referralredeem) | POST   | `/api/referral/redeem`   | `mod`    |
+| [`referralLookup`](#referrallookup) | GET    | `/api/referral/lookup`   | `public` |
 
 <!-- END GENERATED routes -->
 
@@ -1385,6 +1389,272 @@ El Salón de la Ruina: el top `hallOfRuinSize` de arruinados de cada temporada *
 
 <!-- END GENERATED route:hallOfRuin -->
 
+### referral
+
+Tu situación en el [programa de afiliados](#programa-de-afiliados): tu código (se crea la primera vez que lo pides; aleatorio, no dice nada de ti), tu enlace `PUBLIC_URL/r/<código>`, a cuántos has invitado, cuántos se han activado, cuánto has cobrado, las comisiones de la temporada con su tope, si canjeaste tú un código y si aún podrías, y las reglas de la instancia. Nunca dice **quiénes** son tus invitados: solo números. Lo usa `/vibe-invite`; la ventana pide lo mismo con [`referral.request`](#referralrequest).
+
+<!-- example: referralResponseSchema -->
+
+```json
+{
+  "v": 1,
+  "referral": {
+    "code": "ABCD2345",
+    "url": "https://vibe.aimar.dev/r/ABCD2345",
+    "invited": 4,
+    "activated": 2,
+    "waiting": 2,
+    "earned": 2000,
+    "season": { "seasonId": "2026-10", "commissions": 2, "cap": 10 },
+    "invitedBy": null,
+    "canRedeem": true,
+    "redeemUntil": "2026-10-20T12:00:00.000Z",
+    "rules": {
+      "welcomeBonus": 500,
+      "commission": 1000,
+      "activationSpins": 50,
+      "redeemWindowDays": 7,
+      "redeemMaxSpins": 100,
+      "maxCommissionsPerSeason": 10,
+      "minAccountAgeDays": 30
+    }
+  }
+}
+```
+
+<!-- BEGIN GENERATED route:referral -->
+
+`GET /api/referral` · autenticación: Bearer del mod **o** cookie de la web
+
+**Respuesta 200** (`referralResponseSchema`)
+
+| Campo      | Tipo                              | Obligatorio |
+| ---------- | --------------------------------- | ----------- |
+| `v`        | `1`                               | sí          |
+| `referral` | [ReferralStatus](#referralstatus) | sí          |
+
+<details><summary>JSON Schema</summary>
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "v": { "type": "number", "const": 1 },
+    "referral": { "$ref": "#/$defs/ReferralStatus" }
+  },
+  "required": ["v", "referral"],
+  "additionalProperties": false
+}
+```
+
+</details>
+
+<!-- END GENERATED route:referral -->
+
+### referralRedeem
+
+`/vibe-redeem <código>`: canjea el código de quien te invitó. El mod lo manda ya normalizado (mayúsculas, sin espacios ni guiones). Un rechazo no es un error HTTP: responde 200 con `status: "rejected"` y el motivo (`not_found`, `own_code`, `already_redeemed`, `cycle`, `too_late`, `too_many_spins`), y no cambia nada. Con `redeemed`, el bono ya está en la cartera de la temporada en curso (y las ventanas reciben `wallet`). `inviter` es `null` si quien invitó está oculto del ranking.
+
+<!-- example: referralRedeemRequestSchema -->
+
+```json
+{ "v": 1, "code": "ABCD2345" }
+```
+
+<!-- example: referralRedeemResponseSchema -->
+
+```json
+{
+  "v": 1,
+  "status": "redeemed",
+  "bonus": 500,
+  "wallet": {
+    "seasonId": "2026-10",
+    "balance": 1500,
+    "debt": 0,
+    "netWorth": 1500,
+    "spins": 0,
+    "loans": 0,
+    "currentStreak": 0,
+    "bestStreak": 0,
+    "pendingSpins": 0
+  },
+  "inviter": {
+    "login": "octocat",
+    "avatarUrl": "https://avatars.githubusercontent.com/u/583231",
+    "profileUrl": "https://github.com/octocat"
+  }
+}
+```
+
+<!-- example: referralRedeemResponseSchema -->
+
+```json
+{ "v": 1, "status": "rejected", "reason": "cycle" }
+```
+
+<!-- BEGIN GENERATED route:referralRedeem -->
+
+`POST /api/referral/redeem` · autenticación: `Authorization: Bearer <token>` de una sesión **del mod**
+
+**Cuerpo de la petición (JSON)** (`referralRedeemRequestSchema`)
+
+| Campo  | Tipo                                                 | Obligatorio |
+| ------ | ---------------------------------------------------- | ----------- |
+| `v`    | `1`                                                  | sí          |
+| `code` | `string` (`/^[23456789ABCDEFGHJKMNPQRSTVWXYZ]{8}$/`) | sí          |
+
+<details><summary>JSON Schema</summary>
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "v": { "type": "number", "const": 1 },
+    "code": { "type": "string", "pattern": "^[23456789ABCDEFGHJKMNPQRSTVWXYZ]{8}$" }
+  },
+  "required": ["v", "code"],
+  "additionalProperties": false
+}
+```
+
+</details>
+
+**Respuesta 200** (`referralRedeemResponseSchema`)
+
+Una de estas variantes:
+
+- `status: "redeemed"`
+
+  | Campo     | Tipo                                | Obligatorio |
+  | --------- | ----------------------------------- | ----------- |
+  | `v`       | `1`                                 | sí          |
+  | `status`  | `"redeemed"`                        | sí          |
+  | `bonus`   | `integer` > 0                       | sí          |
+  | `wallet`  | [Wallet](#wallet)                   | sí          |
+  | `inviter` | [PublicUser](#publicuser) \| `null` | sí          |
+
+- `status: "rejected"`
+
+  | Campo    | Tipo                                                                                                     | Obligatorio |
+  | -------- | -------------------------------------------------------------------------------------------------------- | ----------- |
+  | `v`      | `1`                                                                                                      | sí          |
+  | `status` | `"rejected"`                                                                                             | sí          |
+  | `reason` | `"not_found"` \| `"own_code"` \| `"already_redeemed"` \| `"cycle"` \| `"too_late"` \| `"too_many_spins"` | sí          |
+
+<details><summary>JSON Schema</summary>
+
+```json
+{
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "v": { "type": "number", "const": 1 },
+        "status": { "type": "string", "const": "redeemed" },
+        "bonus": { "type": "integer", "exclusiveMinimum": 0, "maximum": 9007199254740991 },
+        "wallet": { "$ref": "#/$defs/Wallet" },
+        "inviter": { "anyOf": [{ "$ref": "#/$defs/PublicUser" }, { "type": "null" }] }
+      },
+      "required": ["v", "status", "bonus", "wallet", "inviter"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "v": { "type": "number", "const": 1 },
+        "status": { "type": "string", "const": "rejected" },
+        "reason": {
+          "type": "string",
+          "enum": [
+            "not_found",
+            "own_code",
+            "already_redeemed",
+            "cycle",
+            "too_late",
+            "too_many_spins"
+          ]
+        }
+      },
+      "required": ["v", "status", "reason"],
+      "additionalProperties": false
+    }
+  ]
+}
+```
+
+</details>
+
+<!-- END GENERATED route:referralRedeem -->
+
+### referralLookup
+
+Quién invita con un código, para la página pública `/r/<código>`. El `code` llega tal como esté en la URL: el servidor lo normaliza y, si no puede ser un código, responde `found: false` (como uno que no existe). Con `found: true`, `inviter` es `null` si esa persona está oculta del ranking (la página dice "alguien te ha invitado").
+
+<!-- example: referralLookupResponseSchema -->
+
+```json
+{
+  "v": 1,
+  "found": true,
+  "inviter": {
+    "login": "octocat",
+    "avatarUrl": "https://avatars.githubusercontent.com/u/583231",
+    "profileUrl": "https://github.com/octocat"
+  }
+}
+```
+
+<!-- BEGIN GENERATED route:referralLookup -->
+
+`GET /api/referral/lookup` · autenticación: pública (sin sesión)
+
+**Parámetros de la query** (`referralLookupQuerySchema`)
+
+| Campo  | Tipo                 | Obligatorio |
+| ------ | -------------------- | ----------- |
+| `code` | `string` (1–64 car.) | sí          |
+
+<details><summary>JSON Schema</summary>
+
+```json
+{
+  "type": "object",
+  "properties": { "code": { "type": "string", "minLength": 1, "maxLength": 64 } },
+  "required": ["code"],
+  "additionalProperties": false
+}
+```
+
+</details>
+
+**Respuesta 200** (`referralLookupResponseSchema`)
+
+| Campo     | Tipo                                | Obligatorio |
+| --------- | ----------------------------------- | ----------- |
+| `v`       | `1`                                 | sí          |
+| `found`   | `boolean`                           | sí          |
+| `inviter` | [PublicUser](#publicuser) \| `null` | sí          |
+
+<details><summary>JSON Schema</summary>
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "v": { "type": "number", "const": 1 },
+    "found": { "type": "boolean" },
+    "inviter": { "anyOf": [{ "$ref": "#/$defs/PublicUser" }, { "type": "null" }] }
+  },
+  "required": ["v", "found", "inviter"],
+  "additionalProperties": false
+}
+```
+
+</details>
+
+<!-- END GENERATED route:referralLookup -->
+
 ## Idempotencia de los turnos
 
 El mod genera un `turnId` propio (`crypto.randomUUID()`; nunca el id interno de Claude Code) y lo manda en `turn/start` y `turn/end`. El servidor guarda cada turno en la tabla `turns` con la clave `(user_id, turn_id)`:
@@ -1453,6 +1723,16 @@ Para que la ventana entre con la sesión del usuario sin pedirle otro login:
 6. La web abre `/ws` con esa cookie.
 
 El servidor no registra la URL de ninguna petición (solo el patrón de la ruta), así que el código no acaba en sus logs. Los códigos usados o caducados se purgan en la pasada periódica del job de temporadas.
+
+## Programa de afiliados
+
+Programa de Afiliados Piramidal (legalmente distinto). Monedas de mentira; reglas de verdad, todas en el bloque `referral` de `config/game.json` y comprobadas por el servidor con la cartera bloqueada:
+
+- **Código.** Uno por usuario (`users.referral_code`, único), aleatorio (8 caracteres del alfabeto `REFERRAL_CODE_ALPHABET`: base 32 de Crockford sin 0, 1, I, L, O ni U), creado la primera vez que se pide.
+- **Canje** (`referralRedeem`): una vez en la vida de la cuenta (índice único de `referrals.invitee_id`); no el propio código; no el de alguien que canjeó el tuyo (`cycle`; dos canjes cruzados a la vez se esperan con un cerrojo consultivo de la pareja); solo en los primeros `redeemWindowDays` días desde el alta en vibe-gambling (`too_late`) y con menos de `redeemMaxSpins` tiradas jugadas (`too_many_spins`). El invitado cobra `welcomeBonus` en su cartera de la temporada en curso.
+- **Activación.** El invitado se activa cuando ha jugado `activationSpins` tiradas **desde el canje** y su cuenta de GitHub tiene `leaderboard.minAccountAgeDays` días. El servidor lo mira después de cada tirada nueva del invitado y en cada login suyo, en una transacción aparte que bloquea la cartera de quien invitó y la fila del canje: se paga una sola vez (también con peticiones a la vez) a la temporada en curso.
+- **Comisión.** `commission` monedas para quien invitó, con tope de `maxCommissionsPerSeason` por temporada: pasado el tope, la activación cuenta pero paga 0 (`capped`). Quien invitó recibe [`referral.commission`](#referralcommission) en sus ventanas (y los logros Influencer y Jefe de la Pirámide con `achievement.unlocked`).
+- **Borrado de cuenta.** El lado de la cuenta borrada queda a `null` en sus canjes: siguen contando para el tope de temporada de quien queda (borrar y volver a crear al invitado no da comisiones sin fin) pero ya no dicen de quién eran. Si se quedan sin ninguno de los dos lados, se borran.
 
 ## WebSocket `/ws`
 
@@ -1806,6 +2086,43 @@ Dirección: cliente → servidor.
 </details>
 
 <!-- END GENERATED ws-client:bank.request -->
+
+#### referral.request
+
+Pide tu situación en el programa de afiliados (pantalla AFILIADOS). Respuesta: `referral`, solo a esta ventana.
+
+<!-- example: clientMessageSchema -->
+
+```json
+{ "v": 1, "type": "referral.request" }
+```
+
+<!-- BEGIN GENERATED ws-client:referral.request -->
+
+Dirección: cliente → servidor.
+
+| Campo  | Tipo                 | Obligatorio |
+| ------ | -------------------- | ----------- |
+| `v`    | `1`                  | sí          |
+| `type` | `"referral.request"` | sí          |
+
+<details><summary>JSON Schema</summary>
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "v": { "type": "number", "const": 1 },
+    "type": { "type": "string", "const": "referral.request" }
+  },
+  "required": ["v", "type"],
+  "additionalProperties": false
+}
+```
+
+</details>
+
+<!-- END GENERATED ws-client:referral.request -->
 
 #### sync
 
@@ -2573,6 +2890,134 @@ Dirección: servidor → cliente.
 
 <!-- END GENERATED ws-server:bank -->
 
+#### referral
+
+Respuesta a `referral.request`: lo mismo que [`GET /api/referral`](#referral).
+
+<!-- example: serverMessageSchema -->
+
+```json
+{
+  "v": 1,
+  "type": "referral",
+  "referral": {
+    "code": "ABCD2345",
+    "url": "https://vibe.aimar.dev/r/ABCD2345",
+    "invited": 4,
+    "activated": 2,
+    "waiting": 2,
+    "earned": 2000,
+    "season": { "seasonId": "2026-10", "commissions": 2, "cap": 10 },
+    "invitedBy": null,
+    "canRedeem": true,
+    "redeemUntil": "2026-10-20T12:00:00.000Z",
+    "rules": {
+      "welcomeBonus": 500,
+      "commission": 1000,
+      "activationSpins": 50,
+      "redeemWindowDays": 7,
+      "redeemMaxSpins": 100,
+      "maxCommissionsPerSeason": 10,
+      "minAccountAgeDays": 30
+    }
+  }
+}
+```
+
+<!-- BEGIN GENERATED ws-server:referral -->
+
+Dirección: servidor → cliente.
+
+| Campo      | Tipo                              | Obligatorio |
+| ---------- | --------------------------------- | ----------- |
+| `v`        | `1`                               | sí          |
+| `type`     | `"referral"`                      | sí          |
+| `referral` | [ReferralStatus](#referralstatus) | sí          |
+
+<details><summary>JSON Schema</summary>
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "v": { "type": "number", "const": 1 },
+    "type": { "type": "string", "const": "referral" },
+    "referral": { "$ref": "#/$defs/ReferralStatus" }
+  },
+  "required": ["v", "type", "referral"],
+  "additionalProperties": false
+}
+```
+
+</details>
+
+<!-- END GENERATED ws-server:referral -->
+
+#### referral.commission
+
+Uno de tus invitados se ha activado: `amount` monedas ya sumadas a la cartera de la temporada en curso (`wallet`), o 0 con `capped: true` si ya cobraste el tope de la temporada. Puede llegar en cualquier momento (lo provoca la tirada de otro jugador); la ventana lo enseña como un aviso de logro cuando la mesa está libre. Nunca dice quién era el invitado.
+
+<!-- example: serverMessageSchema -->
+
+```json
+{
+  "v": 1,
+  "type": "referral.commission",
+  "amount": 1000,
+  "capped": false,
+  "commissions": 3,
+  "cap": 10,
+  "wallet": {
+    "seasonId": "2026-10",
+    "balance": 2750,
+    "debt": 0,
+    "netWorth": 2750,
+    "spins": 41,
+    "loans": 0,
+    "currentStreak": 1,
+    "bestStreak": 4,
+    "pendingSpins": 0
+  }
+}
+```
+
+<!-- BEGIN GENERATED ws-server:referral.commission -->
+
+Dirección: servidor → cliente.
+
+| Campo         | Tipo                    | Obligatorio |
+| ------------- | ----------------------- | ----------- |
+| `v`           | `1`                     | sí          |
+| `type`        | `"referral.commission"` | sí          |
+| `amount`      | `integer` ≥ 0           | sí          |
+| `capped`      | `boolean`               | sí          |
+| `commissions` | `integer` ≥ 0           | sí          |
+| `cap`         | `integer` > 0           | sí          |
+| `wallet`      | [Wallet](#wallet)       | sí          |
+
+<details><summary>JSON Schema</summary>
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "v": { "type": "number", "const": 1 },
+    "type": { "type": "string", "const": "referral.commission" },
+    "amount": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+    "capped": { "type": "boolean" },
+    "commissions": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+    "cap": { "type": "integer", "exclusiveMinimum": 0, "maximum": 9007199254740991 },
+    "wallet": { "$ref": "#/$defs/Wallet" }
+  },
+  "required": ["v", "type", "amount", "capped", "commissions", "cap", "wallet"],
+  "additionalProperties": false
+}
+```
+
+</details>
+
+<!-- END GENERATED ws-server:referral.commission -->
+
 #### settings
 
 Los ajustes cambiaron (desde esta ventana, otra, o el mod).
@@ -2666,7 +3111,7 @@ Dirección: servidor → cliente.
 | `type`    | `"error"`                                                                                                                                                                                                                                                                                                              | sí          |
 | `error`   | `"invalid_request"` \| `"unauthorized"` \| `"forbidden"` \| `"not_found"` \| `"conflict"` \| `"rate_limited"` \| `"payload_too_large"` \| `"insufficient_funds"` \| `"too_many_bets"` \| `"invalid_bet"` \| `"loan_not_allowed"` \| `"daily_limit"` \| `"protocol_mismatch"` \| `"github_unavailable"` \| `"internal"` | sí          |
 | `message` | `string` (0–500 car.)                                                                                                                                                                                                                                                                                                  | sí          |
-| `re`      | `"bet.place"` \| `"bet.clear"` \| `"loan.request"` \| `"settings.update"` \| `"sync"` \| `"ping"` \| `"presence"` \| `"spin.pending"` \| `"stats.request"` \| `"bank.request"`                                                                                                                                         | no          |
+| `re`      | `"bet.place"` \| `"bet.clear"` \| `"loan.request"` \| `"settings.update"` \| `"sync"` \| `"ping"` \| `"presence"` \| `"spin.pending"` \| `"stats.request"` \| `"bank.request"` \| `"referral.request"`                                                                                                                 | no          |
 
 <details><summary>JSON Schema</summary>
 
@@ -2709,7 +3154,8 @@ Dirección: servidor → cliente.
         "presence",
         "spin.pending",
         "stats.request",
-        "bank.request"
+        "bank.request",
+        "referral.request"
       ]
     }
   },
@@ -2808,6 +3254,7 @@ Dirección: servidor → cliente.
 | --------------------- | -------------- |
 | `play`                | `/play`        |
 | `privacy`             | `/privacy`     |
+| `invite`              | `/r`           |
 | `webConfig`           | `/config.json` |
 | `ws`                  | `/ws`          |
 | `healthz`             | `/healthz`     |
@@ -3581,14 +4028,14 @@ Racha de color al final de las últimas `streak.historySize` tiradas **del propi
 
 **Achievement** (`achievementSchema`)
 
-| Campo        | Tipo                                                                                                                                                                                                                                                                                                                         | Obligatorio |
-| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
-| `id`         | `"first_spin"` \| `"first_ruin"` \| `"pro_debtor"` \| `"all_on_zero"` \| `"friday_push"` \| `"queue_full"` \| `"on_fire"` \| `"fallacy_confirmed"` \| `"compound_interest"` \| `"comeback"` \| `"zero_collector"` \| `"big_win"` \| `"mega_win"` \| `"tests_also_bet"` \| `"addict"` \| `"night_owl"` \| `"too_big_to_fail"` | sí          |
-| `hidden`     | `boolean`                                                                                                                                                                                                                                                                                                                    | sí          |
-| `unlockedAt` | `string` (date-time, `/^(?:(?:\d\d[2468][048]\|\d\d[13579][26]\|\d\d0[48]\|[02468][048]00\|[13579][26]00)-02-29\|\d{4}-(?:(?:0[13578]\|1[02])-(?:0[1-9]\|[12]\d\|3[01])\|(?:0[469]\|11)-(?:0[1-9]\|[12]\d\|30)\|(?:02)-(?:0[1-9]\|1\d\|2[0-8])))T(?:(?:[01]\d\|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$/`) \| `null`         | sí          |
-| `seasonId`   | `string` (`/^\d{4}-(0[1-9]\|1[0-2])$/`) \| `null`                                                                                                                                                                                                                                                                            | sí          |
-| `params`     | `object` (`string` (`/^[a-z][A-Za-z]{0,31}$/`) → `number`)                                                                                                                                                                                                                                                                   | sí          |
-| `progress`   | `object` (ver JSON Schema) \| `null`                                                                                                                                                                                                                                                                                         | sí          |
+| Campo        | Tipo                                                                                                                                                                                                                                                                                                                                                               | Obligatorio |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------- |
+| `id`         | `"first_spin"` \| `"first_ruin"` \| `"pro_debtor"` \| `"all_on_zero"` \| `"friday_push"` \| `"queue_full"` \| `"on_fire"` \| `"fallacy_confirmed"` \| `"compound_interest"` \| `"comeback"` \| `"zero_collector"` \| `"big_win"` \| `"mega_win"` \| `"tests_also_bet"` \| `"addict"` \| `"night_owl"` \| `"too_big_to_fail"` \| `"influencer"` \| `"pyramid_boss"` | sí          |
+| `hidden`     | `boolean`                                                                                                                                                                                                                                                                                                                                                          | sí          |
+| `unlockedAt` | `string` (date-time, `/^(?:(?:\d\d[2468][048]\|\d\d[13579][26]\|\d\d0[48]\|[02468][048]00\|[13579][26]00)-02-29\|\d{4}-(?:(?:0[13578]\|1[02])-(?:0[1-9]\|[12]\d\|3[01])\|(?:0[469]\|11)-(?:0[1-9]\|[12]\d\|30)\|(?:02)-(?:0[1-9]\|1\d\|2[0-8])))T(?:(?:[01]\d\|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$/`) \| `null`                                               | sí          |
+| `seasonId`   | `string` (`/^\d{4}-(0[1-9]\|1[0-2])$/`) \| `null`                                                                                                                                                                                                                                                                                                                  | sí          |
+| `params`     | `object` (`string` (`/^[a-z][A-Za-z]{0,31}$/`) → `number`)                                                                                                                                                                                                                                                                                                         | sí          |
+| `progress`   | `object` (ver JSON Schema) \| `null`                                                                                                                                                                                                                                                                                                                               | sí          |
 
 <details><summary>JSON Schema</summary>
 
@@ -3615,7 +4062,9 @@ Racha de color al final de las últimas `streak.historySize` tiradas **del propi
         "tests_also_bet",
         "addict",
         "night_owl",
-        "too_big_to_fail"
+        "too_big_to_fail",
+        "influencer",
+        "pyramid_boss"
       ]
     },
     "hidden": { "type": "boolean" },
@@ -4047,6 +4496,129 @@ Una de estas variantes:
 
 <!-- END GENERATED common:HallOfRuinRow -->
 
+<!-- BEGIN GENERATED common:ReferralStatus -->
+
+### ReferralStatus
+
+**ReferralStatus** (`referralStatusSchema`)
+
+| Campo         | Tipo                                                                                                                                                                                                                                                                                                       | Obligatorio |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| `code`        | `string` (`/^[23456789ABCDEFGHJKMNPQRSTVWXYZ]{8}$/`)                                                                                                                                                                                                                                                       | sí          |
+| `url`         | `string` (`/^https?:\/\//`)                                                                                                                                                                                                                                                                                | sí          |
+| `invited`     | `integer` ≥ 0                                                                                                                                                                                                                                                                                              | sí          |
+| `activated`   | `integer` ≥ 0                                                                                                                                                                                                                                                                                              | sí          |
+| `waiting`     | `integer` ≥ 0                                                                                                                                                                                                                                                                                              | sí          |
+| `earned`      | `integer` ≥ 0                                                                                                                                                                                                                                                                                              | sí          |
+| `season`      | `object` (ver JSON Schema)                                                                                                                                                                                                                                                                                 | sí          |
+| `invitedBy`   | `object` (ver JSON Schema) \| `null`                                                                                                                                                                                                                                                                       | sí          |
+| `canRedeem`   | `boolean`                                                                                                                                                                                                                                                                                                  | sí          |
+| `redeemUntil` | `string` (date-time, `/^(?:(?:\d\d[2468][048]\|\d\d[13579][26]\|\d\d0[48]\|[02468][048]00\|[13579][26]00)-02-29\|\d{4}-(?:(?:0[13578]\|1[02])-(?:0[1-9]\|[12]\d\|3[01])\|(?:0[469]\|11)-(?:0[1-9]\|[12]\d\|30)\|(?:02)-(?:0[1-9]\|1\d\|2[0-8])))T(?:(?:[01]\d\|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$/`) | sí          |
+| `rules`       | `object` (ver JSON Schema)                                                                                                                                                                                                                                                                                 | sí          |
+
+<details><summary>JSON Schema</summary>
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "code": { "type": "string", "pattern": "^[23456789ABCDEFGHJKMNPQRSTVWXYZ]{8}$" },
+    "url": { "type": "string", "pattern": "^https?:\\/\\/" },
+    "invited": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+    "activated": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+    "waiting": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+    "earned": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+    "season": {
+      "type": "object",
+      "properties": {
+        "seasonId": { "type": "string", "pattern": "^\\d{4}-(0[1-9]|1[0-2])$" },
+        "commissions": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+        "cap": { "type": "integer", "exclusiveMinimum": 0, "maximum": 9007199254740991 }
+      },
+      "required": ["seasonId", "commissions", "cap"],
+      "additionalProperties": false
+    },
+    "invitedBy": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "redeemedAt": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+            },
+            "bonus": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+            "activated": { "type": "boolean" }
+          },
+          "required": ["redeemedAt", "bonus", "activated"],
+          "additionalProperties": false
+        },
+        { "type": "null" }
+      ]
+    },
+    "canRedeem": { "type": "boolean" },
+    "redeemUntil": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+    },
+    "rules": {
+      "type": "object",
+      "properties": {
+        "welcomeBonus": { "type": "integer", "exclusiveMinimum": 0, "maximum": 9007199254740991 },
+        "commission": { "type": "integer", "exclusiveMinimum": 0, "maximum": 9007199254740991 },
+        "activationSpins": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "redeemWindowDays": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "redeemMaxSpins": { "type": "integer", "exclusiveMinimum": 0, "maximum": 9007199254740991 },
+        "maxCommissionsPerSeason": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "minAccountAgeDays": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+      },
+      "required": [
+        "welcomeBonus",
+        "commission",
+        "activationSpins",
+        "redeemWindowDays",
+        "redeemMaxSpins",
+        "maxCommissionsPerSeason",
+        "minAccountAgeDays"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "code",
+    "url",
+    "invited",
+    "activated",
+    "waiting",
+    "earned",
+    "season",
+    "invitedBy",
+    "canRedeem",
+    "redeemUntil",
+    "rules"
+  ],
+  "additionalProperties": false
+}
+```
+
+</details>
+
+<!-- END GENERATED common:ReferralStatus -->
+
 <!-- BEGIN GENERATED common:PublicGameConfig -->
 
 ### PublicGameConfig
@@ -4070,6 +4642,7 @@ Una de estas variantes:
 | `bigWin`            | `object` (ver JSON Schema) | sí          |
 | `onFireAt`          | `integer` ≥ 2              | sí          |
 | `minAccountAgeDays` | `integer` ≥ 0              | sí          |
+| `referral`          | `object` (ver JSON Schema) | sí          |
 
 <details><summary>JSON Schema</summary>
 
@@ -4133,7 +4706,39 @@ Una de estas variantes:
       "additionalProperties": false
     },
     "onFireAt": { "type": "integer", "minimum": 2, "maximum": 9007199254740991 },
-    "minAccountAgeDays": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+    "minAccountAgeDays": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+    "referral": {
+      "type": "object",
+      "properties": {
+        "welcomeBonus": { "type": "integer", "exclusiveMinimum": 0, "maximum": 9007199254740991 },
+        "commission": { "type": "integer", "exclusiveMinimum": 0, "maximum": 9007199254740991 },
+        "activationSpins": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "redeemWindowDays": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "redeemMaxSpins": { "type": "integer", "exclusiveMinimum": 0, "maximum": 9007199254740991 },
+        "maxCommissionsPerSeason": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "welcomeBonus",
+        "commission",
+        "activationSpins",
+        "redeemWindowDays",
+        "redeemMaxSpins",
+        "maxCommissionsPerSeason"
+      ],
+      "additionalProperties": false
+    }
   },
   "required": [
     "startingBalance",
@@ -4150,7 +4755,8 @@ Una de estas variantes:
     "pendingSpins",
     "bigWin",
     "onFireAt",
-    "minAccountAgeDays"
+    "minAccountAgeDays",
+    "referral"
   ],
   "additionalProperties": false
 }

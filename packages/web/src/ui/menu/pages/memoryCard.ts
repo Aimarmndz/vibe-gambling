@@ -12,7 +12,6 @@ import { seasonTimeLeft } from '../format.ts'
 import { drawCorners, drawWell } from '../kit.ts'
 import type { HelpItem } from '../kit.ts'
 import type { MenuHost, MenuPage } from '../page.ts'
-import { gridMove } from './main.ts'
 
 const COLS = 5
 const ROWS = 3
@@ -37,7 +36,9 @@ export function blockMove(index: number, action: ActionEvent['action']): number 
     return r * COLS + col
   }
   // ←→ como en el menú (dan la vuelta dentro de la fila).
-  return row * COLS + (gridMove(col, action) % COLS)
+  if (action === 'left') return row * COLS + ((col + COLS - 1) % COLS)
+  if (action === 'right') return row * COLS + ((col + 1) % COLS)
+  return index
 }
 
 export class MemoryCardPage implements MenuPage {

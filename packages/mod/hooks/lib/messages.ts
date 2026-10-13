@@ -280,7 +280,8 @@ export function buildMessages(t: ModTexts, bcp47: string): Messages {
       days > 0
         ? fillTemplate(t.inviteActivationAge, { ...rest, days: integer.format(days) })
         : fillTemplate(t.inviteActivation, rest),
-    inviteCanRedeem: (until, bonus) => fillTemplate(t.inviteCanRedeem, { date: date(until), bonus }),
+    inviteCanRedeem: (until, bonus) =>
+      fillTemplate(t.inviteCanRedeem, { date: date(until), bonus }),
     inviteRedeemed: bonus => fillTemplate(t.inviteRedeemed, { bonus }),
 
     redeemUsage: t.redeemUsage,

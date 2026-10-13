@@ -1,18 +1,17 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Cola de avisos de logro estilo trofeo (docs/DISENO-V2.md, "Aviso de logro", sb-achievement.png).
+// También la usan las comisiones del programa de afiliados (misma ventana, otro título).
 // Lógica pura de tiempos: los logros llegan por `achievement.unlocked` detrás del mensaje que los
 // desbloquea (a menudo `round.resolved`, antes de que caiga la bola), así que se encolan y solo
 // salen cuando la ventana deja (`ready`): nunca destripan el resultado antes de `revealAt`.
-import type { Achievement } from '@vibe-gambling/shared'
-
 import type { FxConfig } from '../../config.ts'
 import { inQuad, outBack, progress } from './easing.ts'
 
 /** Ventana del aviso (140×32 en y = 50, bajo el HUD derecho; se ensancha si el nombre no cabe). */
 export const NOTICE = { y: 50, h: 32, minW: 140, right: 316 } as const
 
-export interface ShownNotice {
-  achievement: Achievement
+export interface ShownNotice<T> {
+  item: T
   /** Milisegundos desde que empezó a entrar. */
   ms: number
 }
@@ -26,11 +25,12 @@ export interface NoticePose {
   done: boolean
 }
 
-export class NoticeQueue {
+/** Cola de avisos: cada uno con un `id` (no se encola dos veces el mismo). */
+export class NoticeQueue<T extends { readonly id: string }> {
   private readonly cfg: FxConfig['achievement']
   private readonly reduced: boolean
-  private readonly queue: Achievement[] = []
-  private current: ShownNotice | null = null
+  private readonly queue: T[] = []
+  private current: ShownNotice<T> | null = null
   /** Espera entre dos avisos (ms que quedan). */
   private gap = 0
 
@@ -44,8 +44,8 @@ export class NoticeQueue {
     return this.cfg.inMs + this.cfg.holdMs + this.cfg.outMs
   }
 
-  push(a: Achievement): void {
-    if (this.queue.some(q => q.id === a.id) || this.current?.achievement.id === a.id) return
+  push(a: T): void {
+    if (this.queue.some(q => q.id === a.id) || this.current?.item.id === a.id) return
     this.queue.push(a)
   }
 
@@ -53,16 +53,16 @@ export class NoticeQueue {
     return this.queue.length + (this.current ? 1 : 0)
   }
 
-  get shown(): ShownNotice | null {
+  get shown(): ShownNotice<T> | null {
     return this.current
   }
 
   /**
    * Avanza `dtMs`. `ready` = la ventana deja enseñar avisos (la bola ya ha caído y no hay una
-   * animación de espectáculo a pantalla completa). Devuelve el logro que acaba de empezar a
+   * animación de espectáculo a pantalla completa). Devuelve el aviso que acaba de empezar a
    * enseñarse (para el sonido y el lector de pantalla), o null.
    */
-  tick(dtMs: number, ready: boolean): Achievement | null {
+  tick(dtMs: number, ready: boolean): T | null {
     if (this.current) {
       this.current.ms += dtMs
       if (this.current.ms >= this.totalMs) {
@@ -78,7 +78,7 @@ export class NoticeQueue {
     if (!ready) return null
     const next = this.queue.shift()
     if (!next) return null
-    this.current = { achievement: next, ms: 0 }
+    this.current = { item: next, ms: 0 }
     return next
   }
 

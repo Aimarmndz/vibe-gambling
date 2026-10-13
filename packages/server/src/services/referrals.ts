@@ -34,7 +34,7 @@ import type {
 import { and, count, eq, gte, isNotNull, isNull, sql, sum } from 'drizzle-orm'
 import type { SQL } from 'drizzle-orm'
 
-import type { Database, Executor, Tx } from '../db/client.ts'
+import type { Database, Executor } from '../db/client.ts'
 import { REFERRAL_PAIR_LOCK_SPACE } from '../db/locks.ts'
 import { referrals, rounds, users, wallets } from '../db/schema.ts'
 import type { Clock } from '../lib/clock.ts'

@@ -7,6 +7,7 @@ import type {
   AchievementId,
   BankStatement,
   Locale,
+  ReferralStatus,
   SeasonStats,
 } from '@vibe-gambling/shared'
 import { vi } from 'vitest'
@@ -81,6 +82,20 @@ export const STATS: SeasonStats = {
   },
 }
 
+export const REFERRAL: ReferralStatus = {
+  code: 'ABCD2345',
+  url: 'http://test.invalid/r/ABCD2345',
+  invited: 4,
+  activated: 2,
+  waiting: 2,
+  earned: 1500,
+  season: { seasonId: '2026-10', commissions: 2, cap: 4 },
+  invitedBy: null,
+  canRedeem: true,
+  redeemUntil: '2026-10-20T12:00:00.000Z',
+  rules: { ...testGame.referral, minAccountAgeDays: testGame.leaderboard.minAccountAgeDays },
+}
+
 export const BANK: BankStatement = {
   seasonId: '2026-10',
   seasons: ['2026-10'],
@@ -128,7 +143,11 @@ export type FakeContext = AppContext & {
   spinEvery: ReturnType<typeof vi.fn<() => boolean>>
   hover: string | null
   progressCalls: [ProgressKind, string | undefined][]
-  progressReply: { stats: Promise<SeasonStats>; bank: Promise<BankStatement> }
+  progressReply: {
+    stats: Promise<SeasonStats>
+    bank: Promise<BankStatement>
+    referral: Promise<ReferralStatus>
+  }
   /** Demo: AUTO (true) o PAUSA (false). */
   demoAutoOn: boolean
   demoSpins: number
@@ -178,7 +197,11 @@ export function fakeContext(opts: FakeContextOptions = {}): FakeContext {
     loans: 0,
     hover: null,
     progressCalls: [],
-    progressReply: { stats: Promise.resolve(STATS), bank: Promise.resolve(BANK) },
+    progressReply: {
+      stats: Promise.resolve(STATS),
+      bank: Promise.resolve(BANK),
+      referral: Promise.resolve(REFERRAL),
+    },
     spinOne: vi.fn<() => boolean>(() => true),
     spinEvery: vi.fn<() => boolean>(() => true),
     setPrefs: patch => {

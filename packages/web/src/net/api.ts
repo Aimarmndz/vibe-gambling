@@ -9,6 +9,7 @@ import {
   meResponseSchema,
   okResponseSchema,
   redeemResponseSchema,
+  referralLookupResponseSchema,
 } from '@vibe-gambling/shared'
 import type {
   ErrorCode,
@@ -16,6 +17,7 @@ import type {
   LeaderboardBoard,
   LeaderboardResponse,
   MeResponse,
+  ReferralLookupResponse,
 } from '@vibe-gambling/shared'
 import type { z } from 'zod'
 
@@ -116,6 +118,20 @@ export function fetchLeaderboard(
 
 export function fetchHallOfRuin(fetchImpl?: typeof fetch): Promise<HallOfRuinResponse> {
   return request(API_ROUTES.hallOfRuin.path, hallOfRuinResponseSchema, {}, fetchImpl)
+}
+
+/** Quién invita con un código de afiliado (página `/r/<código>`). */
+export function fetchReferralLookup(
+  code: string,
+  fetchImpl?: typeof fetch,
+): Promise<ReferralLookupResponse> {
+  const query = new URLSearchParams({ code })
+  return request(
+    `${API_ROUTES.referralLookup.path}?${query.toString()}`,
+    referralLookupResponseSchema,
+    {},
+    fetchImpl,
+  )
 }
 
 /** Lee el código de un solo uso de la URL y lo quita sin recargar (que no quede en el historial). */

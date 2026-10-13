@@ -293,8 +293,7 @@ export async function apiRoutes(parent: FastifyInstance, options: ApiOptions): P
   app.route({
     ...at(API_ROUTES.referralRedeem),
     schema: { body: referralRedeemRequestSchema, response: { 200: referralRedeemResponseSchema } },
-    handler: async request =>
-      services.referrals.redeem(authOf(request).user.id, request.body.code),
+    handler: async request => services.referrals.redeem(authOf(request).user.id, request.body.code),
   })
 
   app.route({

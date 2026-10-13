@@ -27,6 +27,7 @@ export default defineConfig({
         'src/legal/**/*.ts',
         'src/ui/status.ts',
         'src/pages/privacy.ts',
+        'src/pages/invite.ts',
         'src/ui/menu/**/*.ts',
         'src/ui/brandMark.ts',
       ],

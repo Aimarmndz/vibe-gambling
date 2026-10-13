@@ -1,0 +1,116 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#08070d" />
+    <!-- Página de invitación del Programa de Afiliados Piramidal: /r/<código>. Los metadatos son
+         estáticos (en inglés) y no dicen quién invita: eso lo pregunta la página a la API, que no
+         lo enseña si esa persona está oculta del ranking. og:url, og:image y twitter:image los
+         reescribe el servidor a absolutos con PUBLIC_URL. -->
+    <title>You are invited — vibe-gambling</title>
+    <meta
+      name="description"
+      content="Someone invited you to vibe-gambling, the PS1-style roulette that spins while Claude Code thinks. Redeem the code for extra fake coins. Pyramid Affiliate Program (legally distinct)."
+    />
+    <meta name="robots" content="noindex" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="/" />
+    <meta property="og:title" content="You are invited to vibe-gambling" />
+    <meta
+      property="og:description"
+      content="Every prompt is a spin. Redeem the invite for extra fake coins. Invite 3 friends and stop having them."
+    />
+    <meta property="og:image" content="/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="A low-poly roulette wheel in PS1 style on a green casino table"
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="/og.png" />
+    <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <link rel="preload" href="/fonts/polygone12.woff2" as="font" type="font/woff2" crossorigin />
+    <script type="module" src="/src/invite.ts"></script>
+  </head>
+  <body class="invite">
+    <header class="topbar wrap">
+      <a class="brand" href="/">
+        <img class="brand-mark" src="/logo-mark.svg" alt="" width="32" height="32" />
+        <span data-i18n="brand.title"></span>
+      </a>
+      <nav class="topnav">
+        <a href="/play?demo" data-i18n="landing.demo"></a>
+        <div class="langs" data-lang-picker></div>
+      </nav>
+    </header>
+    <main class="wrap">
+      <section class="hero invite-hero">
+        <div class="hero-copy">
+          <p class="kicker" data-i18n="invite.kicker"></p>
+          <h1 class="headline invite-from" id="invite-from" hidden>
+            <img
+              id="invite-avatar"
+              class="avatar invite-avatar"
+              alt=""
+              width="48"
+              height="48"
+              hidden
+            />
+            <span id="invite-who"></span>
+          </h1>
+          <p class="lede" id="invite-offer" hidden></p>
+          <p class="note" id="invite-state" aria-live="polite"></p>
+        </div>
+      </section>
+      <section class="how" aria-labelledby="invite-steps-title">
+        <h2 id="invite-steps-title" class="sr-only" data-i18n="landing.how.title"></h2>
+        <ol class="steps invite-steps">
+          <li>
+            <span class="num">1</span>
+            <div class="step-body">
+              <p id="invite-step1"></p>
+              <div class="install">
+                <code id="invite-install"></code>
+                <button type="button" data-copy="invite-install" data-i18n="landing.copy"></button>
+              </div>
+            </div>
+          </li>
+          <li>
+            <span class="num">2</span>
+            <div class="step-body">
+              <p id="invite-step2"></p>
+              <div class="install">
+                <code id="invite-login">/vibe-login</code>
+                <button type="button" data-copy="invite-login" data-i18n="landing.copy"></button>
+              </div>
+            </div>
+          </li>
+          <li id="invite-redeem-step" hidden>
+            <span class="num">3</span>
+            <div class="step-body">
+              <p id="invite-step3"></p>
+              <div class="install">
+                <code id="invite-redeem"></code>
+                <button type="button" data-copy="invite-redeem" data-i18n="landing.copy"></button>
+              </div>
+            </div>
+          </li>
+        </ol>
+        <p class="muted fine" id="invite-fine"></p>
+        <p class="invite-links">
+          <a href="/play?demo" data-i18n="invite.demo"></a>
+          ·
+          <a href="/#leaderboard" data-i18n="invite.board"></a>
+        </p>
+      </section>
+    </main>
+    <footer class="footer wrap" id="footer"></footer>
+  </body>
+</html>

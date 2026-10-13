@@ -21,6 +21,7 @@ export const ICON_KINDS = [
   'book',
   'gem',
   'chipDim',
+  'pyramid',
 ] as const
 export type IconKind = (typeof ICON_KINDS)[number]
 
@@ -331,6 +332,38 @@ function gemMesh(): BufferGeometry {
   return b.build()
 }
 
+/**
+ * Pirámide escalonada del Programa de Afiliados (legalmente distinto): tres pisos oro, cada uno
+ * más oscuro por los lados, y la cima suelta flotando encima (una pirámide de 4 caras goldHi).
+ */
+function pyramidMesh(): BufferGeometry {
+  const b = new MeshBuilder()
+  const tiers: [number, number, string][] = [
+    [1.7, -0.85, PALETTE.goldDark],
+    [1.2, -0.45, PALETTE.gold],
+    [0.7, -0.05, PALETTE.gold],
+  ]
+  for (const [size, y, hex] of tiers) {
+    b.box([0, y + 0.2, 0], [size, 0.4, size], {
+      side: shade(hex, 0.8),
+      front: C(hex),
+      top: shade(PALETTE.goldHi, 0.95),
+    })
+  }
+  // La cima, separada: la que lo ve todo (y cobra de todos).
+  b.lathe(
+    [
+      [0.42, 0.5],
+      [0, 0.95],
+    ],
+    4,
+    () => C(PALETTE.goldHi),
+    undefined,
+    C(PALETTE.goldDark),
+  )
+  return b.build()
+}
+
 /** Construye la malla de un icono. */
 export function buildIcon(kind: IconKind): BufferGeometry {
   switch (kind) {
@@ -358,5 +391,7 @@ export function buildIcon(kind: IconKind): BufferGeometry {
       return bookMesh()
     case 'gem':
       return gemMesh()
+    case 'pyramid':
+      return pyramidMesh()
   }
 }

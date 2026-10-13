@@ -648,7 +648,10 @@ export class GameService {
     try {
       await this.#d.afterSpin(userId)
     } catch (error) {
-      this.#d.logger.warn({ err: error }, 'tras la tirada: no se pudo revisar el programa de afiliados')
+      this.#d.logger.warn(
+        { err: error },
+        'tras la tirada: no se pudo revisar el programa de afiliados',
+      )
     }
   }
 

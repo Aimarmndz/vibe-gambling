@@ -18,6 +18,7 @@ export const PRIVACY_SECTIONS = [
   'howLong',
   'cookies',
   'leaderboard',
+  'referral',
   'delete',
   'contact',
 ] as const
@@ -149,6 +150,8 @@ export function sectionParagraphs(
       if (days > 0) out.push(text('privacy.leaderboard.newAccounts', { days: tr.n(days) }))
       return out
     }
+    case 'referral':
+      return [text('privacy.referral.body')]
     case 'delete':
       return [text('privacy.delete.body'), text('privacy.delete.rights')]
     case 'contact':

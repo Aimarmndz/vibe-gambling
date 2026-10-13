@@ -231,6 +231,8 @@ export class DemoProgress {
       bestStreak: wallet.bestStreak,
       pendingSpins: wallet.pendingSpins,
       lifetimeZeros: this.rounds.filter(r => r.summary.result === 0).length,
+      // En la demo no hay a quién invitar.
+      referralCommissions: 0,
     }
     return ACHIEVEMENTS.map(def => {
       const got = this.unlocked.get(def.id)

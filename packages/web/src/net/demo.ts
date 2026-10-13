@@ -16,6 +16,7 @@ import {
   netWorth,
   nextStreak,
   resolveBets,
+  makeReferralCode,
   seasonAt,
   spectacleOf,
   totalStake,
@@ -26,6 +27,7 @@ import type {
   GameConfig,
   OpenRound,
   PublicGameConfig,
+  ReferralStatus,
   ResolvedRound,
   SelfUser,
   ServerMessage,
@@ -161,6 +163,11 @@ export class DemoLink implements Link, DemoAutoControl {
    * con su azar fijo (las tiradas pendientes de las capturas salen siempre igual).
    */
   private pocket: () => number = randomPocket
+  /** Código de afiliado de la demo (aleatorio, de esta pestaña: no existe en ningún servidor). */
+  private readonly referralCode = makeReferralCode(
+    n => crypto.getRandomValues(new Uint32Array(1))[0]! % n,
+  )
+  private readonly origin: string
 
   /**
    * `auto`: si empieza en AUTO. `origin`: el de la página (de ahí salen el avatar y el "perfil" del
@@ -178,6 +185,7 @@ export class DemoLink implements Link, DemoAutoControl {
     this.progress = new DemoProgress(this.cfg, client.stats)
     this.client = client
     this.startFx = startFx
+    this.origin = origin
     // Con una animación forzada no hay turnos automáticos: la captura sale siempre igual.
     this.autoOn = auto && startFx === null
     const now = new Date()
@@ -381,6 +389,32 @@ export class DemoLink implements Link, DemoAutoControl {
       case 'bank.request':
         this.emit({ v: PROTOCOL_VERSION, type: 'bank', bank: this.progress.bank(this.wallet) })
         return
+      case 'referral.request':
+        this.emit({ v: PROTOCOL_VERSION, type: 'referral', referral: this.referral() })
+        return
+    }
+  }
+
+  /** AFILIADOS en la demo: una pirámide vacía (aquí no hay a quién invitar). */
+  private referral(): ReferralStatus {
+    const rules = this.cfg.referral
+    const created = Date.parse(this.user.createdAt)
+    return {
+      code: this.referralCode,
+      url: new URL(`/r/${this.referralCode}`, this.origin).toString(),
+      invited: 0,
+      activated: 0,
+      waiting: 0,
+      earned: 0,
+      season: {
+        seasonId: this.wallet.seasonId,
+        commissions: 0,
+        cap: rules.maxCommissionsPerSeason,
+      },
+      invitedBy: null,
+      canRedeem: true,
+      redeemUntil: new Date(created + rules.redeemWindowDays * 86_400_000).toISOString(),
+      rules: { ...rules, minAccountAgeDays: this.cfg.leaderboard.minAccountAgeDays },
     }
   }
 

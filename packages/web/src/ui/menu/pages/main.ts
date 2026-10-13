@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Menú principal (`menu-main.png`): rejilla de 5×2 iconos 3D low-poly (solo gira el elegido),
+// Menú principal (`menu-main.png`): rejilla de iconos 3D low-poly (solo gira el elegido) en dos
+// filas, 6 arriba y 5 abajo centradas (una pirámide invertida, muy a juego con AFILIADOS),
 // esquinas oro que respiran, ventana de información debajo y cabecera con la temporada y lo que
 // le queda. ←→↑↓ mueven sin saltar de fila; ratón: pasar = elegir, clic = abrir.
 import type { ActionEvent } from '../../../app/input.ts'
@@ -21,21 +22,21 @@ import { HowToPage } from './howTo.ts'
 import { MemoryCardPage } from './memoryCard.ts'
 import { PendingPage } from './pending.ts'
 import { RankingPage } from './ranking.ts'
+import { ReferralPage } from './referral.ts'
 import { SettingsPage } from './settings.ts'
 import { StatsPage } from './stats.ts'
 
 export const GRID = Object.freeze({
-  cols: 5,
-  rows: 2,
-  x: 8,
+  /** Casillas de cada fila, de arriba abajo (cada fila va centrada en la pantalla). */
+  rows: [6, 5] as readonly number[],
   y: 30,
-  w: 56,
+  w: 46,
   h: 52,
-  gap: 6,
+  gap: 5,
 })
 
 /** Tamaño de los iconos (px por unidad de malla) elegido y en reposo, y su brillo. */
-const ICON = Object.freeze({ selected: 17, idle: 13, bright: 1.12, dim: 0.72, bob: 1.5 })
+const ICON = Object.freeze({ selected: 15, idle: 12, bright: 1.12, dim: 0.72, bob: 1.5 })
 
 export type MainItemId =
   | 'resume'
@@ -43,6 +44,7 @@ export type MainItemId =
   | 'stats'
   | 'achievements'
   | 'leaderboard'
+  | 'referral'
   | 'bank'
   | 'memoryCard'
   | 'settings'
@@ -61,6 +63,7 @@ export const MAIN_ITEMS: readonly MainItem[] = Object.freeze([
   { id: 'stats', icon: 'bars' },
   { id: 'achievements', icon: 'trophy' },
   { id: 'leaderboard', icon: 'crown' },
+  { id: 'referral', icon: 'pyramid' },
   { id: 'bank', icon: 'bank' },
   { id: 'memoryCard', icon: 'memoryCard' },
   { id: 'settings', icon: 'gear' },
@@ -68,34 +71,57 @@ export const MAIN_ITEMS: readonly MainItem[] = Object.freeze([
   { id: 'credits', icon: 'gem' },
 ])
 
-/** Siguiente casilla con una flecha: ←→ dan la vuelta dentro de la fila, ↑↓ cambian de fila. */
-export function gridMove(index: number, action: ActionEvent['action']): number {
-  const { cols, rows } = GRID
-  const col = index % cols
-  const row = Math.floor(index / cols)
-  switch (action) {
-    case 'left':
-      return row * cols + ((col + cols - 1) % cols)
-    case 'right':
-      return row * cols + ((col + 1) % cols)
-    case 'up':
-      return ((row + rows - 1) % rows) * cols + col
-    case 'down':
-      return ((row + 1) % rows) * cols + col
-    default:
-      return index
+/** Fila y columna de la casilla i (y el índice de la primera casilla de su fila). */
+function cellOf(index: number): { row: number; col: number; first: number } {
+  let first = 0
+  for (let row = 0; row < GRID.rows.length; row++) {
+    const n = GRID.rows[row]!
+    if (index < first + n) return { row, col: index - first, first }
+    first += n
   }
+  return { row: 0, col: 0, first: 0 }
 }
 
-/** Rectángulo de la casilla i. */
+/** Rectángulo de la casilla i: cada fila va centrada en los 320 px de la pantalla. */
 export function tileRect(i: number): { x: number; y: number; w: number; h: number } {
-  const col = i % GRID.cols
-  const row = Math.floor(i / GRID.cols)
+  const { row, col } = cellOf(i)
+  const n = GRID.rows[row]!
+  const width = n * GRID.w + (n - 1) * GRID.gap
   return {
-    x: GRID.x + col * (GRID.w + GRID.gap),
+    x: Math.round((320 - width) / 2) + col * (GRID.w + GRID.gap),
     y: GRID.y + row * (GRID.h + GRID.gap),
     w: GRID.w,
     h: GRID.h,
+  }
+}
+
+/**
+ * Siguiente casilla con una flecha: ←→ dan la vuelta dentro de la fila; ↑↓ cambian de fila (con
+ * vuelta) a la casilla cuyo centro queda más cerca (con empate, la de la izquierda).
+ */
+export function gridMove(index: number, action: ActionEvent['action']): number {
+  const { row, col, first } = cellOf(index)
+  const n = GRID.rows[row]!
+  switch (action) {
+    case 'left':
+      return first + ((col + n - 1) % n)
+    case 'right':
+      return first + ((col + 1) % n)
+    case 'up':
+    case 'down': {
+      const rows = GRID.rows.length
+      const target = (row + (action === 'up' ? rows - 1 : 1)) % rows
+      const start = GRID.rows.slice(0, target).reduce((a, b) => a + b, 0)
+      const center = (r: { x: number; w: number }) => r.x + r.w / 2
+      const here = center(tileRect(index))
+      let best = start
+      for (let i = start; i < start + GRID.rows[target]!; i++) {
+        if (Math.abs(center(tileRect(i)) - here) < Math.abs(center(tileRect(best)) - here)) best = i
+      }
+      return best
+    }
+    default:
+      return index
   }
 }
 
@@ -218,6 +244,9 @@ export class MainMenuPage implements MenuPage {
         return
       case 'leaderboard':
         host.open(new RankingPage(host))
+        return
+      case 'referral':
+        host.open(new ReferralPage(host))
         return
       case 'bank':
         host.open(new BankPage(host))

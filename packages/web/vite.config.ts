@@ -87,7 +87,7 @@ function localConfigPlugin(env: z.output<typeof devEnvSchema>): Plugin {
   }
 }
 
-/** En desarrollo, /play y /privacy sirven sus HTML (en producción lo hace el servidor). */
+/** En desarrollo, /play, /privacy y /r/<código> sirven sus HTML (en producción lo hace el servidor). */
 function cleanUrlsPlugin(): Plugin {
   const pages: Record<string, string> = { '/play': '/play.html', '/privacy': '/privacy.html' }
   return {
@@ -95,7 +95,7 @@ function cleanUrlsPlugin(): Plugin {
     configureServer(server) {
       server.middlewares.use((req, _res, next) => {
         const [path = '', query] = (req.url ?? '').split('?')
-        const page = pages[path]
+        const page = pages[path] ?? (/^\/r\/[^/]+$/.test(path) ? '/invite.html' : undefined)
         if (page) req.url = query === undefined ? page : `${page}?${query}`
         next()
       })
@@ -146,6 +146,7 @@ export default defineConfig(({ command, mode }) => {
           index: resolve(here, 'index.html'),
           play: resolve(here, 'play.html'),
           privacy: resolve(here, 'privacy.html'),
+          invite: resolve(here, 'invite.html'),
         },
         output: {
           codeSplitting: {

@@ -15,7 +15,7 @@ import {
 } from './support/harness.ts'
 import type { SentRequest } from './support/harness.ts'
 
-function referralReply(overrides: Record<string, unknown> = {}) {
+function referralReply(overrides: Record<string, unknown> = {}, minAccountAgeDays = 30) {
   return {
     json: {
       v: 1,
@@ -37,7 +37,7 @@ function referralReply(overrides: Record<string, unknown> = {}) {
           redeemWindowDays: 7,
           redeemMaxSpins: 100,
           maxCommissionsPerSeason: 10,
-          minAccountAgeDays: 30,
+          minAccountAgeDays,
         },
         ...overrides,
       },
@@ -52,7 +52,7 @@ test(
     const w = world(on, { routes: { '/api/referral': referralReply() }, store: LOGGED_IN })
     await startSession($, w)
     const { text } = await command($, 'vibe-invite')
-    expect(text.split('\n')).toEqual([
+    expect((text ?? '').split('\n')).toEqual([
       '🔺 Pyramid Affiliate Program (legally distinct)',
       `Your link: ${SERVER}/r/ABCD2345 · code ABCD2345`,
       'Invited 4 · activated 2 · waiting 2 · earned 2,000 🪙 · this season 2/10 commissions',
@@ -70,19 +70,20 @@ test(
   '/vibe-invitar en español; sin regla de edad y ya canjeado',
   { options: { ...TEST_OPTIONS, language: 'auto' } },
   async ($, on) => {
-    const reply = referralReply({
-      canRedeem: false,
-      invitedBy: { redeemedAt: '2026-10-10T12:00:00.000Z', bonus: 500, activated: false },
-    })
-    const rules = (reply.json.referral as { rules: object }).rules
-    reply.json.referral = { ...reply.json.referral, rules: { ...rules, minAccountAgeDays: 0 } }
+    const reply = referralReply(
+      {
+        canRedeem: false,
+        invitedBy: { redeemedAt: '2026-10-10T12:00:00.000Z', bonus: 500, activated: false },
+      },
+      0,
+    )
     const w = world(on, {
       routes: { '/api/referral': reply },
       store: LOGGED_IN,
       env: { LANG: 'es_ES.UTF-8' },
     })
     await startSession($, w)
-    const lines = (await command($, 'vibe-invitar')).text.split('\n')
+    const lines = ((await command($, 'vibe-invitar')).text ?? '').split('\n')
     expect(lines[0]).toBe('🔺 Programa de Afiliados Piramidal (legalmente distinto)')
     expect(lines[3]).toBe(
       'Tu amigo cobra 500 🪙 al canjearlo con /vibe-redeem ABCD2345; tú, 1.000 🪙 cuando juegue 50 tiradas. Invita a 3 amigos y deja de tenerlos.',
@@ -185,7 +186,7 @@ test(
       'too_many_spins',
     ]) {
       reason = r
-      texts.set(r, (await command($, 'vibe-canjear', 'ZZZZ9999')).text)
+      texts.set(r, (await command($, 'vibe-canjear', 'ZZZZ9999')).text ?? '')
     }
     expect(texts.get('own_code')).toContain('your own code')
     expect(texts.get('cycle')).toContain('joined with your code')

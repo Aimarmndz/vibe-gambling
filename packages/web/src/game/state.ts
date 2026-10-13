@@ -56,6 +56,8 @@ export type Effect =
   | { type: 'rejected'; error: string; message: string }
   | { type: 'error'; error: string; message: string; re?: string }
   | { type: 'season'; seasonId: string }
+  /** Comisión de afiliado (o el tope ya lleno): la provoca la tirada de otro jugador. */
+  | { type: 'commission'; amount: number; capped: boolean; commissions: number; cap: number }
   | { type: 'settings' }
   | { type: 'bye'; reason: 'logout' | 'account_deleted' | 'shutdown' | 'replaced' }
   /** Un prompt sin ventana visible: tirada guardada (o descartada por el tope). */
@@ -213,6 +215,19 @@ export function reduce(state: GameState, msg: ServerMessage, nowMs: number): Ste
         state: withWallet(state, msg.wallet),
         effects: [{ type: 'loan', amount: msg.amount }],
       }
+    case 'referral.commission':
+      return {
+        state: withWallet(state, msg.wallet),
+        effects: [
+          {
+            type: 'commission',
+            amount: msg.amount,
+            capped: msg.capped,
+            commissions: msg.commissions,
+            cap: msg.cap,
+          },
+        ],
+      }
     case 'season.changed':
       return {
         state: withWallet(state, msg.wallet),
@@ -233,6 +248,7 @@ export function reduce(state: GameState, msg: ServerMessage, nowMs: number): Ste
     case 'achievement.unlocked':
     case 'stats':
     case 'bank':
+    case 'referral':
       return { state, effects: [] }
     case 'bye':
       return { state, effects: [{ type: 'bye', reason: msg.reason }] }
