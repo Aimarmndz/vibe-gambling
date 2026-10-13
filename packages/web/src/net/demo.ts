@@ -17,6 +17,7 @@ import {
   nextStreak,
   resolveBets,
   seasonAt,
+  spectacleOf,
   totalStake,
 } from '@vibe-gambling/shared'
 import type {
@@ -32,6 +33,9 @@ import type {
 } from '@vibe-gambling/shared'
 
 import type { WebClientConfig } from '../config.ts'
+import { demoScenario } from './demoFx.ts'
+import type { DemoFx } from './demoFx.ts'
+import { DemoProgress, showcaseSeason } from './demoProgress.ts'
 import type { Link, LinkStatus } from './link.ts'
 
 export interface DemoTurnOptions {
@@ -40,12 +44,18 @@ export interface DemoTurnOptions {
   testFailed?: boolean
   /** Milisegundos que "piensa Claude" antes de resolver. */
   thinkMs?: number
+  /** Giro mínimo de esta ronda (las pendientes de GIRAR TODAS van más rápido). */
+  minSpinMs?: number
 }
 
 /** Mandos del modo demo para los tests y las capturas (`window.__vgDemo`). */
 export interface DemoControls {
   turn(options?: DemoTurnOptions): Promise<void>
   setWallet(balance: number, debt?: number): void
+  /** Fuerza una animación de espectáculo (guiones de demoFx.ts). */
+  fx(kind: DemoFx): Promise<void>
+  /** Temporada de ejemplo con azar fijo: estadísticas, banco, logros y tiradas pendientes. */
+  showcase(): void
 }
 
 /** La configuración completa que necesitan las funciones de shared, a partir de la pública. */
@@ -99,6 +109,8 @@ export class DemoLink implements Link {
   readonly controls: DemoControls
   private readonly cfg: GameConfig
   private readonly client: WebClientConfig['demo']
+  /** Lo que piden ESTADÍSTICAS, BANCO y LOGROS. */
+  private readonly progress: DemoProgress
   private readonly auto: boolean
   private readonly messageListeners: ((msg: ServerMessage) => void)[] = []
   private readonly statusListeners: ((status: LinkStatus) => void)[] = []
@@ -111,6 +123,10 @@ export class DemoLink implements Link {
   private readonly history: number[] = []
   private running = false
   private busy = false
+  /** BANCARROTA es una vez por temporada (como en el servidor). */
+  private wentBroke = false
+  /** Animación que se fuerza al arrancar (`?demo&fx=…`). */
+  private readonly startFx: DemoFx | null
 
   /** `origin`: el de la página (de ahí salen el avatar y el "perfil" del jugador de la demo). */
   constructor(
@@ -118,10 +134,15 @@ export class DemoLink implements Link {
     client: WebClientConfig['demo'],
     auto: boolean,
     origin: string,
+    startFx: DemoFx | null = null,
   ) {
-    this.cfg = demoGameConfig(pub)
+    // Los umbrales de los logros no son públicos: la demo usa los suyos (config/web.json).
+    this.cfg = { ...demoGameConfig(pub), achievements: client.achievements }
+    this.progress = new DemoProgress(this.cfg, client.stats)
     this.client = client
-    this.auto = auto
+    this.startFx = startFx
+    // Con una animación forzada no hay turnos automáticos: la captura sale siempre igual.
+    this.auto = auto && startFx === null
     const now = new Date()
     this.user = {
       login: client.login,
@@ -151,6 +172,8 @@ export class DemoLink implements Link {
         this.wallet = { ...this.wallet, balance, debt, netWorth: netWorth(balance, debt) }
         this.emit({ v: PROTOCOL_VERSION, type: 'wallet', wallet: this.wallet })
       },
+      fx: kind => this.forceFx(kind),
+      showcase: () => this.showcase(),
     }
   }
 
@@ -168,6 +191,10 @@ export class DemoLink implements Link {
     for (const l of this.statusListeners) l('open')
     setTimeout(() => this.emit(this.hello()), 0)
     if (this.auto) void this.loop()
+    if (this.startFx) {
+      const kind = this.startFx
+      setTimeout(() => void this.forceFx(kind), 0)
+    }
   }
 
   stop(): void {
@@ -199,6 +226,7 @@ export class DemoLink implements Link {
       round: this.round,
       lastRound: this.lastRound,
       serverTime: new Date().toISOString(),
+      achievements: this.progress.achievements(this.wallet),
     }
   }
 
@@ -248,6 +276,7 @@ export class DemoLink implements Link {
         const after = applyLoan(this.wallet.balance, this.wallet.debt, this.cfg)
         this.setBalance(after.balance, after.debt)
         this.wallet = { ...this.wallet, loans: this.wallet.loans + 1 }
+        this.progress.recordLoan(new Date().toISOString(), this.cfg.loan.amount, this.wallet)
         this.emit({
           v: PROTOCOL_VERSION,
           type: 'loan.granted',
@@ -273,12 +302,13 @@ export class DemoLink implements Link {
       case 'presence':
         return
       case 'spin.pending':
-        this.emit({
-          v: PROTOCOL_VERSION,
-          type: 'error',
-          error: 'not_found',
-          message: 'no pending spins in the demo',
-        })
+        this.spendPending(msg.quick)
+        return
+      case 'stats.request':
+        this.emit({ v: PROTOCOL_VERSION, type: 'stats', stats: this.progress.stats(this.wallet) })
+        return
+      case 'bank.request':
+        this.emit({ v: PROTOCOL_VERSION, type: 'bank', bank: this.progress.bank(this.wallet) })
         return
     }
   }
@@ -289,6 +319,95 @@ export class DemoLink implements Link {
       if (!this.running) return
       await this.turn()
     }
+  }
+
+  /** Prepara la cartera, el boleto y el historial del guion y juega su tirada. */
+  private async forceFx(kind: DemoFx): Promise<void> {
+    const sc = demoScenario(kind, this.cfg)
+    const w = sc.wallet
+    this.setBalance(w.balance ?? this.wallet.balance, w.debt ?? this.wallet.debt)
+    if (w.currentStreak !== undefined)
+      this.wallet = { ...this.wallet, currentStreak: w.currentStreak }
+    this.history.push(...sc.history)
+    this.slip = []
+    for (const bet of sc.bets) {
+      const next = addToSlip(this.slip, bet, this.cfg)
+      if (!next) throw new Error(`[demo] guion ${kind}: apuesta fuera de las reglas`)
+      this.slip = next
+      this.setBalance(this.wallet.balance - bet.amount)
+    }
+    this.emit({ v: PROTOCOL_VERSION, type: 'slip', slip: this.slipView(), wallet: this.wallet })
+    // El contador de pendientes: cada paso a `pauseMs / 4` del anterior (la demo nunca acumula
+    // tiradas de verdad; esto solo enseña la animación del HUD).
+    for (const [i, count] of sc.pendingSteps.entries()) {
+      if (i > 0) await sleep(this.client.pauseMs / 4)
+      const up = count > this.wallet.pendingSpins
+      this.wallet = { ...this.wallet, pendingSpins: count }
+      this.emit(
+        up && i > 0
+          ? { v: PROTOCOL_VERSION, type: 'pending', event: 'queued', wallet: this.wallet }
+          : { v: PROTOCOL_VERSION, type: 'wallet', wallet: this.wallet },
+      )
+    }
+    if (sc.result === null) return
+    await this.turn({
+      result: sc.result,
+      gitPushOk: sc.gitPushOk,
+      // Lo justo: el giro mínimo de la ronda ya da tiempo a ver girar la ruleta.
+      thinkMs: this.client.thinkMs,
+    })
+    if (sc.achievement) {
+      this.emit({
+        v: PROTOCOL_VERSION,
+        type: 'achievement.unlocked',
+        achievement: {
+          id: sc.achievement,
+          hidden: false,
+          unlockedAt: new Date().toISOString(),
+          seasonId: this.wallet.seasonId,
+          params: {},
+          progress: null,
+        },
+      })
+    }
+  }
+
+  /** GIRAR: gasta una tirada pendiente al momento (la de GIRAR TODAS, con el giro rápido). */
+  private spendPending(quick: boolean): void {
+    if (this.wallet.pendingSpins <= 0) {
+      this.emit({
+        v: PROTOCOL_VERSION,
+        type: 'error',
+        error: 'not_found',
+        message: 'no pending spins',
+      })
+      return
+    }
+    if (this.busy || this.round) {
+      this.emit({ v: PROTOCOL_VERSION, type: 'error', error: 'conflict', message: 'wheel busy' })
+      return
+    }
+    this.wallet = { ...this.wallet, pendingSpins: this.wallet.pendingSpins - 1 }
+    void this.turn({
+      thinkMs: 0,
+      minSpinMs: quick ? this.cfg.pendingSpins.quickSpinMs : this.cfg.spin.minSpinMs,
+    })
+  }
+
+  /** Temporada de ejemplo (siempre igual): para las capturas de los menús. */
+  private showcase(): void {
+    const played = showcaseSeason(
+      this.progress,
+      this.cfg,
+      this.wallet,
+      this.client.showcase,
+      Date.now(),
+    )
+    this.wallet = played.wallet
+    this.history.splice(0, this.history.length, ...played.history)
+    this.lastBets = played.lastBets
+    this.lastRound = played.lastRound
+    this.emit(this.hello())
   }
 
   /** Un turno de Claude simulado: abre ronda, "piensa" y resuelve. */
@@ -337,6 +456,9 @@ export class DemoLink implements Link {
       bestStreak: bestStreak(this.wallet.bestStreak, current),
     }
     const now = Date.now()
+    // BANCARROTA: el patrimonio cae a 0 o menos por primera vez (en la demo, por sesión).
+    const bankrupt = !this.wentBroke && this.wallet.netWorth <= 0 && choice.bets.length > 0
+    if (bankrupt) this.wentBroke = true
     const resolved: ResolvedRound = {
       roundId: round.roundId,
       openedAt: round.openedAt,
@@ -358,9 +480,27 @@ export class DemoLink implements Link {
       testFailed: options.testFailed ?? false,
       interestCharged: debt - debtBefore,
       colorStreak: colorStreak(this.history.slice(-this.cfg.streak.historySize)),
-      revealAt: new Date(Math.max(now, openedAt.getTime() + this.cfg.spin.minSpinMs)).toISOString(),
+      revealAt: new Date(
+        Math.max(now, openedAt.getTime() + (options.minSpinMs ?? this.cfg.spin.minSpinMs)),
+      ).toISOString(),
     }
+    // El espectáculo con las mismas reglas que el servidor (shared).
+    resolved.spectacle = spectacleOf(
+      resolved,
+      { streak: current, bankrupt },
+      {
+        bigWin: this.cfg.bigWin,
+        onFireAt: this.cfg.streak.onFireAt,
+        colorWarningAt: this.cfg.streak.colorWarningAt,
+      },
+    )
     this.lastRound = resolved
     this.emit({ v: PROTOCOL_VERSION, type: 'round.resolved', round: resolved, wallet: this.wallet })
+    this.progress.recordRound(resolved, this.wallet)
+    // El primer logro también en la demo (el resto solo los da el servidor de verdad).
+    if (this.progress.unlock('first_spin', resolved.resolvedAt, this.wallet.seasonId)) {
+      const achievement = this.progress.achievements(this.wallet).find(a => a.id === 'first_spin')
+      if (achievement) this.emit({ v: PROTOCOL_VERSION, type: 'achievement.unlocked', achievement })
+    }
   }
 }
