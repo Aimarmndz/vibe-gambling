@@ -15,11 +15,21 @@ import {
   betBody,
   deleteAccountBody,
   emptyBody,
+  normalizeReferralCode,
   parseBetAmount,
+  referralRedeemBody,
   settingsBody,
 } from './payloads.ts'
 import type { BetAmount } from './payloads.ts'
-import { cleanText, isBet, isMeta, isOk, isSettings } from './responses.ts'
+import {
+  cleanText,
+  isBet,
+  isMeta,
+  isOk,
+  isReferral,
+  isReferralRedeem,
+  isSettings,
+} from './responses.ts'
 import {
   clearSession,
   loadSession,
@@ -286,4 +296,75 @@ export async function deleteAccount(ctx: CommandContext, raw: string): Promise<s
   await clearSession(io, config.serverUrl)
   setStatus(io, m.statusLogin)
   return m.deleted
+}
+
+// ------------------------------------------------------------------ /vibe-invite, /vibe-redeem
+
+/** `/vibe-invite`: tu enlace de afiliado, tu código y las cuentas de tu pirámide. */
+export async function invite(ctx: CommandContext): Promise<string> {
+  const { io, runtime, config } = ctx
+  const m = runtime.messages
+  const session = await requireSession(ctx)
+  if (session === null) return m.notLoggedIn
+  const result = await callApi(io, {
+    baseUrl: config.serverUrl,
+    route: 'referral',
+    guard: isReferral,
+    timeoutMs: config.commandTimeoutMs,
+    token: session.token,
+  })
+  if (!result.ok) return failureText(ctx, result)
+  const r = result.data.referral
+  const coins = (n: number): string => formatCoins(n, runtime.locale)
+  // El enlace y el código vienen del servidor: se limpian antes de enseñarlos en el terminal.
+  const code = cleanText(r.code, 16)
+  const lines = [
+    m.inviteHeader,
+    m.inviteLink(cleanText(r.url, 200), code),
+    m.inviteStats({
+      invited: coins(r.invited),
+      activated: coins(r.activated),
+      waiting: coins(r.waiting),
+      earned: coins(r.earned),
+      commissions: coins(r.season.commissions),
+      cap: coins(r.season.cap),
+    }),
+    m.inviteActivation({
+      bonus: coins(r.rules.welcomeBonus),
+      code,
+      commission: coins(r.rules.commission),
+      spins: coins(r.rules.activationSpins),
+      days: r.rules.minAccountAgeDays,
+    }),
+  ]
+  if (r.invitedBy !== null) lines.push(m.inviteRedeemed(coins(r.invitedBy.bonus)))
+  else if (r.canRedeem) lines.push(m.inviteCanRedeem(r.redeemUntil, coins(r.rules.welcomeBonus)))
+  return lines.join('\n')
+}
+
+/** `/vibe-redeem <código>`: canjea el código de quien te invitó (una vez en la vida). */
+export async function redeem(ctx: CommandContext, raw: string): Promise<string> {
+  const { io, runtime, config } = ctx
+  const m = runtime.messages
+  const [arg] = argsOf(raw)
+  if (arg === undefined) return m.redeemUsage
+  const code = normalizeReferralCode(arg)
+  if (code === null) return m.redeemBadCode(arg.slice(0, 40))
+  const session = await requireSession(ctx)
+  if (session === null) return m.notLoggedIn
+  const result = await callApi(io, {
+    baseUrl: config.serverUrl,
+    route: 'referralRedeem',
+    guard: isReferralRedeem,
+    timeoutMs: config.commandTimeoutMs,
+    token: session.token,
+    body: referralRedeemBody(code),
+  })
+  if (!result.ok) return failureText(ctx, result)
+  const data = result.data
+  if (data.status === 'rejected') return m.redeemRejected(data.reason)
+  showWallet(io, runtime, data.wallet)
+  const coins = (n: number): string => formatCoins(n, runtime.locale)
+  const login = data.inviter === null ? null : cleanText(data.inviter.login, TEXT_LIMITS.login)
+  return m.redeemed(coins(data.bonus), coins(data.wallet.balance), login)
 }

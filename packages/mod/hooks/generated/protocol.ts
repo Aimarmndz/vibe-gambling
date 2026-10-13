@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// GENERADO por scripts/sync-mod-shared.ts a partir de packages/shared/src/protocol/{common,routes}.ts. No lo edites a mano.
-// Constantes del protocolo que usa el mod: versión, SO, idiomas, errores, textos y rutas.
+// GENERADO por scripts/sync-mod-shared.ts a partir de packages/shared/src/{protocol/common,protocol/routes,game/referral}.ts. No lo edites a mano.
+// Constantes del protocolo que usa el mod: versión, SO, idiomas, errores, textos, rutas y el
+// formato de los códigos de afiliado.
 
 export const PROTOCOL_VERSION = 1 as const
 export const OS_VALUES = ['linux', 'darwin', 'win32', 'other'] as const
@@ -41,12 +42,27 @@ export const API_ROUTES = {
   deleteAccount: { method: 'POST', path: '/api/me/delete', auth: 'any' },
   leaderboard: { method: 'GET', path: '/api/leaderboard', auth: 'public' },
   hallOfRuin: { method: 'GET', path: '/api/hall-of-ruin', auth: 'public' },
+  referral: { method: 'GET', path: '/api/referral', auth: 'any' },
+  referralRedeem: { method: 'POST', path: '/api/referral/redeem', auth: 'mod' },
+  referralLookup: { method: 'GET', path: '/api/referral/lookup', auth: 'public' },
 } as const
 export type ApiRouteName = keyof typeof API_ROUTES
 export const PAGE_PATHS = {
   play: '/play',
   privacy: '/privacy',
+  invite: '/r',
   webConfig: '/config.json',
   ws: '/ws',
   healthz: '/healthz',
 } as const
+export const REFERRAL_CODE_ALPHABET = '23456789ABCDEFGHJKMNPQRSTVWXYZ' as const
+export const REFERRAL_CODE_LENGTH = 8 as const
+export const REFERRAL_REJECTIONS = [
+  'not_found',
+  'own_code',
+  'already_redeemed',
+  'cycle',
+  'too_late',
+  'too_many_spins',
+] as const
+export type ReferralRejection = (typeof REFERRAL_REJECTIONS)[number]

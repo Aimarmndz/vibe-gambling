@@ -36,5 +36,18 @@
   "footer.privacy": "Privacidad",
   "footer.source": "Código fuente (AGPL)",
   "footer.home": "Portada",
-  "footer.languages": "Idioma"
+  "footer.languages": "Idioma",
+  "invite.title": "Te han invitado — vibe-gambling",
+  "invite.kicker": "PROGRAMA DE AFILIADOS PIRAMIDAL (LEGALMENTE DISTINTO)",
+  "invite.from": "@{login} te ha invitado",
+  "invite.fromAnon": "Alguien te ha invitado",
+  "invite.notFound": "Este código de invitación no existe (o se lo ha inventado alguien). Puedes jugar igual, solo que sin bono.",
+  "invite.loading": "Comprobando la invitación…",
+  "invite.offer": "Canjéalo y empieza con {bonus} monedas de mentira extra. Quien te invitó cobra {commission} cuando juegues {spins} tiradas: así funcionan las pirámides.",
+  "invite.step1": "Instala el plugin en Claude Code:",
+  "invite.step2": "Entra con GitHub:",
+  "invite.step3": "Canjea el código (en tus primeros {days} días y antes de {spins} tiradas):",
+  "invite.fine": "Letra pequeña: un código por cuenta, para siempre. No vale el tuyo ni el de quien canjeó el tuyo. Monedas de mentira: no valen nada, ni aquí ni fuera.",
+  "invite.demo": "Probar la demo",
+  "invite.board": "Ver la clasificación"
 }

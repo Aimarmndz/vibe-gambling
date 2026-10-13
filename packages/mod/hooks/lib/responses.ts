@@ -2,8 +2,8 @@
 // Comprobaciones de forma de las respuestas del servidor. El mod no puede usar zod, así que
 // comprueba a mano lo que lee (y nada más): una respuesta rara se trata como "offline".
 // Módulo puro.
-import { ERROR_CODES } from '../generated/protocol.ts'
-import type { ErrorCode } from '../generated/protocol.ts'
+import { ERROR_CODES, REFERRAL_REJECTIONS } from '../generated/protocol.ts'
+import type { ErrorCode, ReferralRejection } from '../generated/protocol.ts'
 
 type Guard<T> = (value: unknown) => value is T
 
@@ -226,6 +226,70 @@ export interface SettingsView {
   readonly user: UserView
 }
 export const isSettings: Guard<SettingsView> = (v): v is SettingsView => isObj(v) && isUser(v.user)
+
+export interface ReferralView {
+  readonly code: string
+  readonly url: string
+  readonly invited: number
+  readonly activated: number
+  readonly waiting: number
+  readonly earned: number
+  readonly season: { readonly commissions: number; readonly cap: number }
+  readonly invitedBy: { readonly bonus: number; readonly activated: boolean } | null
+  readonly canRedeem: boolean
+  readonly redeemUntil: string
+  readonly rules: {
+    readonly welcomeBonus: number
+    readonly commission: number
+    readonly activationSpins: number
+    readonly minAccountAgeDays: number
+  }
+}
+const isCount = (v: unknown): v is number => isInt(v) && v >= 0
+export const isReferral: Guard<{ readonly referral: ReferralView }> = (
+  v,
+): v is { readonly referral: ReferralView } => {
+  if (!isObj(v) || !isObj(v.referral)) return false
+  const r = v.referral
+  return (
+    isStr(r.code) &&
+    /^[A-Z0-9]{4,16}$/.test(r.code) &&
+    isStr(r.url) &&
+    isHttpUrl(r.url) &&
+    isCount(r.invited) &&
+    isCount(r.activated) &&
+    isCount(r.waiting) &&
+    isCount(r.earned) &&
+    isObj(r.season) &&
+    isCount(r.season.commissions) &&
+    isCount(r.season.cap) &&
+    (r.invitedBy === null ||
+      (isObj(r.invitedBy) && isCount(r.invitedBy.bonus) && isBool(r.invitedBy.activated))) &&
+    isBool(r.canRedeem) &&
+    isIso(r.redeemUntil) &&
+    isObj(r.rules) &&
+    isCount(r.rules.welcomeBonus) &&
+    isCount(r.rules.commission) &&
+    isCount(r.rules.activationSpins) &&
+    isCount(r.rules.minAccountAgeDays)
+  )
+}
+
+export type ReferralRedeemView =
+  | {
+      readonly status: 'redeemed'
+      readonly bonus: number
+      readonly wallet: WalletView
+      readonly inviter: { readonly login: string } | null
+    }
+  | { readonly status: 'rejected'; readonly reason: ReferralRejection }
+export const isReferralRedeem: Guard<ReferralRedeemView> = (v): v is ReferralRedeemView =>
+  isObj(v) &&
+  ((v.status === 'redeemed' &&
+    isCount(v.bonus) &&
+    isWallet(v.wallet) &&
+    (v.inviter === null || (isObj(v.inviter) && isStr(v.inviter.login)))) ||
+    (v.status === 'rejected' && REFERRAL_REJECTIONS.some(reason => reason === v.reason)))
 
 export const isOk: Guard<{ readonly ok: true }> = (v): v is { readonly ok: true } =>
   isObj(v) && v.ok === true

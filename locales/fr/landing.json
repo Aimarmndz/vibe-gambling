@@ -36,5 +36,18 @@
   "footer.privacy": "Confidentialité",
   "footer.source": "Code source (AGPL)",
   "footer.home": "Accueil",
-  "footer.languages": "Langue"
+  "footer.languages": "Langue",
+  "invite.title": "Tu es invité — vibe-gambling",
+  "invite.kicker": "PROGRAMME D’AFFILIATION PYRAMIDAL (JURIDIQUEMENT DISTINCT)",
+  "invite.from": "@{login} t’a invité",
+  "invite.fromAnon": "Quelqu’un t’a invité",
+  "invite.notFound": "Ce code d’invitation n’existe pas (ou quelqu’un l’a inventé). Tu peux jouer quand même, juste sans bonus.",
+  "invite.loading": "Vérification de l’invitation…",
+  "invite.offer": "Utilise-le et commence avec {bonus} pièces imaginaires en plus. La personne qui t’a invité touche {commission} quand tu auras joué {spins} tours : c’est comme ça que marchent les pyramides.",
+  "invite.step1": "Installe le plugin dans Claude Code :",
+  "invite.step2": "Connecte-toi avec GitHub :",
+  "invite.step3": "Utilise le code (pendant tes {days} premiers jours et avant {spins} tours) :",
+  "invite.fine": "Petites lignes : un code par compte, pour toujours. Pas le tien, ni celui de quelqu’un qui a utilisé le tien. Pièces imaginaires : elles ne valent rien, ni ici ni ailleurs.",
+  "invite.demo": "Essayer la démo",
+  "invite.board": "Voir le classement"
 }

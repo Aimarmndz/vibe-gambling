@@ -5,7 +5,7 @@ import { LOCALE_INFO, MOD_TEXTS, REFERENCE_LOCALE } from '../generated/locales.t
 import type { ModTextKey, ModTexts } from '../generated/locales.ts'
 import { fillTemplate } from '../generated/phrases.ts'
 import { LOCALES } from '../generated/protocol.ts'
-import type { Locale } from '../generated/protocol.ts'
+import type { Locale, ReferralRejection } from '../generated/protocol.ts'
 import type { PocketColor } from './responses.ts'
 
 export interface Messages {
@@ -92,6 +92,34 @@ export interface Messages {
   readonly deleteUsage: (login: string) => string
   readonly deleteMismatch: string
   readonly deleted: string
+
+  /** `/vibe-invite`: cabecera, enlace, cuentas, reglas y si aún puedes canjear tú. */
+  readonly inviteHeader: string
+  readonly inviteLink: (url: string, code: string) => string
+  readonly inviteStats: (s: {
+    invited: string
+    activated: string
+    waiting: string
+    earned: string
+    commissions: string
+    cap: string
+  }) => string
+  /** `days` es 0 si la instancia no pide edad a la cuenta de GitHub del invitado. */
+  readonly inviteActivation: (r: {
+    bonus: string
+    code: string
+    commission: string
+    spins: string
+    days: number
+  }) => string
+  readonly inviteCanRedeem: (until: string, bonus: string) => string
+  readonly inviteRedeemed: (bonus: string) => string
+
+  /** `/vibe-redeem`. `login` null: quien invitó está oculto del ranking. */
+  readonly redeemUsage: string
+  readonly redeemBadCode: (raw: string) => string
+  readonly redeemed: (bonus: string, balance: string, login: string | null) => string
+  readonly redeemRejected: (reason: ReferralRejection) => string
 }
 
 export type CommandId =
@@ -105,6 +133,8 @@ export type CommandId =
   | 'show'
   | 'server'
   | 'deleteAccount'
+  | 'invite'
+  | 'redeem'
 
 const COMMAND_IDS: readonly CommandId[] = [
   'roulette',
@@ -117,6 +147,8 @@ const COMMAND_IDS: readonly CommandId[] = [
   'show',
   'server',
   'deleteAccount',
+  'invite',
+  'redeem',
 ]
 
 /**
@@ -240,6 +272,24 @@ export function buildMessages(t: ModTexts, bcp47: string): Messages {
     deleteUsage: login => fillTemplate(t.deleteUsage, { login }),
     deleteMismatch: t.deleteMismatch,
     deleted: t.deleted,
+
+    inviteHeader: t.inviteHeader,
+    inviteLink: (url, code) => fillTemplate(t.inviteLink, { url, code }),
+    inviteStats: stats => fillTemplate(t.inviteStats, stats),
+    inviteActivation: ({ days, ...rest }) =>
+      days > 0
+        ? fillTemplate(t.inviteActivationAge, { ...rest, days: integer.format(days) })
+        : fillTemplate(t.inviteActivation, rest),
+    inviteCanRedeem: (until, bonus) => fillTemplate(t.inviteCanRedeem, { date: date(until), bonus }),
+    inviteRedeemed: bonus => fillTemplate(t.inviteRedeemed, { bonus }),
+
+    redeemUsage: t.redeemUsage,
+    redeemBadCode: raw => fillTemplate(t.redeemBadCode, { raw }),
+    redeemed: (bonus, balance, login) =>
+      login === null
+        ? fillTemplate(t.redeemedAnon, { bonus, balance })
+        : fillTemplate(t.redeemed, { bonus, balance, login }),
+    redeemRejected: reason => t[`redeemRejected.${reason}`],
   }
 }
 

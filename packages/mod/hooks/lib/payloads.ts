@@ -2,7 +2,11 @@
 // Constructores de los cuerpos que el mod manda al servidor. Cada uno copia campo a campo lo
 // permitido, así nada más puede colarse. Módulo puro: `packages/shared/test/mod-contract.test.ts`
 // los valida contra los esquemas zod de `shared`.
-import { PROTOCOL_VERSION } from '../generated/protocol.ts'
+import {
+  PROTOCOL_VERSION,
+  REFERRAL_CODE_ALPHABET,
+  REFERRAL_CODE_LENGTH,
+} from '../generated/protocol.ts'
 import type { Os } from '../generated/protocol.ts'
 
 /** Tope de `durationMs` que acepta el servidor (`turnEndRequestSchema`): un día. */
@@ -72,6 +76,28 @@ export function settingsBody(hidden: boolean): VersionedBody & { readonly hidden
 
 export function deleteAccountBody(confirm: string): VersionedBody & { readonly confirm: string } {
   return { v: PROTOCOL_VERSION, confirm }
+}
+
+export function referralRedeemBody(code: string): VersionedBody & { readonly code: string } {
+  return { v: PROTOCOL_VERSION, code }
+}
+
+const REFERRAL_CODE = new RegExp(`^[${REFERRAL_CODE_ALPHABET}]{${REFERRAL_CODE_LENGTH}}$`)
+
+/**
+ * Código de afiliado tal como lo escribe una persona → formato canónico, o null. Acepta
+ * minúsculas, espacios, guiones y la URL entera (`…/r/abcd2345`). Es la misma regla que
+ * `normalizeReferralCode` de shared (`mod-contract.test.ts` lo comprueba).
+ */
+export function normalizeReferralCode(raw: string): string | null {
+  const tail =
+    raw
+      .trim()
+      .split('/')
+      .filter(part => part !== '')
+      .at(-1) ?? ''
+  const text = tail.replace(/[\s_-]+/g, '').toUpperCase()
+  return REFERRAL_CODE.test(text) ? text : null
 }
 
 /** Palabras que `/bet` y `/all-in` aceptan como "todo el saldo". */

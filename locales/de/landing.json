@@ -36,5 +36,18 @@
   "footer.privacy": "Datenschutz",
   "footer.source": "Quellcode (AGPL)",
   "footer.home": "Start",
-  "footer.languages": "Sprache"
+  "footer.languages": "Sprache",
+  "invite.title": "Du bist eingeladen — vibe-gambling",
+  "invite.kicker": "PYRAMIDEN-PARTNERPROGRAMM (RECHTLICH ETWAS VÖLLIG ANDERES)",
+  "invite.from": "@{login} hat dich eingeladen",
+  "invite.fromAnon": "Jemand hat dich eingeladen",
+  "invite.notFound": "Diesen Einladungscode gibt es nicht (oder jemand hat ihn erfunden). Du kannst trotzdem spielen, nur ohne Bonus.",
+  "invite.loading": "Einladung wird geprüft…",
+  "invite.offer": "Löse ihn ein und starte mit {bonus} zusätzlichen Spielgeld-Münzen. Wer dich eingeladen hat, bekommt {commission}, sobald du {spins} Drehs gespielt hast: So funktionieren Pyramiden.",
+  "invite.step1": "Installiere das Plugin in Claude Code:",
+  "invite.step2": "Melde dich mit GitHub an:",
+  "invite.step3": "Löse den Code ein (in deinen ersten {days} Tagen und vor {spins} Drehs):",
+  "invite.fine": "Kleingedrucktes: ein Code pro Konto, für immer. Nicht dein eigener und nicht der von jemandem, der deinen eingelöst hat. Spielgeld: nichts wert, weder hier noch anderswo.",
+  "invite.demo": "Demo ausprobieren",
+  "invite.board": "Rangliste ansehen"
 }

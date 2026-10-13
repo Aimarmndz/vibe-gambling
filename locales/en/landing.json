@@ -36,5 +36,18 @@
   "footer.privacy": "Privacy",
   "footer.source": "Source code (AGPL)",
   "footer.home": "Home",
-  "footer.languages": "Language"
+  "footer.languages": "Language",
+  "invite.title": "You are invited — vibe-gambling",
+  "invite.kicker": "PYRAMID AFFILIATE PROGRAM (LEGALLY DISTINCT)",
+  "invite.from": "@{login} invited you",
+  "invite.fromAnon": "Someone invited you",
+  "invite.notFound": "This invite code does not exist (or someone made it up). You can still play, just without the bonus.",
+  "invite.loading": "Checking the invite…",
+  "invite.offer": "Redeem it and start with {bonus} extra fake coins. Whoever invited you gets {commission} once you play {spins} spins: that is how pyramids work.",
+  "invite.step1": "Install the plugin in Claude Code:",
+  "invite.step2": "Log in with GitHub:",
+  "invite.step3": "Redeem the code (within your first {days} days and before {spins} spins):",
+  "invite.fine": "Fine print: one code per account, forever. Not your own, and not the code of someone who redeemed yours. Fake coins: worth nothing, here or anywhere.",
+  "invite.demo": "Try the demo",
+  "invite.board": "See the leaderboard"
 }

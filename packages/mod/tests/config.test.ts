@@ -102,6 +102,6 @@ test(
     expect(w.requests).toHaveLength(0)
     const { text } = await command($, 'balance')
     expect(text).toContain('vibe-gambling is misconfigured: serverUrl')
-    expect(w.registered).toHaveLength(13)
+    expect(w.registered).toHaveLength(17)
   },
 )

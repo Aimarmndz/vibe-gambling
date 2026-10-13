@@ -37,9 +37,11 @@ const ALLOWED_BODY: Readonly<Record<string, readonly string[]>> = {
   '/api/bet': ['v', 'amount', 'target'],
   '/api/me/settings': ['v', 'hidden'],
   '/api/me/delete': ['v', 'confirm'],
+  '/api/referral': [],
+  '/api/referral/redeem': ['v', 'code'],
 }
 /** Rutas que no llevan cuerpo (GET). */
-const NO_BODY = new Set(['/api/me', '/api/meta'])
+const NO_BODY = new Set(['/api/me', '/api/meta', '/api/referral'])
 const ALLOWED_HEADERS = new Set(['accept', 'content-type', 'authorization'])
 
 /** Marcadores únicos que no pueden salir del ordenador. */
@@ -213,6 +215,33 @@ test(
         },
         '/api/me/settings': { json: { v: 1, user } },
         '/api/me/delete': { json: { v: 1, ok: true } },
+        '/api/referral': {
+          json: {
+            v: 1,
+            referral: {
+              code: 'ABCD2345',
+              url: 'https://casino.test/r/ABCD2345',
+              invited: 0,
+              activated: 0,
+              waiting: 0,
+              earned: 0,
+              season: { seasonId: '2026-10', commissions: 0, cap: 10 },
+              invitedBy: null,
+              canRedeem: true,
+              redeemUntil: '2026-10-20T12:00:00.000Z',
+              rules: {
+                welcomeBonus: 500,
+                commission: 1000,
+                activationSpins: 50,
+                redeemWindowDays: 7,
+                redeemMaxSpins: 100,
+                maxCommissionsPerSeason: 10,
+                minAccountAgeDays: 30,
+              },
+            },
+          },
+        },
+        '/api/referral/redeem': { json: { v: 1, status: 'rejected', reason: 'cycle' } },
         '/api/auth/logout': { json: { v: 1, ok: true } },
         '/api/auth/device/start': {
           json: {
@@ -255,6 +284,11 @@ test(
       ['vibe-show', ''],
       ['vibe-server', ''],
       ['vibe-server', 'https://casino.test'],
+      ['vibe-invite', ''],
+      ['vibe-invitar', ''],
+      ['vibe-redeem', 'abcd-2345'],
+      ['vibe-canjear', 'https://casino.test/r/zzzz9999'],
+      ['vibe-redeem', 'PROMPT-7c1f3a'],
       ['vibe-delete-account', ''],
       ['vibe-delete-account', 'someone-else'],
       ['vibe-delete-account', LOGIN],
@@ -273,6 +307,12 @@ test(
       { v: 1, amount: 'all-in', target: 'red' },
     ])
     expect(w.to('/api/me/delete').map(r => r.body)).toEqual([{ v: 1, confirm: LOGIN }])
+    // El canje lleva solo el código, ya normalizado; uno que no es un código no sale.
+    expect(w.to('/api/referral/redeem').map(r => r.body)).toEqual([
+      { v: 1, code: 'ABCD2345' },
+      { v: 1, code: 'ZZZZ9999' },
+    ])
+    expect(w.to('/api/referral')).toHaveLength(2)
     expect(logLeaks(w.logs)).toEqual([])
     for (const argv of w.runs) expect(MARKERS.filter(m => argv.join(' ').includes(m))).toEqual([])
   },

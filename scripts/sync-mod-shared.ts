@@ -25,6 +25,11 @@ import {
   TEXT_LIMITS,
 } from '../packages/shared/src/protocol/common.ts'
 import { API_ROUTES, PAGE_PATHS } from '../packages/shared/src/protocol/routes.ts'
+import {
+  REFERRAL_CODE_ALPHABET,
+  REFERRAL_CODE_LENGTH,
+  REFERRAL_REJECTIONS,
+} from '../packages/shared/src/game/referral.ts'
 import { MOD_MANIFEST_MODULE, renderModManifest } from './lib/mod-manifest.ts'
 
 export const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -51,8 +56,9 @@ function renderProtocol(): string {
     `export const ${name} = ${JSON.stringify(value)} as const`
   return [
     SPDX,
-    banner('packages/shared/src/protocol/{common,routes}.ts'),
-    '// Constantes del protocolo que usa el mod: versión, SO, idiomas, errores, textos y rutas.',
+    banner('packages/shared/src/{protocol/common,protocol/routes,game/referral}.ts'),
+    '// Constantes del protocolo que usa el mod: versión, SO, idiomas, errores, textos, rutas y el',
+    '// formato de los códigos de afiliado.',
     '',
     constant('PROTOCOL_VERSION', PROTOCOL_VERSION),
     constant('OS_VALUES', OS_VALUES),
@@ -65,6 +71,10 @@ function renderProtocol(): string {
     constant('API_ROUTES', API_ROUTES),
     'export type ApiRouteName = keyof typeof API_ROUTES',
     constant('PAGE_PATHS', PAGE_PATHS),
+    constant('REFERRAL_CODE_ALPHABET', REFERRAL_CODE_ALPHABET),
+    constant('REFERRAL_CODE_LENGTH', REFERRAL_CODE_LENGTH),
+    constant('REFERRAL_REJECTIONS', REFERRAL_REJECTIONS),
+    'export type ReferralRejection = (typeof REFERRAL_REJECTIONS)[number]',
     '',
   ].join('\n')
 }

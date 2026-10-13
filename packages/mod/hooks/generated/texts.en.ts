@@ -97,4 +97,33 @@ export const modTextsEn: ModTexts = {
   deleteMismatch: "That's not your login. Nothing was deleted.",
   deleted: '🎰 Account deleted. All data is gone. The house thanks you for playing.',
   dailyLimit: '🎰 Daily spin limit reached · the table reopens at {time}',
+  'command.invite.description': 'Your affiliate link and your pyramid stats',
+  'command.redeem.description': 'Redeem the code of whoever invited you (welcome bonus)',
+  'command.redeem.argumentHint': '<code>',
+  inviteHeader: '🔺 Pyramid Affiliate Program (legally distinct)',
+  inviteLink: 'Your link: {url} · code {code}',
+  inviteStats:
+    'Invited {invited} · activated {activated} · waiting {waiting} · earned {earned} 🪙 · this season {commissions}/{cap} commissions',
+  inviteActivation:
+    'Your friend gets {bonus} 🪙 by redeeming it with /vibe-redeem {code}; you get {commission} 🪙 once they play {spins} spins. Invite 3 friends and stop having them.',
+  inviteActivationAge:
+    'Your friend gets {bonus} 🪙 by redeeming it with /vibe-redeem {code}; you get {commission} 🪙 once they play {spins} spins and their GitHub account is {days} days old. Invite 3 friends and stop having them.',
+  inviteCanRedeem: 'Did someone invite you? /vibe-redeem <code> before {date} and get {bonus} 🪙.',
+  inviteRedeemed: 'You joined with an invite: +{bonus} 🪙 welcome bonus.',
+  redeemUsage: 'Usage: /vibe-redeem <code>, e.g. /vibe-redeem ABCD2345 (the link works too)',
+  redeemBadCode: '"{raw}" is not an affiliate code (8 letters and digits, no 0, 1, I, L, O or U).',
+  redeemed:
+    "🔺 Code redeemed: +{bonus} 🪙 welcome bonus. Balance: {balance}. Welcome to @{login}'s pyramid.",
+  redeemedAnon:
+    '🔺 Code redeemed: +{bonus} 🪙 welcome bonus. Balance: {balance}. Welcome to the pyramid (its top prefers to stay anonymous).',
+  'redeemRejected.not_found': 'That code does not exist. Are you sure your friend does?',
+  'redeemRejected.own_code':
+    'That is your own code. Self-referral is the foundation of every pyramid, but not this one.',
+  'redeemRejected.already_redeemed': 'You already redeemed a code. You only join the pyramid once.',
+  'redeemRejected.cycle':
+    'That player joined with your code: you cannot be invited by someone you invited.',
+  'redeemRejected.too_late':
+    'Your account is no longer new: the welcome bonus is only for your first days.',
+  'redeemRejected.too_many_spins':
+    'You have played too many spins already: the welcome bonus is only for newcomers.',
 }

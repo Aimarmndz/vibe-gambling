@@ -254,6 +254,46 @@ export const register: Register = (on, options) => {
           immediate: true,
         }),
       )
+      await registerSafely(
+        io,
+        'vibe-invite',
+        $.command.register({
+          name: 'vibe-invite',
+          description: describe('invite'),
+          argumentHint: hint('invite'),
+          immediate: true,
+        }),
+      )
+      await registerSafely(
+        io,
+        'vibe-invitar',
+        $.command.register({
+          name: 'vibe-invitar',
+          description: describe('invite'),
+          argumentHint: hint('invite'),
+          immediate: true,
+        }),
+      )
+      await registerSafely(
+        io,
+        'vibe-redeem',
+        $.command.register({
+          name: 'vibe-redeem',
+          description: describe('redeem'),
+          argumentHint: hint('redeem'),
+          immediate: true,
+        }),
+      )
+      await registerSafely(
+        io,
+        'vibe-canjear',
+        $.command.register({
+          name: 'vibe-canjear',
+          description: describe('redeem'),
+          argumentHint: hint('redeem'),
+          immediate: true,
+        }),
+      )
 
       const config = runtime.config
       if (config === null) {
@@ -363,5 +403,13 @@ export const register: Register = (on, options) => {
   )
   on('command.run', { command: 'vibe-delete-account' }, ($, e) =>
     run(ioOf($), 'deleteAccount', ctx => commands.deleteAccount(ctx, argsOf(e))),
+  )
+  on('command.run', { command: 'vibe-invite' }, $ => run(ioOf($), 'invite', commands.invite))
+  on('command.run', { command: 'vibe-invitar' }, $ => run(ioOf($), 'invite', commands.invite))
+  on('command.run', { command: 'vibe-redeem' }, ($, e) =>
+    run(ioOf($), 'redeem', ctx => commands.redeem(ctx, argsOf(e))),
+  )
+  on('command.run', { command: 'vibe-canjear' }, ($, e) =>
+    run(ioOf($), 'redeem', ctx => commands.redeem(ctx, argsOf(e))),
   )
 }
