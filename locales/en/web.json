@@ -309,7 +309,7 @@
   "menu.item.pending.line": "{n} spins saved. They expire in {days} d.",
   "menu.item.pending.line.one": "{n} spin saved. It expires in {days} d.",
   "menu.item.pending.none": "No spins saved.",
-  "menu.item.pending.hint": "They play with your slip or your last bet.",
+  "menu.item.pending.hint": "They use your slip or your last bet.",
   "menu.item.pending.of": "OF {max}",
   "menu.item.stats": "STATS",
   "menu.item.stats.line": "History, net worth, lucky number (luck not included).",

@@ -309,7 +309,7 @@
   "menu.item.pending.line": "{n} tiradas guardadas. Caducan en {days} d.",
   "menu.item.pending.line.one": "{n} tirada guardada. Caduca en {days} d.",
   "menu.item.pending.none": "Ninguna tirada guardada.",
-  "menu.item.pending.hint": "Se juegan con tu boleto o tu última apuesta.",
+  "menu.item.pending.hint": "Usan tu boleto o tu última apuesta.",
   "menu.item.pending.of": "DE {max}",
   "menu.item.stats": "ESTADÍSTICAS",
   "menu.item.stats.line": "Historial, patrimonio y tu número (suerte aparte).",

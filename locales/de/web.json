@@ -309,7 +309,7 @@
   "menu.item.pending.line": "{n} Drehs gespeichert. Sie verfallen in {days} T.",
   "menu.item.pending.line.one": "{n} Dreh gespeichert. Er verfällt in {days} T.",
   "menu.item.pending.none": "Keine Drehs gespeichert.",
-  "menu.item.pending.hint": "Gespielt wird mit deinem Schein oder deinem letzten Einsatz.",
+  "menu.item.pending.hint": "Mit deinem Schein oder letzten Einsatz.",
   "menu.item.pending.of": "VON {max}",
   "menu.item.stats": "STATISTIK",
   "menu.item.stats.line": "Verlauf, Vermögen, Glückszahl (Glück extra).",

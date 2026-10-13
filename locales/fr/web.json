@@ -309,7 +309,7 @@
   "menu.item.pending.line": "{n} tours de côté. Ils expirent dans {days} j.",
   "menu.item.pending.line.one": "{n} tour de côté. Il expire dans {days} j.",
   "menu.item.pending.none": "Aucun tour de côté.",
-  "menu.item.pending.hint": "Ils se jouent avec ta mise en cours ou la dernière.",
+  "menu.item.pending.hint": "Avec ta mise en cours ou la dernière.",
   "menu.item.pending.of": "SUR {max}",
   "menu.item.stats": "STATISTIQUES",
   "menu.item.stats.line": "Historique, patrimoine, numéro fétiche (chance en sus).",
