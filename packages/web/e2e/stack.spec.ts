@@ -326,7 +326,7 @@ test('landing con el ranking y página de privacidad', async ({ page }) => {
   const web0 = webConfigSchema.parse(await (await page.request.get('/config.json')).json())
   await expect(page.locator('#board-note')).toBeVisible()
   await expect(page.locator('#board-note')).toContainText(
-    `menos de ${web0.game.minAccountAgeDays} días pueden jugar`,
+    `menos de ${web0.game.minAccountAgeDays} días juegan`,
   )
   await expect(page.locator('#footer')).toContainText('Aimar')
   await page.waitForTimeout(2500)

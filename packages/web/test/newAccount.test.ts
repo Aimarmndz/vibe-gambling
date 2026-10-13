@@ -43,7 +43,7 @@ describe('aviso de cuenta de GitHub nueva', () => {
 
   it('la regla de la landing cuenta los días de la configuración, y desaparece con 0', () => {
     expect(newAccountsRule(30, en)).toContain('younger than 30 days can play')
-    expect(newAccountsRule(7, es)).toContain('menos de 7 días pueden jugar')
+    expect(newAccountsRule(7, es)).toContain('menos de 7 días juegan')
     expect(newAccountsRule(0, en)).toBeNull()
   })
 })

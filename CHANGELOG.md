@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- **The landing page is more satirical** in all four languages: it now pitches itself as "the most honest casino on the internet" (you win nothing, you lose nothing, and you still can't stop), the demo is free "because the first one always is", and the fake-money notice says it with a joke instead of a dry "fake coins only", while still saying clearly that no real money is ever involved, next to the gambling-help links.
+
 ### Added
 
 - **Daily database backups for the Noust deployment**: `deploy/systemd/vibe-backup.{service,timer}` run `deploy/backup.sh`, which now takes the app folder and compose file from `VIBE_APP_DIR` and `VIBE_COMPOSE_FILE`.
