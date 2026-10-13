@@ -1,31 +1,40 @@
 <div align="center">
 
-# vibe-gambling
+<a href="https://vibe.aimar.dev">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/brand/logo.svg">
+    <source media="(prefers-color-scheme: light)" srcset="docs/brand/logo-light.svg">
+    <img alt="VIBE GAMBLING" src="docs/brand/logo-light.svg" width="516">
+  </picture>
+</a>
 
-**🎰 Every prompt is a spin.** A PS1-style roulette that pops up while Claude Code thinks.<br/>
+### 🎰 Every prompt is a spin.
+
+A PS1-style roulette that pops up while Claude Code thinks.<br>
 Fake coins, real addiction (not really). Global leaderboard of the most broke devs.
 
 [![CI](https://github.com/Aimarmndz/vibe-gambling/actions/workflows/ci.yml/badge.svg)](https://github.com/Aimarmndz/vibe-gambling/actions/workflows/ci.yml)
-[![License: AGPL-3.0-or-later](https://img.shields.io/badge/license-AGPL--3.0--or--later-blue.svg)](LICENSE)
-[![Release](https://img.shields.io/github/v/release/Aimarmndz/vibe-gambling?include_prereleases&sort=semver)](https://github.com/Aimarmndz/vibe-gambling/releases)
+[![Release](https://img.shields.io/github/v/release/Aimarmndz/vibe-gambling?include_prereleases&sort=semver&color=f2c14e)](https://github.com/Aimarmndz/vibe-gambling/releases)
+[![License: AGPL-3.0-or-later](https://img.shields.io/badge/license-AGPL--3.0--or--later-c1272d)](LICENSE)
+[![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-d97757)](#install)
+[![Coins: 100% fake](https://img.shields.io/badge/coins-100%25%20fake-2e7d32)](#fake-coins-only-nothing-real-is-gambled)
+[![Open in GitHub Codespaces](https://img.shields.io/badge/Codespaces-open-24292f?logo=github)](https://codespaces.new/Aimarmndz/vibe-gambling?quickstart=1)
 
-[**vibe.aimar.dev**](https://vibe.aimar.dev) · [Install](#install) · [How to play](#how-to-play) · [Privacy](#privacy) · [Self-hosting](docs/SELF-HOSTING.md) · [Español](#español)
+🇬🇧 **English** · 🇪🇸 [Español](README.es.md)
 
-<!-- GIF de la ruleta girando mientras Claude Code trabaja: lo graba el orquestador en docs/demo.gif -->
+[**vibe.aimar.dev**](https://vibe.aimar.dev) · [Install](#install) · [How to play](#how-to-play) · [The show](#the-show) · [Privacy](#privacy) · [Self-hosting](docs/SELF-HOSTING.md)
 
-![The PS1-style roulette spinning while Claude Code works on a prompt](docs/demo.gif)
+<br>
+
+<img src="docs/demo.gif" alt="One real turn: the PS1-style table while Claude thinks, then the wheel spins, the ball drops, a gambler phrase and a memory card save" width="640">
+
+<sub>One real turn, start to finish. The window speaks four languages; this one happens to be Spanish.</sub>
 
 </div>
 
-<h2 align="center">Fake coins only. Nothing real is gambled.</h2>
+## Fake coins only. Nothing real is gambled.
 
-<p align="center">No purchases, no real money, no links to betting sites. Ever. The coins are as real as your vibe-coded MVP's users.</p>
-
-| The table                                                                         | The result                                                                               | The loan shark                                                                  |
-| --------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| ![Roulette table with chips, balance and debt](docs/screenshots/table-no-crt.png) | ![Spin result with a gambler phrase and a memory card save](docs/screenshots/result.png) | ![Ludo-Credit Express loan offer with a 4,200 % APR](docs/screenshots/loan.png) |
-| **Boot screen**                                                                   | **Leaderboard**                                                                          | **Memory card**                                                                 |
-| ![Fake console boot screen](docs/screenshots/boot.png)                            | ![Most broke devs of the season](docs/screenshots/leaderboard.png)                       | ![Saving to the memory card](docs/screenshots/memory-card.png)                  |
+No purchases, no real money, no links to betting sites. Ever. The coins are as real as the users of your vibe-coded MVP, and the only thing you can lose is your dignity on a public leaderboard.
 
 ## Install
 
@@ -35,7 +44,7 @@ In a Claude Code terminal session:
 /plugin install vibe-gambling --marketplace Aimarmndz/vibe-gambling
 ```
 
-Claude Code asks **`Add marketplace?`** for `github:Aimarmndz/vibe-gambling`: answer `y`. Then pick the scope (user scope is the first one: press Enter), review the plugin options (server, auto-open, language… the defaults are fine) and you get `Installed vibe-gambling. Plugin is now active.`
+Claude Code asks **`Add marketplace?`** for `github:Aimarmndz/vibe-gambling`: answer `y`, pick the scope (user scope is the first one: press Enter), skim the plugin options (server, auto-open, language… the defaults are fine) and you get `Installed vibe-gambling. Plugin is now active.`
 
 Then take a seat at the table:
 
@@ -43,32 +52,37 @@ Then take a seat at the table:
 /vibe-login
 ```
 
-It shows a GitHub device code (`🎰 Go to https://github.com/login/device and enter XXXX-XXXX. You have 15 min; I'll keep checking in the background.`). Enter it, authorize, and you're in. Send any prompt: the window opens and the wheel starts spinning while Claude works. When Claude finishes, the ball drops.
+It prints a GitHub device code (`🎰 Go to https://github.com/login/device and enter XXXX-XXXX. You have 15 min; I'll keep checking in the background.`). Enter it, authorize, done. Now send any prompt:
 
-- Needs a browser. With Chrome, Chromium, Brave, Edge or Vivaldi the window opens as a borderless app (960×720); otherwise in your default browser.
-- Linux, macOS and Windows. The plugin has no dependencies and never slows a turn down: every request runs in the background with a 1.5 s timeout, and if the casino is down you only see `🎰 offline` in the status line.
-- The GitHub login asks for **no permissions**: only your public profile.
+1. The game window pops up and the wheel starts spinning while Claude works.
+2. When Claude finishes, the ball drops. You get the result in a toast and your balance in the status line (`🎰 750 🪙`).
+3. You get a gambler phrase you did not ask for. That is the product.
+
+Good to know:
+
+- **It never slows Claude down.** Every request runs in the background with a 1.5 s timeout. If the casino is down, the status line says `🎰 offline` and life goes on.
+- **It needs a browser.** With Chrome, Chromium, Brave, Edge or Vivaldi the window opens as a borderless 960×720 app; otherwise, in your default browser. Linux, macOS and Windows.
+- **The GitHub login asks for no permissions**: just your public profile.
+- **Just looking?** [Try the offline demo](https://vibe.aimar.dev/play?demo): no account, no plugin, nothing saved. The wheel spins by itself.
 
 ## How to play
 
-There is no spin button. **Your prompts are the spins.** Each turn opens a round; when Claude finishes, the server spins the wheel and settles your bets. You can bet in the window (mouse, keyboard or gamepad) or from Claude Code.
+There is no spin button. **Your prompts are the spins.** Every turn opens a round; when Claude finishes, the server spins the wheel and settles your bets.
 
-**Window closed? Pending spins.** If no game window is open and visible when Claude finishes (closed, or in a background tab), the spin is not wasted: it is saved as a **pending spin**, with that turn's `git push` jackpot and failed-test phrase. Claude Code tells you in a toast and in the status line (`🎰 750 🪙 · 20 pending`). Open the window and you get a heads-up and a counter in the HUD: **SPIN** (`G` or SELECT) plays one with the normal animation, **SPIN ALL** plays them back to back with a quick animation and stops by itself on a big win, on green or when you go broke (or when you press ○). The server still rolls each one when you spend it, and they count for the leaderboard then. Up to 100 per season (the rest are dropped with a joke); they expire when the season ends.
+### Live or pending
 
-| Command                        | Alias      | What it does                                                                |
-| ------------------------------ | ---------- | --------------------------------------------------------------------------- |
-| `/roulette`                    | `/ruleta`  | Open the window                                                             |
-| `/bet <amount> <square>`       | `/apostar` | Bet on the current spin, or the next one (`/bet 200 red`, `/apostar 50 17`) |
-| `/all-in [square]`             |            | Your whole balance (red by default)                                         |
-| `/balance`                     | `/saldo`   | Balance, debt, net worth and rank                                           |
-| `/vibe-login` · `/vibe-logout` |            | GitHub device-code login · log out                                          |
-| `/vibe-hide` · `/vibe-show`    |            | Hide from / show on the public leaderboard                                  |
-| `/vibe-server [url\|default]`  |            | Show or change the server (self-hosting)                                    |
-| `/vibe-delete-account <login>` |            | Delete your account and all its data                                        |
+- **Window open and visible** when Claude finishes: the spin plays live, with the ball, the drama and the phrase.
+- **Window closed, or in a background tab**: the spin is not wasted. It is saved as a **pending spin**, together with that turn's `git push` jackpot and failed-test phrase. Claude Code tells you (`🎰 Spin saved for later · 20 pending`) and the status line keeps count (`🎰 750 🪙 · 20 pending`).
+- Open the window and it greets you with the bill. **SPIN** (`G`, or SELECT on a gamepad) plays one with the full animation. **SPIN ALL** burns through them back to back with a quick animation and stops by itself on a big win, on green or when you go broke (or when you press ○).
+- The server rolls each pending spin when you spend it, not before, and that is when it counts for the leaderboard. Up to **100** per season; past that, the prompt is dropped with a joke (_"This is not a habit anymore, it is a backlog."_). They expire when the season ends.
+
+### Betting
+
+Bet in the window (mouse, keyboard or gamepad: arrows to move, ✕ to drop a chip) or straight from Claude Code with `/bet 200 red`. Your bets ride on the current spin, or on the next one if the ball is already rolling.
 
 **Squares** for `/bet`: `red`/`rojo`, `black`/`negro`, `even`/`par`, `odd`/`impar`, `low`/`1-18`, `high`/`19-36`, `1st12`/`2nd12`/`3rd12`, `col1`/`col2`/`col3`, a number (`17`) or neighbours (`8-9`, `1-2-3`, `8-9-11-12`, `1-2-3-4-5-6`). Amounts are whole fake coins or `all-in`.
 
-**European roulette** (37 pockets, real wheel order), official payouts:
+**European roulette**: 37 pockets, real wheel order, official payouts.
 
 | Bet                               | Pays |
 | --------------------------------- | ---- |
@@ -80,204 +94,157 @@ There is no spin button. **Your prompts are the spins.** Each turn opens a round
 | Dozen · Column                    | 2:1  |
 | Red/Black · Even/Odd · 1–18/19–36 | 1:1  |
 
-With a 0, every even-money bet loses (no _la partage_: the house wants your fake money).
+When the 0 comes up, every even-money bet loses. No _la partage_: the house wants your fake money.
 
-**The rules of the house** (defaults of the official instance, all in [`config/game.json`](config/game.json)):
+### House rules
 
-- You start each season with **1,000 coins**. Chips: 10, 50, 100, 500, 1,000 and ALL-IN.
-- **Didn't bet?** Your last bet is repeated. Never bet? Your subconscious puts 10 on red.
-- **Ludo-Credit Express**: broke? The window offers a 1,000-coin loan at a **4,200 % APR**. The debt grows 2 % with every spin. Unlimited loans. Read the fine print.
-- **Net worth** = balance − debt. It can go very negative. That's the point.
-- **Dev jackpot**: if a `git push` succeeded during the turn, your winnings pay **×2**. _Push to prod = bonus._
-- A failed test command gets you a consolation phrase. Five reds in a row? The window will remind you that black HAS to come up now (it doesn't: that's the gambler's fallacy, and that's the joke).
-- **Seasons** are calendar months (Europe/Madrid). On the 1st, everyone goes back to 1,000 coins and zero debt.
-- **Leaderboards** per season: **Most broke** (the star one), **Richest** (in case someone actually wins) and **Most spins** (the most addicted). The top 10 broke devs of every season are kept forever in the **Hall of Ruin**.
-- The ball always takes at least ~4 s to drop, even if Claude answers in one. The result is decided by the server (`crypto.randomInt`), never by your browser.
+Defaults of the official instance; all of them live in [`config/game.json`](config/game.json).
 
-You appear on the public leaderboard by default (login, avatar and stats), and you're told so when you log in. `/vibe-hide` makes you vanish, Hall of Ruin included.
+- **1,000 coins** at the start of each season. Chips: 10, 50, 100, 500, 1,000 and ALL-IN.
+- **Didn't bet?** Your last bet is repeated. Never bet at all? Your subconscious puts 10 on red.
+- **Ludo-Credit Express.** Can't afford the smallest chip? The window offers a 1,000-coin loan at a **4,200 % APR**. The debt grows 2 % with every spin. There is no repay button. There is fine print, and it scrolls too fast to read.
+- **Net worth** = balance − debt. It can go very negative. That is the point.
+- **Dev jackpot.** If a `git push` succeeded during the turn, your winnings pay **×2**. _Push to prod = bonus._
+- **Failed tests** get a consolation phrase. Five reds in a row? The window will remind you that black HAS to come up now. It doesn't: that is the gambler's fallacy, and that is the joke.
+- **Seasons** are calendar months (Europe/Madrid). On the 1st, everyone goes back to 1,000 coins and zero debt. Pending spins expire.
+- **Leaderboards** per season: **Most broke** (the star one), **Richest** (in case someone actually wins) and **Most spins** (the most hooked). The 10 most broke devs of every season are kept forever in the **Hall of Ruin**.
+- **17 joke achievements** with a period-correct trophy pop-up: _First ruin_, _Professional debtor_, _All on zero_, _Push on Friday_, _I can quit anytime_, _3 a.m. deploy_, _Too big to fail_…
+- **Fair, as far as fake gambling goes.** The server decides every result with `crypto.randomInt`, never your browser. The ball takes at least ~4 s to drop, even if Claude answers in one.
+
+You show up on the public leaderboard by default (login, avatar and stats), and you are told so when you log in. `/vibe-hide` makes you vanish, Hall of Ruin included.
+
+### Four languages
+
+🇬🇧 English · 🇪🇸 Español · 🇫🇷 Français · 🇩🇪 Deutsch. All of it: the game, the landing page, the privacy policy, the plugin messages and 60+ gambler phrases per language, adapted rather than translated. The flags are hand-drawn pixel art. The window starts in your browser's language, the plugin in your system's, and you can switch from the in-game settings. [Adding a language](locales/README.md) is copying a folder.
+
+### Commands
+
+| Command                        | Alias      | What it does                                                         |
+| ------------------------------ | ---------- | -------------------------------------------------------------------- |
+| `/roulette`                    | `/ruleta`  | Open the window                                                      |
+| `/bet <amount> <square>`       | `/apostar` | Bet on the current or next spin (`/bet 200 red`, `/apostar 50 17`)   |
+| `/all-in [square]`             |            | Your whole balance (red by default)                                  |
+| `/balance`                     | `/saldo`   | Balance, debt, net worth, rank and pending spins                     |
+| `/vibe-login` · `/vibe-logout` |            | GitHub device-code login · log out                                   |
+| `/vibe-hide` · `/vibe-show`    |            | Hide from / show on the public leaderboard                           |
+| `/vibe-server [url\|default]`  |            | Show or change the server (self-hosting)                             |
+| `/vibe-delete-account <login>` |            | Delete your account and all its data (type your login to confirm it) |
+
+Plugin options (server, auto-open, language, timeouts, window size) are in `/config`; see [packages/mod](packages/mod/README.md#options).
+
+## The show
+
+Everything happens inside a 320×240 framebuffer with wobbly vertices, dithering and a CRT filter, with synthesized sounds. Every animation can be skipped (✕, ○ or a click), has a short, steady version under `prefers-reduced-motion`, and never gives away the result before the ball drops.
+
+<table>
+  <tr>
+    <td width="50%" align="center" valign="top"><img src="docs/fx-megawin.gif" alt="MEGA WIN: the screen flashes, coins and chips rain down and the winnings count up" width="100%"><br><sub><b>MEGA WIN</b>. The coins are fake; the chip rain is low-poly.</sub></td>
+    <td width="50%" align="center" valign="top"><img src="docs/fx-bank.gif" alt="Ludo-Credit Express: the banker behind bars, a loan contract at 4,200 % APR stamped APPROVED, and the debt counter going up" width="100%"><br><sub><b>Ludo-Credit Express</b>. Sign here. And here. And here.</sub></td>
+  </tr>
+</table>
+
+Big wins by tiers (**BIG WIN**, **MEGA WIN**, **STRAIGHT UP!**), the table blinking **GREEN!** on a 0, a **PUSH TO PROD** rocket before a `git push` jackpot, an arcade **BANKRUPT · CONTINUE? 9… 8…** that lands, conveniently, on the loan offer, **ON FIRE** streaks, a gambler's-fallacy warning with the actual odds, and a main menu with spinning low-poly icons: pending spins, stats, achievements, leaderboard, memory card, bank, settings, how to play and credits.
+
+<table>
+  <tr>
+    <td width="33%" align="center" valign="top"><a href="docs/screenshots/table.png"><img src="docs/screenshots/table.png" alt="The roulette table with the chips, balance, debt and net worth" width="100%"></a><br><sub>The table</sub></td>
+    <td width="33%" align="center" valign="top"><a href="docs/screenshots/result.png"><img src="docs/screenshots/result.png" alt="A spin result with the number, the loss, a gambler phrase and the loan interest" width="100%"></a><br><sub>The result (and the interest)</sub></td>
+    <td width="33%" align="center" valign="top"><a href="docs/screenshots/fx-mega-3-hold.png"><img src="docs/screenshots/fx-mega-3-hold.png" alt="MEGA WIN with the multiplier and the winnings" width="100%"></a><br><sub>MEGA WIN</sub></td>
+  </tr>
+  <tr>
+    <td width="33%" align="center" valign="top"><a href="docs/screenshots/fx-push-4-stamp.png"><img src="docs/screenshots/fx-push-4-stamp.png" alt="PUSH TO PROD with a times 2 stamp over the wheel" width="100%"></a><br><sub>PUSH TO PROD ×2</sub></td>
+    <td width="33%" align="center" valign="top"><a href="docs/screenshots/menu-bank.png"><img src="docs/screenshots/menu-bank.png" alt="The bank screen: debt, APR, interest per spin and the debt history" width="100%"></a><br><sub>The bank. Repay: does not exist.</sub></td>
+    <td width="33%" align="center" valign="top"><a href="docs/screenshots/fx-bankrupt-3-count.png"><img src="docs/screenshots/fx-bankrupt-3-count.png" alt="Arcade-style bankrupt screen with a continue countdown at 9" width="100%"></a><br><sub>BANKRUPT. CONTINUE?</sub></td>
+  </tr>
+  <tr>
+    <td width="33%" align="center" valign="top"><a href="docs/screenshots/menu-main-en.png"><img src="docs/screenshots/menu-main-en.png" alt="Main menu with low-poly icons and the pending spins counter" width="100%"></a><br><sub>Main menu</sub></td>
+    <td width="33%" align="center" valign="top"><a href="docs/screenshots/menu-achievements-en.png"><img src="docs/screenshots/menu-achievements-en.png" alt="Achievements list with unlocked trophies and progress bars" width="100%"></a><br><sub>Achievements</sub></td>
+    <td width="33%" align="center" valign="top"><a href="docs/screenshots/menu-stats.png"><img src="docs/screenshots/menu-stats.png" alt="Stats: a pixel chart of the season's net worth with the loans marked, most frequent number, biggest win and the last 18 spins" width="100%"></a><br><sub>Stats: the chart only goes one way</sub></td>
+  </tr>
+</table>
+
+<details>
+<summary><b>More screenshots</b></summary>
+<br>
+
+<table>
+  <tr>
+    <td width="33%" align="center" valign="top"><a href="docs/screenshots/menu-memory.png"><img src="docs/screenshots/menu-memory.png" alt="Memory card screen with one save block and the season summary" width="100%"></a><br><sub>Memory card</sub></td>
+    <td width="33%" align="center" valign="top"><a href="docs/screenshots/settings-language.png"><img src="docs/screenshots/settings-language.png" alt="Settings in French with the pixel-art flag picker" width="100%"></a><br><sub>Language picker (here, in French)</sub></td>
+    <td width="33%" align="center" valign="top"><a href="docs/screenshots/landing.png"><img src="docs/screenshots/landing-hero.png" alt="The landing page at vibe.aimar.dev with the install command and the flags" width="100%"></a><br><sub>The landing page</sub></td>
+  </tr>
+  <tr>
+    <td width="33%" align="center" valign="top"><a href="docs/screenshots/menu-ranking.png"><img src="docs/screenshots/menu-ranking.png" alt="In-game leaderboard of the most broke devs of the season" width="100%"></a><br><sub>Most broke devs</sub></td>
+    <td width="33%" align="center" valign="top"><a href="docs/screenshots/pending-notice.png"><img src="docs/screenshots/pending-notice.png" alt="Notice on opening the window: you have pending spins" width="100%"></a><br><sub>Welcome back. Here is the bill.</sub></td>
+    <td width="33%" align="center" valign="top"><a href="docs/screenshots/fx-green-2-band.png"><img src="docs/screenshots/fx-green-2-band.png" alt="GREEN! on a 0: all even-money bets lose" width="100%"></a><br><sub>GREEN! Even-money bets: gone.</sub></td>
+  </tr>
+</table>
+
+</details>
 
 ## Privacy
 
-**The plugin knows nothing about your work.** This is enforced by a test that intercepts every request the plugin makes and fails if it carries anything else.
+**The plugin knows nothing about your work.** A test intercepts every request the plugin makes (turns, every command, the login and the error paths) and fails if it carries anything else.
 
-| Sent to the server                                       | Never sent                                                 |
-| -------------------------------------------------------- | ---------------------------------------------------------- |
-| A random turn id                                         | Your prompts or Claude's answers                           |
-| How long the turn took                                   | Code, diffs or file contents                               |
-| `gitPushOk`: did a `git push` succeed? (yes/no)          | The commands that ran, or their output                     |
-| `testFailed`: did a test command fail? (yes/no)          | Paths, file names, folder or repo names                    |
-| Plugin version and generic OS (`linux`/`darwin`/`win32`) | Your user name, environment variables, Claude's session id |
-| Your session token                                       | Your GitHub token (the server throws it away after login)  |
+| Sent to the server                                                | Never sent                                            |
+| ----------------------------------------------------------------- | ----------------------------------------------------- |
+| A random turn id                                                  | Your prompts or Claude's answers                      |
+| How long the turn took                                            | Code, diffs or file contents                          |
+| `gitPushOk`: did a `git push` succeed? (yes/no)                   | The commands that ran, or their output                |
+| `testFailed`: did a test command fail? (yes/no)                   | Paths, file, folder or repo names                     |
+| Plugin version and generic OS (`linux`/`darwin`/`win32`/`other`)  | Your system user name or environment variables        |
+| Your session token, and what you type in `/bet` and confirmations | Claude Code's session id, or your GitHub token (ever) |
 
-The two yes/no flags are computed **on your machine** from the Bash commands, which are then forgotten. The server stores your GitHub id, login and avatar, your fake games and the hash of your session tokens. No analytics, no ads, no tracking cookies: one session cookie. Your IP is not stored and never written to logs. Data lives on a server in the EU.
+- The two yes/no flags are computed **on your machine** from the Bash commands, which are then forgotten.
+- The server stores your GitHub id, login and avatar URL, your settings, your fake games, loans and achievements, and the **hash** of your session tokens. Not the plugin version or OS (checked and dropped), not whether your window is visible (memory only, while connected), not your IP (a minute in memory for rate limiting; never in the logs).
+- No analytics, no ads, no tracking cookies: one session cookie. Data lives on a server in the EU.
+- Delete everything, right now, with `/vibe-delete-account <your-login>`.
 
-Delete everything with `/vibe-delete-account <your-login>`. Full policy: [docs/PRIVACIDAD.md](docs/PRIVACIDAD.md) (EN/ES) and [vibe.aimar.dev/privacy](https://vibe.aimar.dev/privacy).
+Full policy: [docs/PRIVACIDAD.md](docs/PRIVACIDAD.md#english) and [vibe.aimar.dev/privacy](https://vibe.aimar.dev/privacy).
 
 ## Self-hosting
 
-Run your own casino for your team: Docker Compose with Postgres and an optional Caddy with automatic HTTPS, your own GitHub OAuth App, and `/vibe-server https://your.domain` in Claude Code. See [docs/SELF-HOSTING.md](docs/SELF-HOSTING.md).
+Run your own casino for your team: Docker Compose with Postgres (and an optional Caddy with automatic HTTPS), your own GitHub OAuth App, and `/vibe-server https://your.domain` in Claude Code. Every rule of the house (balance, chips, APR, jackpot, caps, season time zone) is a line in `config/game.json`. Step by step: [docs/SELF-HOSTING.md](docs/SELF-HOSTING.md).
 
 ## Under the hood
 
-A shitpost on the outside; on the inside, a TypeScript monorepo you can read:
-
-- **`packages/shared`**: the contract. Every HTTP and WebSocket message is a zod schema, validated on both ends; pure roulette logic with ≥ 95 % coverage and property tests (fast-check).
-- **`packages/server`**: Fastify + WebSocket + Drizzle/Postgres. The only authority: crypto RNG, money operations in transactions with row locks (tested with 150 concurrent bets), idempotent turns, GitHub Device Flow brokered by the server, monthly seasons with a DB-locked job, strict CSP, rate limits, logs without personal data.
-- **`packages/web`**: Vite + Three.js with a hand-made PS1 pipeline: 320×240 framebuffer, vertex snapping, affine texture warping, 15-bit color with dithering, fog, CRT filter, an invented boot screen and memory card, synthesized sounds. Respects `prefers-reduced-motion`.
-- **`packages/mod`**: the Claude Code plugin. No dependencies, never blocks a turn, tested on Linux, macOS and Windows.
-- Nothing configurable is hardcoded: environment variables and `config/*.json`, validated at startup.
-
-Docs: [architecture](docs/ARQUITECTURA.md) · [protocol](docs/PROTOCOLO.md) (generated and checked from the schemas) · [deployment](docs/DESPLIEGUE.md) · [decisions](docs/DECISIONES.md). (The docs are in Spanish; the code is in English.)
-
-## Contributing
-
-Contributions welcome, especially:
-
-- **New gambler phrases** (in any of the four languages) in [`locales/<language>/phrases.json`](locales/README.md), or with the _New funny phrase_ issue template. Jokes about fake gambling addiction and dev culture; never about real people or anyone's real addiction.
-- **Translations** of the window and the plugin.
-- **Shaders** and anything that makes it look more like 1997.
-
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/Aimarmndz/vibe-gambling?quickstart=1)
-
-The dev container (Codespaces or VS Code Dev Containers) comes with Node, pnpm, Docker and the Playwright browsers ready. Read [CONTRIBUTING.md](CONTRIBUTING.md) first. Every commit needs a `Signed-off-by` line ([DCO](https://developercertificate.org/), `git commit -s`). Be nice: [Code of Conduct](CODE_OF_CONDUCT.md). Security issues go through [SECURITY.md](SECURITY.md), never public issues.
+A shitpost on the outside, a TypeScript monorepo you can read on the inside: `shared` (the contract as zod schemas and the pure roulette logic), `server` (Fastify + WebSocket + Drizzle/Postgres, the only authority), `web` (Vite + Three.js with a hand-made PS1 pipeline) and `mod` (the Claude Code plugin, no dependencies).<br>
+Nothing configurable is hardcoded. How it fits together: [architecture](docs/ARQUITECTURA.md) · [protocol](docs/PROTOCOLO.md) · [deployment](docs/DESPLIEGUE.md) · [decisions](docs/DECISIONES.md) (the docs are in Spanish; the code is in English).
 
 ## Releases
 
-One version for everything (plugin, server, web and Docker image), following [SemVer](https://semver.org/); `0.x` while the protocol may still change. Each [GitHub Release](https://github.com/Aimarmndz/vibe-gambling/releases) ships the plugin as a zip, the server as a tarball for Node.js without Docker, an SPDX SBOM and `SHA256SUMS`, with build provenance attestations you can check with `gh attestation verify`; the multi-arch image goes to `ghcr.io/aimarmndz/vibe-gambling`. What changed: [CHANGELOG.md](CHANGELOG.md). How a release is cut and verified: [docs/RELEASING.md](docs/RELEASING.md).
+One version for everything (plugin, server, web and Docker image), [SemVer](https://semver.org/), `0.x` while the protocol may still change. Each [GitHub Release](https://github.com/Aimarmndz/vibe-gambling/releases) ships the plugin as a zip, the server as a tarball for Node.js without Docker, an SPDX SBOM and `SHA256SUMS`, with build provenance you can check with `gh attestation verify`; the multi-arch image goes to `ghcr.io/aimarmndz/vibe-gambling`. What changed: [CHANGELOG.md](CHANGELOG.md). How a release is cut and verified: [docs/RELEASING.md](docs/RELEASING.md).
+
+## Contributing
+
+The house always wants more:
+
+- **Gambler phrases**, in any of the four languages, in [`locales/<language>/phrases.json`](locales/README.md) or with the _New funny phrase_ issue template. Jokes about fake gambling addiction and dev culture; never about people, groups, or anyone's real addiction.
+- **Languages**: copy `locales/en`, translate it, draw the flag in pixel art. [Step by step](locales/README.md#add-a-language).
+- **Shaders** and anything that makes it look more like 1997.
+
+Read [CONTRIBUTING.md](CONTRIBUTING.md) first. Every commit needs a `Signed-off-by` line ([DCO](https://developercertificate.org/), `git commit -s`). Be nice: [Code of Conduct](CODE_OF_CONDUCT.md). Security issues go through [SECURITY.md](SECURITY.md), never public issues.
+
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/Aimarmndz/vibe-gambling?quickstart=1)
+
+The dev container (Codespaces or VS Code Dev Containers) comes with Node, pnpm, Docker and the Playwright browsers ready.
 
 ## More from Aimar
 
-This is the joke. These are not:
+This is the joke. This is not:
 
-- **[scan2nas](https://github.com/Aimarmndz/scan2nas)**: Preset-based document scanning for Epson scanners on Linux, straight to your NAS (CLI + Qt app).
+- **[scan2nas](https://github.com/Aimarmndz/scan2nas)**: preset-based document scanning for Epson scanners on Linux, straight to your NAS (CLI + Qt app).
 
 More on [github.com/Aimarmndz](https://github.com/Aimarmndz).
 
 ## Credits and license
 
-Created by **Aimar** ([github.com/Aimarmndz](https://github.com/Aimarmndz)). Every texture, model and sound is made for this project, in code; the bitmap font (Polygone 12) is hand-drawn and released under the OFL. Details in [ASSETS.md](ASSETS.md). Built with [Three.js](https://threejs.org/), [Fastify](https://fastify.dev/), [Drizzle](https://orm.drizzle.team/) and [zod](https://zod.dev/).
+Created by **Aimar** ([github.com/Aimarmndz](https://github.com/Aimarmndz)). The logo, textures, models, flags and sounds are made for this project, in code; the bitmap font (Polygone 12) is hand-drawn and released under the OFL. Details in [ASSETS.md](ASSETS.md). Built with [Three.js](https://threejs.org/), [Fastify](https://fastify.dev/), [Drizzle](https://orm.drizzle.team/) and [zod](https://zod.dev/).
 
 Licensed under the **GNU AGPL-3.0-or-later** with an additional term under section 7(b): modified versions must keep the attribution "Created by Aimar (github.com/Aimarmndz)" in the footer and the boot screen. See [LICENSE](LICENSE).
 
+### Trademarks
+
 **Not affiliated with Anthropic or Sony Interactive Entertainment.** "Claude", "Claude Code", "PlayStation" and "PS1" are mentioned only to describe what this is (a plugin for Claude Code with PS1-style graphics); they are trademarks of their owners. The console in the boot screen is made up.
 
-<sub>If gambling stops being a joke for you or someone close to you, real help exists: [BeGambleAware](https://www.begambleaware.org/) · [GamCare](https://www.gamcare.org.uk/) · [jugarbien.es](https://www.jugarbien.es/) · [FEJAR](https://www.fejar.org/).</sub>
-
----
-
-## Español
-
-**🎰 Cada prompt es una tirada.** Una ruleta estilo PS1 que aparece mientras Claude Code piensa. Monedas falsas, adicción real (que no). Ranking global de los devs más arruinados.
-
-### Solo monedas falsas. Aquí no se apuesta nada real.
-
-Sin compras, sin dinero real y sin enlaces a casas de apuestas. Nunca.
-
-### Instalación
-
-En una sesión de Claude Code en la terminal:
-
-```text
-/plugin install vibe-gambling --marketplace Aimarmndz/vibe-gambling
-```
-
-Claude Code pregunta **`Add marketplace?`** para `github:Aimarmndz/vibe-gambling`: responde `y`. Elige el ámbito (el de usuario es el primero: Intro), revisa las opciones del plugin (servidor, apertura automática, idioma…; las de por defecto valen) y verás `Installed vibe-gambling. Plugin is now active.`
-
-Después, siéntate a la mesa:
-
-```text
-/vibe-login
-```
-
-Te enseña un código de GitHub (`🎰 Ve a https://github.com/login/device y escribe XXXX-XXXX`): escríbelo, autoriza y listo. Manda cualquier prompt: se abre la ventana y la ruleta gira mientras Claude trabaja. Cuando termina, cae la bola.
-
-- Hace falta un navegador. Con Chrome, Chromium, Brave, Edge o Vivaldi la ventana se abre como una app sin barras (960×720); si no, en tu navegador por defecto.
-- Linux, macOS y Windows. El plugin no tiene dependencias y nunca ralentiza un turno: todas las peticiones van en segundo plano con un timeout de 1,5 s, y si el casino está caído solo verás `🎰 offline` en la barra de estado.
-- El login de GitHub **no pide ningún permiso**: solo tu perfil público.
-- El plugin habla en el idioma de tu sistema (o el que elijas en sus opciones) y la ventana en el de tu navegador.
-
-### Cómo se juega
-
-No hay botón de girar: **tus prompts son las tiradas**. Cada turno abre una ronda; cuando Claude termina, el servidor tira la ruleta y paga (o no) tus apuestas. Puedes apostar en la ventana (ratón, teclado o mando) o desde Claude Code.
-
-**¿Ventana cerrada? Tiradas pendientes.** Si cuando Claude termina no hay ninguna ventana del juego abierta y a la vista (cerrada, o en una pestaña de fondo), la tirada no se pierde: se guarda como **tirada pendiente**, con el jackpot del `git push` y la frase de los tests de ese turno. Claude Code te lo dice en un toast y en la status line (`🎰 750 🪙 · 20 pendientes`). Al abrir la ventana te avisa y el HUD lleva la cuenta: **GIRAR** (`G` o SELECT) juega una con la animación normal y **GIRAR TODAS** las juega seguidas con una animación rápida y se para sola en un premio gordo, en el verde o en bancarrota (o cuando pulsas ○). El servidor tira cada una cuando la gastas, y es entonces cuando cuentan para el ranking. Hasta 100 por temporada (las que sobran se descartan con una broma); caducan al acabar la temporada.
-
-| Comando                        | Alias      | Qué hace                                                                          |
-| ------------------------------ | ---------- | --------------------------------------------------------------------------------- |
-| `/roulette`                    | `/ruleta`  | Abre la ventana                                                                   |
-| `/bet <cantidad> <casilla>`    | `/apostar` | Apuesta en la tirada actual o en la siguiente (`/apostar 50 17`, `/bet 200 rojo`) |
-| `/all-in [casilla]`            |            | Todo tu saldo (al rojo por defecto)                                               |
-| `/balance`                     | `/saldo`   | Saldo, deuda, patrimonio y puesto                                                 |
-| `/vibe-login` · `/vibe-logout` |            | Entrar con GitHub · cerrar sesión                                                 |
-| `/vibe-hide` · `/vibe-show`    |            | Ocultarte del ranking público · volver a salir                                    |
-| `/vibe-server [url\|default]`  |            | Ver o cambiar de servidor (self-hosting)                                          |
-| `/vibe-delete-account <login>` |            | Borrar tu cuenta y todos tus datos                                                |
-
-**Casillas** de `/bet`: `rojo`/`red`, `negro`/`black`, `par`/`even`, `impar`/`odd`, `falta`/`1-18`, `pasa`/`19-36`, `1a12`/`2a12`/`3a12` (o `docena1`…), `columna1`/`col1`…, un número (`17`) o números vecinos (`8-9`, `1-2-3`, `8-9-11-12`, `1-2-3-4-5-6`). Cantidades en monedas enteras o `all-in` (o `todo`).
-
-**Ruleta europea** (37 casillas en el orden real del cilindro) con los pagos oficiales: pleno 35:1, caballo 17:1, transversal 11:1, cuadro 8:1, seisena 5:1, docena y columna 2:1, y rojo/negro, par/impar, falta/pasa 1:1. Con el 0 pierden todas las sencillas (sin _la partage_).
-
-**Las reglas de la casa** (valores de la instancia oficial, en [`config/game.json`](config/game.json)):
-
-- Cada temporada empiezas con **1.000 monedas**. Fichas: 10, 50, 100, 500, 1.000 y ALL-IN.
-- **¿No has apostado?** Se repite tu última apuesta. ¿Nunca has apostado? Tu subconsciente pone 10 al rojo.
-- **Ludo-Crédito Express**: ¿sin blanca? La ventana te ofrece un préstamo de 1.000 monedas con una **TAE del 4.200 %**. La deuda crece un 2 % en cada tirada. Préstamos ilimitados. Lee la letra pequeña.
-- **Patrimonio neto** = saldo − deuda. Puede ser muy negativo. De eso va.
-- **Jackpot dev**: si en el turno hubo un `git push` con éxito, tus ganancias pagan **×2**. _Push to prod = bonus._
-- Si falla un comando de tests, frase de consuelo. ¿Cinco rojos seguidos? La ventana te recordará que el negro TIENE que salir (no tiene: es la falacia del jugador, y ese es el chiste).
-- **Temporadas** de un mes natural (hora de Madrid). El día 1 todo el mundo vuelve a 1.000 monedas y deuda cero.
-- **Rankings** por temporada: **los más arruinados** (el estrella), **los más ricos** (por si alguien gana de verdad) y **más tiradas** (el más adicto). El top 10 de arruinados de cada temporada se queda para siempre en el **Salón de la Ruina**.
-- La bola tarda al menos ~4 s en caer aunque Claude conteste en uno. El resultado lo decide el servidor (`crypto.randomInt`), nunca tu navegador.
-
-Apareces en el ranking público por defecto (usuario, avatar y estadísticas), y se te avisa al entrar. `/vibe-hide` te hace desaparecer, también del Salón de la Ruina.
-
-### Privacidad
-
-**El plugin no sabe nada de tu trabajo**, y un test lo garantiza: intercepta cada petición del plugin y falla si lleva algo más.
-
-| Se envía al servidor                                        | No se envía nunca                                                       |
-| ----------------------------------------------------------- | ----------------------------------------------------------------------- |
-| Un identificador de turno aleatorio                         | Tus prompts ni las respuestas de Claude                                 |
-| Cuánto duró el turno                                        | Código, diffs ni contenido de archivos                                  |
-| `gitPushOk`: ¿hubo un `git push` con éxito? (sí/no)         | Las órdenes que se ejecutaron ni su salida                              |
-| `testFailed`: ¿falló un comando de tests? (sí/no)           | Rutas, nombres de archivos, carpetas o repos                            |
-| Versión del plugin y SO genérico (`linux`/`darwin`/`win32`) | Tu usuario del sistema, variables de entorno, el id de sesión de Claude |
-| Tu token de sesión                                          | Tu token de GitHub (el servidor lo tira tras el login)                  |
-
-Los dos sí/no se calculan **en tu ordenador** a partir de las órdenes de Bash, que después se olvidan. El servidor guarda tu id, usuario y avatar de GitHub, tus partidas de mentira y el hash de tus tokens de sesión. Sin analíticas, sin anuncios, sin cookies de seguimiento: una cookie de sesión. Tu IP no se guarda ni se escribe en los logs. Los datos están en un servidor de la UE.
-
-Bórralo todo con `/vibe-delete-account <tu-login>`. Política completa: [docs/PRIVACIDAD.md](docs/PRIVACIDAD.md) y [vibe.aimar.dev/privacy](https://vibe.aimar.dev/privacy).
-
-### Self-hosting
-
-Monta tu propio casino para tu equipo: Docker Compose con Postgres y, si quieres, un Caddy con HTTPS automático, tu propia OAuth App de GitHub y `/vibe-server https://tu.dominio` en Claude Code. Guía: [docs/SELF-HOSTING.md](docs/SELF-HOSTING.md). El despliegue de la instancia oficial está en [docs/DESPLIEGUE.md](docs/DESPLIEGUE.md).
-
-### Por dentro
-
-Un monorepo de TypeScript: `shared` (el contrato en zod y la lógica pura de la ruleta), `server` (Fastify, WebSocket, Drizzle/Postgres; la única autoridad), `web` (Vite + Three.js con un pipeline PS1 hecho a mano) y `mod` (el plugin de Claude Code). Nada configurable está escrito en el código. Documentación: [arquitectura](docs/ARQUITECTURA.md), [protocolo](docs/PROTOCOLO.md), [despliegue](docs/DESPLIEGUE.md) y [decisiones](docs/DECISIONES.md).
-
-### Contribuir
-
-Se agradecen sobre todo **frases nuevas de ludópata** (en cualquiera de los cuatro idiomas) en [`locales/<idioma>/phrases.json`](locales/README.md) o con la plantilla de issue _New funny phrase_; **idiomas nuevos** (copia `locales/en`, tradúcelo y dibuja su bandera); y **shaders**. Humor sobre la ludopatía de mentira y la cultura dev; nunca sobre personas reales ni adicciones de nadie. Lee [CONTRIBUTING.md](CONTRIBUTING.md): cada commit lleva `Signed-off-by` ([DCO](https://developercertificate.org/), `git commit -s`). Para empezar sin instalar nada, [ábrelo en GitHub Codespaces](https://codespaces.new/Aimarmndz/vibe-gambling?quickstart=1): el devcontainer trae Node, pnpm, Docker y los navegadores de Playwright.
-
-### Versiones
-
-Una sola versión para todo (plugin, servidor, web e imagen), con [SemVer](https://semver.org/lang/es/) y `0.x` mientras el protocolo pueda cambiar. Cada [release](https://github.com/Aimarmndz/vibe-gambling/releases) trae el plugin en zip, el servidor en tar.gz para Node.js sin Docker, un SBOM SPDX y `SHA256SUMS`, con atestaciones de procedencia; la imagen multi-arquitectura va a `ghcr.io/aimarmndz/vibe-gambling`. Los cambios, en el [CHANGELOG](CHANGELOG.md); cómo se publica y se verifica una versión, en [docs/RELEASING.md](docs/RELEASING.md).
-
-### Más de Aimar
-
-Esto es la broma. Esto no:
-
-- **[scan2nas](https://github.com/Aimarmndz/scan2nas)**: escaneo de documentos con perfiles para escáneres Epson en Linux, directo a tu NAS (CLI + app Qt).
-
-Más en [github.com/Aimarmndz](https://github.com/Aimarmndz).
-
-### Créditos y licencia
-
-Hecho por **Aimar** ([github.com/Aimarmndz](https://github.com/Aimarmndz)). Texturas, modelos y sonidos hechos para el proyecto, en código; la fuente bitmap (Polygone 12) está dibujada a mano y es OFL ([ASSETS.md](ASSETS.md)).
-
-Licencia **GNU AGPL-3.0-or-later** con un término adicional del apartado 7(b): las versiones modificadas tienen que conservar la atribución "Created by Aimar (github.com/Aimarmndz)" en el pie y en la pantalla de arranque. Ver [LICENSE](LICENSE).
-
-**Sin relación con Anthropic ni con Sony Interactive Entertainment.** "Claude", "Claude Code", "PlayStation" y "PS1" se mencionan solo para describir qué es esto; son marcas de sus dueños. La consola del arranque es inventada.
-
-<sub>Si el juego deja de ser una broma para ti o para alguien cercano, hay ayuda de verdad: [jugarbien.es](https://www.jugarbien.es/) · [FEJAR](https://www.fejar.org/) · [BeGambleAware](https://www.begambleaware.org/).</sub>
+<sub>If gambling stops being a joke for you or someone close to you, real help exists: [BeGambleAware](https://www.begambleaware.org/) · [GamCare](https://www.gamcare.org.uk/).</sub>
