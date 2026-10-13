@@ -76,9 +76,18 @@ export class ProgressRequests {
     if (msg.type === 'stats') return this.settle('stats', msg.stats)
     if (msg.type === 'bank') return this.settle('bank', msg.bank)
     // Una temporada en la que no jugó responde `not_found`; solo puede ser de una petición con
-    // temporada explícita (la en curso siempre existe).
+    // temporada explícita (la en curso siempre existe). El servidor dice a qué mensaje responde
+    // (`re`): un `not_found` de `spin.pending` (GIRAR TODAS) no es de estas pantallas.
     if (msg.type === 'error' && msg.error === 'not_found') {
-      for (const kind of ['stats', 'bank'] as const) {
+      const kinds: ProgressKind[] =
+        msg.re === 'stats.request'
+          ? ['stats']
+          : msg.re === 'bank.request'
+            ? ['bank']
+            : msg.re === undefined
+              ? ['stats', 'bank']
+              : []
+      for (const kind of kinds) {
         const list = this.waiting[kind]
         const i = list.findIndex(w => w.seasonId !== undefined)
         if (i >= 0) {

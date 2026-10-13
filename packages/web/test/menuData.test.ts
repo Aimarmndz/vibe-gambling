@@ -227,6 +227,19 @@ describe('peticiones de estadísticas y banco', () => {
     const offline = new ProgressRequests(() => false, 1000)
     await expect(offline.request('bank')).rejects.toMatchObject({ reason: 'offline' })
   })
+
+  it('un not_found de GIRAR TODAS no se toma por la respuesta de una temporada pedida', async () => {
+    const req = new ProgressRequests(() => true, 1000)
+    const past = req.request('stats', '2025-01')
+    const spinError = msg({ type: 'error', error: 'not_found', message: 'x', re: 'spin.pending' })
+    expect(req.receive(spinError)).toBe(false)
+    expect(req.busy).toBe(true)
+    const bankError = msg({ type: 'error', error: 'not_found', message: 'x', re: 'bank.request' })
+    expect(req.receive(bankError)).toBe(false)
+    const statsError = msg({ type: 'error', error: 'not_found', message: 'x', re: 'stats.request' })
+    expect(req.receive(statsError)).toBe(true)
+    await expect(past).rejects.toMatchObject({ reason: 'not_found' })
+  })
 })
 
 describe('demo: estadísticas, banco y logros', () => {

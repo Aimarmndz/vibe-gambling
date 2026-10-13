@@ -437,7 +437,7 @@ export class Game implements AppContext {
   // ------------------------------------------------------------------ tiradas pendientes
 
   spinPending(): boolean {
-    return this.requestPendingSpin(false)
+    return this.requestPendingSpin(false) !== null
   }
 
   spinAllPending(): boolean {
@@ -464,14 +464,16 @@ export class Game implements AppContext {
   }
 
   /** Pide gastar una tirada pendiente. El servidor la tira y llega como cualquier ronda. */
-  private requestPendingSpin(quick: boolean): boolean {
+  /** Pide gastar una tirada pendiente. Devuelve su `requestId` o null si no se pudo mandar. */
+  private requestPendingSpin(quick: boolean): string | null {
     if (!canSpinPending(this.game)) {
       this.refusePendingSpin()
-      return false
+      return null
     }
-    const ok = this.send({ type: 'spin.pending', quick, requestId: crypto.randomUUID() })
+    const requestId = crypto.randomUUID()
+    const ok = this.send({ type: 'spin.pending', quick, requestId })
     if (ok && !quick) this.sfx.play('accept')
-    return ok
+    return ok ? requestId : null
   }
 
   private refusePendingSpin(): void {
@@ -484,7 +486,9 @@ export class Game implements AppContext {
     const step = this.spinLoop.next(this.game, Date.now())
     if (step.ended) this.onSpinAllEnd(step.ended)
     if (!step.spin) return
-    if (!this.requestPendingSpin(true)) this.onSpinAllEnd(this.spinLoop.stop('error'))
+    const id = this.requestPendingSpin(true)
+    if (id) this.spinLoop.sent(id)
+    else this.onSpinAllEnd(this.spinLoop.stop('error'))
   }
 
   private onSpinAllEnd(reason: SpinAllEnd | null): void {
@@ -568,7 +572,7 @@ export class Game implements AppContext {
     // Logros: mientras cae la bola (también si el `hello` de una reconexión la deja cayendo) se
     // apartan hasta enseñar el resultado; el menú abierto no puede destripar la tirada.
     this.book.receive(msg, this.game.phase === 'landing')
-    if (msg.type === 'round.resolved') this.spinLoop.resolved()
+    if (msg.type === 'round.resolved') this.spinLoop.resolved(msg.requestId)
     // Los logros se encolan: el aviso sale cuando la bola ya ha caído (nunca destripa nada).
     if (msg.type === 'achievement.unlocked') this.fx.achievement(msg.achievement)
     // Primera ficha sin ronda abierta: se explica que se jugará con el próximo prompt.
@@ -648,9 +652,10 @@ export class Game implements AppContext {
       case 'rejected':
       case 'error': {
         if (this.loanScreen && !this.loanScreen.granting) this.pop(this.loanScreen)
-        if (effect.type === 'error' && this.spinLoop.active) {
+        const forSpin = effect.type === 'error' && (effect.re ?? 'spin.pending') === 'spin.pending'
+        if (forSpin && this.spinLoop.active) {
           // Un `rate_limited` en GIRAR TODAS solo retrasa la siguiente: no merece un aviso.
-          const end = this.spinLoop.failed(effect.error, Date.now())
+          const end = this.spinLoop.failed(effect.error, Date.now(), effect.re)
           if (!end) return
           if (end === 'empty') {
             this.onSpinAllEnd(end)

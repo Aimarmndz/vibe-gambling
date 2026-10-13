@@ -29,6 +29,8 @@ export class SpinAllLoop {
   private running = false
   /** Hay un `spin.pending` en vuelo: se espera a su `round.resolved` (o a un error). */
   private waiting = false
+  /** `requestId` del `spin.pending` en vuelo: solo su `round.resolved` cuenta como respuesta. */
+  private waitingId: string | null = null
   private spun = 0
   private ended: SpinAllEnd | null = null
 
@@ -61,6 +63,7 @@ export class SpinAllLoop {
     if (!this.running) return null
     this.running = false
     this.waiting = false
+    this.waitingId = null
     this.ended = reason
     return reason
   }
@@ -79,11 +82,21 @@ export class SpinAllLoop {
     return { spin: true, ended: null }
   }
 
-  /** El servidor ha resuelto la tirada pedida (`round.resolved`). */
-  resolved(): void {
-    if (!this.running) return
+  /** Se ha mandado el `spin.pending` que pidió `next()`, con este `requestId`. */
+  sent(requestId: string): void {
+    if (this.running && this.waiting) this.waitingId = requestId
+  }
+
+  /**
+   * Ha llegado un `round.resolved`. Solo cuenta si es la respuesta a la tirada pedida (mismo
+   * `requestId`): la de otra ventana o la de un prompt en directo no. Devuelve si era la suya.
+   */
+  resolved(requestId?: string): boolean {
+    if (!this.running || !this.waiting || requestId !== this.waitingId) return false
     this.waiting = false
+    this.waitingId = null
     this.spun += 1
+    return true
   }
 
   /**
@@ -99,12 +112,17 @@ export class SpinAllLoop {
 
   /**
    * El servidor rechazó la petición. `rate_limited` (la bola anterior aún rodaba por un desfase
-   * de reloj) no para el bucle: se vuelve a pedir pasado `retryMs`. Cualquier otro error, sí.
+   * de reloj) y `conflict` (la ruleta estaba ocupada por otra tirada) no paran el bucle: se
+   * vuelve a pedir pasado `retryMs`. Cualquier otro error, sí.
    */
-  failed(code: string, nowMs: number): SpinAllEnd | null {
-    if (!this.running) return null
+  failed(code: string, nowMs: number, re?: string): SpinAllEnd | null {
+    // Un error de otro mensaje (p. ej. el `not_found` de una temporada pedida en ESTADÍSTICAS) no
+    // es la respuesta de esta tirada.
+    if (!this.running || (re !== undefined && re !== 'spin.pending')) return null
     this.waiting = false
-    if (code === 'rate_limited') {
+    this.waitingId = null
+    // `conflict`: otra ventana o un prompt en directo ocupa la ruleta; se reintenta igual.
+    if (code === 'rate_limited' || code === 'conflict') {
       this.retryAt = nowMs + this.retryMs
       return null
     }

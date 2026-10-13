@@ -146,13 +146,15 @@ describe('GIRAR TODAS', () => {
     expect(loop.start(state)).toBe(true)
     expect(loop.start(state)).toBe(false)
     expect(loop.next(state, NOW)).toEqual({ spin: true, ended: null })
+    loop.sent('req-1')
     // En vuelo: no pide otra.
     expect(loop.next(state, NOW)).toEqual({ spin: false, ended: null })
-    loop.resolved()
+    expect(loop.resolved('req-1')).toBe(true)
     state = spend(state, lose())
     expect(loop.revealed(lose(), wallet({ balance: 495 }))).toBeNull()
     expect(loop.next(state, NOW)).toEqual({ spin: true, ended: null })
-    loop.resolved()
+    loop.sent('req-2')
+    expect(loop.resolved('req-2')).toBe(true)
     state = spend(state, lose(ROUND_ID_2))
     expect(loop.revealed(lose(ROUND_ID_2), wallet({ balance: 490 }))).toBeNull()
     expect(pendingSpins(state)).toBe(0)
@@ -168,7 +170,8 @@ describe('GIRAR TODAS', () => {
     const loop = new SpinAllLoop(RULES, 400)
     loop.start(hello(5))
     loop.next(hello(5), NOW)
-    loop.resolved()
+    loop.sent('req-1')
+    loop.resolved('req-1')
     // Pleno al 17 (fixture): premio gordo.
     expect(loop.revealed(resolved(), wallet({ balance: 1375 }))).toBe('bigWin')
     expect(loop.status()).toMatchObject({ running: false, ended: 'bigWin' })
@@ -225,7 +228,42 @@ describe('GIRAR TODAS', () => {
 
     loop.start(state)
     loop.next(state, NOW)
-    expect(loop.failed('conflict', NOW)).toBe('error')
+    expect(loop.failed('invalid_request', NOW)).toBe('error')
+  })
+
+  it('conflict (la ruleta ocupada por otra tirada) se reintenta como rate_limited', () => {
+    const loop = new SpinAllLoop(RULES, 400)
+    const state = hello(5)
+    loop.start(state)
+    loop.next(state, NOW)
+    expect(loop.failed('conflict', NOW)).toBeNull()
+    expect(loop.active).toBe(true)
+    expect(loop.next(state, NOW + 400).spin).toBe(true)
+  })
+
+  it('solo cuenta su propia tirada: la de otra ventana o un prompt en directo no', () => {
+    const loop = new SpinAllLoop(RULES, 400)
+    const state = hello(5)
+    loop.start(state)
+    loop.next(state, NOW)
+    loop.sent('mine')
+    expect(loop.resolved()).toBe(false)
+    expect(loop.resolved('other-window')).toBe(false)
+    // Sigue esperando la suya: no pide una segunda.
+    expect(loop.next(state, NOW).spin).toBe(false)
+    expect(loop.resolved('mine')).toBe(true)
+    expect(loop.status().spun).toBe(1)
+  })
+
+  it('un error de otro mensaje (p. ej. ESTADÍSTICAS) no para ni cuelga el bucle', () => {
+    const loop = new SpinAllLoop(RULES, 400)
+    const state = hello(5)
+    loop.start(state)
+    loop.next(state, NOW)
+    loop.sent('mine')
+    expect(loop.failed('not_found', NOW, 'stats.request')).toBeNull()
+    expect(loop.active).toBe(true)
+    expect(loop.failed('not_found', NOW, 'spin.pending')).toBe('empty')
   })
 })
 

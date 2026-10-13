@@ -150,8 +150,9 @@ export async function wsRoutes(app: FastifyInstance, options: WsOptions): Promis
 function errorMessage(
   error: Extract<ServerMessage, { type: 'error' }>['error'],
   message: string,
+  re?: ClientMessage['type'],
 ): ServerMessage {
-  return { v: V, type: 'error', error, message }
+  return re ? { v: V, type: 'error', error, message, re } : { v: V, type: 'error', error, message }
 }
 
 function parseMessage(data: RawData, isBinary: boolean): ClientMessage | 'mismatch' | null {
@@ -243,6 +244,7 @@ async function handle(
             type: 'round.resolved',
             round: spent.round,
             wallet: spent.wallet,
+            requestId: message.requestId,
           })
         }
         return
@@ -279,7 +281,7 @@ async function handle(
         message: error.message,
       })
     } else {
-      hub.sendTo(connection, errorMessage(error.code, error.message))
+      hub.sendTo(connection, errorMessage(error.code, error.message, message.type))
     }
   }
 }

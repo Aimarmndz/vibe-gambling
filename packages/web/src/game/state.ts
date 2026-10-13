@@ -54,7 +54,7 @@ export type Effect =
   | { type: 'slip' }
   | { type: 'loan'; amount: number }
   | { type: 'rejected'; error: string; message: string }
-  | { type: 'error'; error: string; message: string }
+  | { type: 'error'; error: string; message: string; re?: string }
   | { type: 'season'; seasonId: string }
   | { type: 'settings' }
   | { type: 'bye'; reason: 'logout' | 'account_deleted' | 'shutdown' | 'replaced' }
@@ -213,7 +213,10 @@ export function reduce(state: GameState, msg: ServerMessage, nowMs: number): Ste
     case 'bet.rejected':
       return { state, effects: [{ type: 'rejected', error: msg.error, message: msg.message }] }
     case 'error':
-      return { state, effects: [{ type: 'error', error: msg.error, message: msg.message }] }
+      return {
+        state,
+        effects: [{ type: 'error', error: msg.error, message: msg.message, re: msg.re }],
+      }
     // Logros, estadísticas y banco (fase 8): los pintan las pantallas de la v2; aquí no cambian
     // el estado de la mesa.
     case 'pong':

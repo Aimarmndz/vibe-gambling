@@ -376,7 +376,10 @@ export class GameService {
         userId,
         message: { v: V, type: 'round.started', round: this.#d.views.openRound(result.round) },
       })
-      outbox.push({ userId, message: { v: V, type: 'round.resolved', round, wallet } })
+      outbox.push({
+        userId,
+        message: { v: V, type: 'round.resolved', round, wallet, requestId: opts.requestId },
+      })
       pushUnlocked(outbox, userId, result.unlocked)
     }
     this.#flush(outbox)

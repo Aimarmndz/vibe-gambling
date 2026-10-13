@@ -83,6 +83,21 @@ export const clientMessageSchema = z.discriminatedUnion('type', [
   z.object({ v: versionSchema, type: z.literal('ping'), t: z.number().int().min(0) }).strict(),
 ])
 export type ClientMessage = z.output<typeof clientMessageSchema>
+
+/** Tipos de mensaje de la ventana (para decir a cuál responde un `error`). */
+export const clientMessageTypeSchema = z.enum([
+  'bet.place',
+  'bet.clear',
+  'loan.request',
+  'settings.update',
+  'sync',
+  'ping',
+  'presence',
+  'spin.pending',
+  'stats.request',
+  'bank.request',
+])
+export type ClientMessageType = z.output<typeof clientMessageTypeSchema>
 export type ClientMessageInput = z.input<typeof clientMessageSchema>
 
 // ---------------------------------------------------------------- servidor → cliente
@@ -113,6 +128,11 @@ export const serverMessageSchema = z.discriminatedUnion('type', [
       type: z.literal('round.resolved'),
       round: resolvedRoundSchema,
       wallet: walletSchema,
+      /**
+       * Si la ronda es la respuesta a un `spin.pending`, su `requestId`: así la ventana que lo pidió
+       * (GIRAR TODAS) no confunde su tirada con una de otra ventana o de un prompt en directo.
+       */
+      requestId: spinRequestIdSchema.optional(),
     })
     .strict(),
   z.object({ v: versionSchema, type: z.literal('round.expired'), roundId: z.uuid() }).strict(),
@@ -178,6 +198,11 @@ export const serverMessageSchema = z.discriminatedUnion('type', [
       type: z.literal('error'),
       error: errorCodeSchema,
       message: z.string().max(500),
+      /**
+       * Tipo del mensaje de la ventana que lo causó (si lo causó uno): sin él, un `not_found` de
+       * `spin.pending` y el de una temporada pedida en `stats.request` serían indistinguibles.
+       */
+      re: clientMessageTypeSchema.optional(),
     })
     .strict(),
   z.object({ v: versionSchema, type: z.literal('pong'), t: z.number().int().min(0) }).strict(),

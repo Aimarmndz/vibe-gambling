@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   clientMessageSchema,
+  clientMessageTypeSchema,
   isOtherProtocolVersion,
   leaderboardQuerySchema,
   logoutRequestSchema,
@@ -91,5 +92,33 @@ describe('protocolo', () => {
       season: '2026-10',
     })
     expect(leaderboardQuerySchema.safeParse({ limit: 1000 }).success).toBe(false)
+  })
+})
+
+describe('correlación de respuestas por WebSocket', () => {
+  it('la lista de tipos de la ventana coincide con los mensajes del cliente', () => {
+    const fromUnion = clientMessageSchema.options.map(o => o.shape.type.value).sort()
+    expect([...clientMessageTypeSchema.options].sort()).toEqual(fromUnion)
+  })
+
+  it('error.re y round.resolved.requestId son opcionales y validados', () => {
+    expect(
+      serverMessageSchema.safeParse({
+        v: 1,
+        type: 'error',
+        error: 'not_found',
+        message: 'x',
+        re: 'spin.pending',
+      }).success,
+    ).toBe(true)
+    expect(
+      serverMessageSchema.safeParse({
+        v: 1,
+        type: 'error',
+        error: 'not_found',
+        message: 'x',
+        re: 'nope',
+      }).success,
+    ).toBe(false)
   })
 })

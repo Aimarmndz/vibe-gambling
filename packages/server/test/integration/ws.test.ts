@@ -198,6 +198,8 @@ describe('WebSocket', () => {
     const resolved = await client.next('round.resolved')
     expect(resolved.round.roundId).toBe(started.round.roundId)
     expect(resolved.wallet).toMatchObject({ pendingSpins: 1, spins: 1 })
+    // La respuesta lleva su requestId: GIRAR TODAS no la confunde con otra tirada.
+    expect(resolved.requestId).toBe(requestId)
     await client.next('achievement.unlocked')
     const order = client.messages.map(m => m.type)
     expect(order.slice(-3)).toEqual(['round.started', 'round.resolved', 'achievement.unlocked'])
@@ -209,15 +211,22 @@ describe('WebSocket', () => {
       const replay = await client.next('round.resolved')
       expect(replay.round.roundId).toBe(resolved.round.roundId)
       expect(replay.wallet.pendingSpins).toBe(1)
+      expect(replay.requestId).toBe(requestId)
 
       // Otro GIRAR sin dejar caer la bola anterior: rate_limited.
       client.send({ v: 1, type: 'spin.pending', quick: true, requestId: 'spin-ws-0002' })
       await client.next('round.resolved')
       client.send({ v: 1, type: 'spin.pending', quick: true, requestId: 'spin-ws-0003' })
-      expect((await client.next('error')).error).toBe('rate_limited')
+      expect(await client.next('error')).toMatchObject({
+        error: 'rate_limited',
+        re: 'spin.pending',
+      })
       t.clock.advance(t.config.game.pendingSpins.quickSpinMs)
       client.send({ v: 1, type: 'spin.pending', quick: true, requestId: 'spin-ws-0004' })
-      expect((await client.next('error')).error).toBe('not_found')
+      // El error dice a qué mensaje responde (no se confunde con el de una temporada pedida).
+      expect(await client.next('error')).toMatchObject({ error: 'not_found', re: 'spin.pending' })
+      client.send({ v: 1, type: 'stats.request', seasonId: '1999-01' })
+      expect(await client.next('error')).toMatchObject({ error: 'not_found', re: 'stats.request' })
 
       // Visible otra vez: en directo.
       client.send({ v: 1, type: 'presence', visible: true })
