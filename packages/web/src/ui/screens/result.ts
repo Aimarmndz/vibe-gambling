@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Resultado: número y color en grande, ganancia o pérdida, frase de ludópata y avisos extra
-// (jackpot "push to prod = bonus", racha de color, tests fallidos, apuesta automática).
+// (jackpot "push to prod = bonus" con su cuenta, racha de color, tests fallidos, apuesta
+// automática). Las animaciones de espectáculo (render/fx) van antes o después de esta pantalla.
 import type { AppContext, Screen } from '../../app/context.ts'
 import type { ActionEvent } from '../../app/input.ts'
 import { drawText, printable, wrap } from '../../font/bitmap.ts'
@@ -112,8 +113,14 @@ export class ResultScreen implements Screen {
       noBet: 'result.noBet',
     } as const
     const color = v.net > 0 ? PALETTE.win : v.net < 0 ? PALETTE.loss : PALETTE.cream
-    drawText(g, tr.t(verdictKey[v.verdict]), 160, 104, {
-      color: PALETTE.muted,
+    // Con jackpot, la cuenta del bonus: "GANAS · +100 · ×2" y debajo el total (sb-push.png).
+    const multiplier = this.ctx.web.game.jackpot.gitPushMultiplier
+    const verdict =
+      v.jackpot && v.jackpotBase !== null && v.net > 0
+        ? `${tr.t(verdictKey[v.verdict])} · ${tr.signed(v.jackpotBase)} · ×${multiplier}`
+        : tr.t(verdictKey[v.verdict])
+    drawText(g, verdict, 160, 104, {
+      color: v.jackpot ? PALETTE.gold : PALETTE.muted,
       align: 'center',
       shadow: PALETTE.ink,
     })

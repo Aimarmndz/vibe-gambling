@@ -12,7 +12,7 @@ import { chipLabel, describePayout, describeSelection } from '../../game/describ
 import { idleStatusKey, spinHelpOnRepeat, tableHelpKey } from '../../game/hints.ts'
 import { INITIAL_CURSOR, hitTest, moveCursor } from '../../game/layout.ts'
 import { pendingSpins } from '../../game/state.ts'
-import { BumpCounter } from '../counter.ts'
+import { Odometer } from '../../render/fx/odometer.ts'
 import type { Point } from '../../game/layout.ts'
 import { drawChipIcon, drawWindow } from '../draw.ts'
 import { CHIP_COLORS, PALETTE } from '../palette.ts'
@@ -40,12 +40,19 @@ export class TableScreen implements Screen {
   private readonly ctx: AppContext
   private readonly host: TableHost
   /** Contador de tiradas pendientes del HUD (bota al sumar y al gastar). */
-  private readonly pendingCounter: BumpCounter
+  private readonly pendingCounter: Odometer
 
   constructor(ctx: AppContext, host: TableHost) {
     this.ctx = ctx
     this.host = host
-    this.pendingCounter = new BumpCounter(ctx.client.ui.counterBumpMs, ctx.reducedMotion)
+    this.pendingCounter = new Odometer(
+      {
+        rollMs: ctx.client.fx.pending.rollMs,
+        floatMs: ctx.client.fx.pending.floatMs,
+        budgetMs: ctx.client.ui.counterBumpMs,
+      },
+      ctx.reducedMotion,
+    )
     // Por defecto, la ficha más pequeña que no sea ridícula: la segunda si existe.
     this.chipIndex = Math.min(1, this.ctx.web.game.chips.length - 1)
   }
@@ -153,7 +160,7 @@ export class TableScreen implements Screen {
   }
 
   update(_dt: number, t: number): void {
-    this.pendingCounter.see(pendingSpins(this.ctx.state()), t)
+    this.pendingCounter.see(pendingSpins(this.ctx.state()), t * 1000)
   }
 
   /**
@@ -163,25 +170,40 @@ export class TableScreen implements Screen {
    */
   private drawPendingRow(g: CanvasRenderingContext2D, t: number, count: number): void {
     const { tr } = this.ctx
-    const look = this.pendingCounter.look(t)
+    const look = this.pendingCounter.look(t * 1000)
     const full = count >= this.ctx.web.game.pendingSpins.max
+    // Destello crema del 15 % en el panel durante un fotograma al cambiar.
+    if (look.flash) {
+      g.fillStyle = 'rgba(243,234,214,0.15)'
+      g.fillRect(222, 4, 94, 40)
+    }
     drawText(g, tr.t('hud.pending'), 228, 32, { color: PALETTE.muted, shadow: PALETTE.ink })
     const breathe = Math.floor(t) % 2 === 0
-    const color = full
-      ? breathe
-        ? PALETTE.loss
-        : PALETTE.cream
-      : look.flash
-        ? PALETTE.cream
-        : PALETTE.gold
+    const color = full ? (breathe ? PALETTE.loss : PALETTE.cream) : PALETTE.gold
     // En el tope solo el número (en rojo que respira): "100 MÁX" no cabe junto a "PENDIENTES".
-    drawText(g, tr.n(count), 310, 32 + look.dy, { color, align: 'right', shadow: PALETTE.ink })
-    if (look.delta) {
-      drawText(g, look.delta, 310, 22 - look.deltaRise, {
-        color: look.delta.startsWith('+') ? PALETTE.gold : PALETTE.loss,
+    // Odómetro: el número viejo sale y el nuevo entra, recortados a la fila (24×10 en (288, 31)).
+    const style = { color, align: 'right' as const, shadow: PALETTE.ink }
+    if (look.from === null) {
+      drawText(g, tr.n(look.to), 310, 32, style)
+    } else {
+      const off = Math.round(10 * look.k) * look.dir
+      g.save()
+      g.beginPath()
+      g.rect(286, 31, 26, 10)
+      g.clip()
+      drawText(g, tr.n(look.from), 310, 32 - off, style)
+      drawText(g, tr.n(look.to), 310, 32 - off + 10 * look.dir, style)
+      g.restore()
+    }
+    if (look.float) {
+      g.save()
+      g.globalAlpha = look.float.alpha
+      drawText(g, look.float.text, 310, 58 - look.float.rise, {
+        color: look.float.text.startsWith('+') ? PALETTE.gold : PALETTE.loss,
         align: 'right',
         shadow: PALETTE.ink,
       })
+      g.restore()
     }
     this.ctx.hits.add({
       x: 222,
@@ -219,6 +241,8 @@ export class TableScreen implements Screen {
     // Racha, tiradas y (si hay) tiradas pendientes: arriba a la derecha.
     const pending = pendingSpins(state)
     drawWindow(g, 222, 4, 94, pending > 0 ? 40 : 29)
+    // ON FIRE: llamitas detrás de la racha mientras dure (render/fx).
+    this.ctx.hudFlames?.(g)
     if (w) {
       const streak = w.currentStreak
       const streakText = streak > 0 ? `▲${streak}` : streak < 0 ? `▼${-streak}` : '–'

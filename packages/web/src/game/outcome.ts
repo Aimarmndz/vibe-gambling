@@ -22,7 +22,20 @@ export interface OutcomeView {
   extras: string[]
   /** Pago doble por `git push`. */
   jackpot: boolean
+  /**
+   * Con jackpot: lo que habría salido sin el multiplicador (para la cuenta "+100 · ×2 · +200").
+   * null sin jackpot.
+   */
+  jackpotBase: number | null
   interest: number
+}
+
+/** Neto de la ronda sin el multiplicador del jackpot (la ganancia de cada apuesta, dividida). */
+export function netWithoutJackpot(round: ResolvedRound, multiplier: number): number {
+  return round.bets.reduce(
+    (acc, b) => acc + (b.won ? Math.floor((b.payout - b.amount) / multiplier) : -b.amount),
+    0,
+  )
 }
 
 /** Recuerda la última frase de cada categoría para no repetirla seguida. */
@@ -112,6 +125,7 @@ export function describeOutcome(args: {
     phrase,
     extras: extras.slice(0, 3),
     jackpot: round.jackpot,
+    jackpotBase: round.jackpot ? netWithoutJackpot(round, game.jackpot.gitPushMultiplier) : null,
     interest: round.interestCharged,
   }
 }
