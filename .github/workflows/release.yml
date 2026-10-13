@@ -37,7 +37,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      # Sin caché: los artefactos de una release se construyen desde el registro y el lockfile,
+      # nunca desde un almacén de pnpm que haya guardado otra ejecución (envenenamiento de caché).
       - uses: ./.github/actions/setup
+        with:
+          cache: 'false'
 
       - name: La etiqueta coincide con la versión del proyecto
         run: node scripts/check-versions.ts --tag "${GITHUB_REF_NAME}"
@@ -148,8 +152,9 @@ jobs:
           annotations: ${{ steps.meta.outputs.annotations }}
           provenance: mode=max
           sbom: true
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # Sin caché de GitHub Actions: la imagen publicada no reutiliza capas que haya escrito
+          # otra ejecución (la del CI de main, por ejemplo). Tarda más, pero solo se hace al etiquetar.
+          no-cache: true
 
       - name: ¿Repo público? (las atestaciones solo existen en repos públicos)
         id: visibility

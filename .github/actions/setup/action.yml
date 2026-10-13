@@ -1,10 +1,16 @@
 # Acción compuesta común a todos los jobs: pnpm (versión de `packageManager`), Node (versión de
-# `.nvmrc`), caché del almacén de pnpm e instalación reproducible del workspace.
+# `.nvmrc`), caché del almacén de pnpm (desactivable) e instalación reproducible del workspace.
 name: Setup workspace
 description: Install pnpm and Node.js, restore the pnpm store cache and install the workspace.
 inputs:
   install:
     description: Run `pnpm install --frozen-lockfile` after setting up the tools.
+    required: false
+    default: 'true'
+  cache:
+    description: >-
+      Restore and save the pnpm store cache. Release jobs turn it off so that nothing they ship
+      can come from a cache written by another workflow run.
     required: false
     default: 'true'
 runs:
@@ -13,11 +19,11 @@ runs:
     - name: Instalar pnpm
       uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
 
-    - name: Instalar Node.js con caché de pnpm
+    - name: Instalar Node.js (con caché de pnpm salvo que se desactive)
       uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
       with:
         node-version-file: .nvmrc
-        cache: pnpm
+        cache: ${{ inputs.cache == 'true' && 'pnpm' || '' }}
 
     - name: Instalar dependencias
       if: inputs.install == 'true'
