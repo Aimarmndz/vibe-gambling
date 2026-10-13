@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Arranque falso de la consola POLYGONE (inventada): gema dorada que gira, logotipo, "Licensed by
-// Vibe Coding Entertainment" y pantalla de título con la atribución "Created by Aimar
-// (github.com/Aimarmndz)" de LICENSE. Se salta con cualquier tecla.
+// Vibe Coding Entertainment" y pantalla de título con la marca del juego (la ficha con ">_" de
+// docs/brand/) y la atribución "Created by Aimar (github.com/Aimarmndz)" de LICENSE. Se salta con
+// cualquier tecla.
 import {
   Color,
   Group,
@@ -22,7 +23,11 @@ import { PSX_HEIGHT, PSX_WIDTH } from '../../render/pipeline.ts'
 import type { World } from '../../render/world.ts'
 import { WHEEL_CENTER } from '../../render/world.ts'
 import { attribution } from '../../legal/attribution.ts'
+import { brandMarks, drawMark } from '../brandMark.ts'
 import { PALETTE } from '../palette.ts'
+
+/** Marca en la pantalla de título: la rejilla de 32 a ×1, centrada encima de "VIBE". */
+const TITLE_MARK = Object.freeze({ top: 8, scale: 1 })
 
 /** Coreografía del arranque (segundos). */
 const T = Object.freeze({
@@ -184,6 +189,11 @@ export class BootScreen implements Screen {
       g.fillRect(0, 0, PSX_WIDTH, PSX_HEIGHT)
       g.fillStyle = 'rgba(8,7,13,0.85)'
       g.fillRect(0, 202, PSX_WIDTH, 38)
+      // La ficha con el prompt encima del logotipo; su "_" parpadea al ritmo de "PULSA X".
+      const blink = Math.floor(now * 2) % 2 === 0
+      const mark = brandMarks().large
+      const markX = (PSX_WIDTH - mark.size * TITLE_MARK.scale) / 2
+      drawMark(g, mark, markX, TITLE_MARK.top, TITLE_MARK.scale, blink)
       const [first = '', ...rest] = tr.t('brand.title').split(' ')
       drawText(g, first, 160, 46, {
         color: PALETTE.gold,
@@ -202,7 +212,7 @@ export class BootScreen implements Screen {
         align: 'center',
         shadow: PALETTE.ink,
       })
-      if (Math.floor(now * 2) % 2 === 0) {
+      if (blink) {
         drawText(g, tr.t('boot.pressStart', { ...this.ctx.buttons() }), 160, 160, {
           color: PALETTE.cream,
           scale: 2,
