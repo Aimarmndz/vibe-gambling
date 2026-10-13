@@ -50,7 +50,9 @@ jobs:
         run: pnpm lint:spdx
       - name: Versiones sincronizadas y CHANGELOG
         run: pnpm lint:versions
-      - name: Tests de los scripts de release
+      - name: Enlaces, imágenes y anclas de los Markdown
+        run: pnpm lint:links
+      - name: Tests de los scripts
         run: pnpm test:scripts
       - name: Registro de idiomas al día con locales/
         run: pnpm gen:locales --check

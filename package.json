@@ -19,9 +19,10 @@
     "node": ">=24"
   },
   "scripts": {
-    "lint": "eslint . && prettier --check . && pnpm lint:spdx && pnpm lint:versions && pnpm gen:locales --check && pnpm docs:protocol --check",
+    "lint": "eslint . && prettier --check . && pnpm lint:spdx && pnpm lint:versions && pnpm lint:links && pnpm gen:locales --check && pnpm docs:protocol --check",
     "lint:spdx": "node scripts/check-spdx.ts",
     "lint:versions": "node scripts/check-versions.ts",
+    "lint:links": "node scripts/check-links.ts",
     "format": "prettier --write .",
     "typecheck": "pnpm -r --parallel typecheck && pnpm typecheck:scripts",
     "typecheck:scripts": "tsc -p scripts",
