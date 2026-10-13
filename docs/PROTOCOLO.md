@@ -1976,12 +1976,13 @@ La ronda ya tiene número. La web deja caer la bola en esa casilla y no enseña 
 
 Dirección: servidor → cliente.
 
-| Campo    | Tipo                            | Obligatorio |
-| -------- | ------------------------------- | ----------- |
-| `v`      | `1`                             | sí          |
-| `type`   | `"round.resolved"`              | sí          |
-| `round`  | [ResolvedRound](#resolvedround) | sí          |
-| `wallet` | [Wallet](#wallet)               | sí          |
+| Campo       | Tipo                                 | Obligatorio |
+| ----------- | ------------------------------------ | ----------- |
+| `v`         | `1`                                  | sí          |
+| `type`      | `"round.resolved"`                   | sí          |
+| `round`     | [ResolvedRound](#resolvedround)      | sí          |
+| `wallet`    | [Wallet](#wallet)                    | sí          |
+| `requestId` | `string` (`/^[A-Za-z0-9_-]{8,64}$/`) | no          |
 
 <details><summary>JSON Schema</summary>
 
@@ -1992,7 +1993,8 @@ Dirección: servidor → cliente.
     "v": { "type": "number", "const": 1 },
     "type": { "type": "string", "const": "round.resolved" },
     "round": { "$ref": "#/$defs/ResolvedRound" },
-    "wallet": { "$ref": "#/$defs/Wallet" }
+    "wallet": { "$ref": "#/$defs/Wallet" },
+    "requestId": { "type": "string", "pattern": "^[A-Za-z0-9_-]{8,64}$" }
   },
   "required": ["v", "type", "round", "wallet"],
   "additionalProperties": false
@@ -2553,6 +2555,7 @@ Dirección: servidor → cliente.
 | `type`    | `"error"`                                                                                                                                                                                                                                                                                           | sí          |
 | `error`   | `"invalid_request"` \| `"unauthorized"` \| `"forbidden"` \| `"not_found"` \| `"conflict"` \| `"rate_limited"` \| `"payload_too_large"` \| `"insufficient_funds"` \| `"too_many_bets"` \| `"invalid_bet"` \| `"loan_not_allowed"` \| `"protocol_mismatch"` \| `"github_unavailable"` \| `"internal"` | sí          |
 | `message` | `string` (0–500 car.)                                                                                                                                                                                                                                                                               | sí          |
+| `re`      | `"bet.place"` \| `"bet.clear"` \| `"loan.request"` \| `"settings.update"` \| `"sync"` \| `"ping"` \| `"presence"` \| `"spin.pending"` \| `"stats.request"` \| `"bank.request"`                                                                                                                      | no          |
 
 <details><summary>JSON Schema</summary>
 
@@ -2581,7 +2584,22 @@ Dirección: servidor → cliente.
         "internal"
       ]
     },
-    "message": { "type": "string", "maxLength": 500 }
+    "message": { "type": "string", "maxLength": 500 },
+    "re": {
+      "type": "string",
+      "enum": [
+        "bet.place",
+        "bet.clear",
+        "loan.request",
+        "settings.update",
+        "sync",
+        "ping",
+        "presence",
+        "spin.pending",
+        "stats.request",
+        "bank.request"
+      ]
+    }
   },
   "required": ["v", "type", "error", "message"],
   "additionalProperties": false
