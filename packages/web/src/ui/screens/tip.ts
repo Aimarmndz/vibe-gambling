@@ -26,7 +26,7 @@ export class TipScreen implements Screen {
     const { tr, demo } = this.ctx
     return [
       tr.t('tip.1', { ...this.ctx.buttons() }),
-      tr.t(demo ? 'tip.2demo' : 'tip.2'),
+      demo ? tr.t('tip.2demo', { ...this.ctx.buttons() }) : tr.t('tip.2'),
       tr.t('tip.3'),
     ]
   }

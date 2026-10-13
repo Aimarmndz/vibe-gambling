@@ -129,6 +129,9 @@ export type FakeContext = AppContext & {
   hover: string | null
   progressCalls: [ProgressKind, string | undefined][]
   progressReply: { stats: Promise<SeasonStats>; bank: Promise<BankStatement> }
+  /** Demo: AUTO (true) o PAUSA (false). */
+  demoAutoOn: boolean
+  demoSpins: number
 }
 
 export function fakeContext(opts: FakeContextOptions = {}): FakeContext {
@@ -190,7 +193,7 @@ export function fakeContext(opts: FakeContextOptions = {}): FakeContext {
     push: s => void ctx.pushed.push(s),
     pop: () => void ctx.popped++,
     toast: text => void ctx.announced.push(text),
-    buttons: () => ({ x: 'X', o: 'O', tri: 'C', sq: 'Z', start: 'P', sel: 'G' }),
+    buttons: () => ({ x: 'X', o: 'O', tri: 'C', sq: 'Z', start: 'P', sel: 'G', auto: 'A' }),
     hoverId: () => ctx.hover,
     openLink: url => void ctx.links.push(url),
     minChip: () => 5,
@@ -204,6 +207,14 @@ export function fakeContext(opts: FakeContextOptions = {}): FakeContext {
     spinAllPending: () => ctx.spinEvery(),
     spinAll: () => ({ running: false, spun: 0, ended: null }),
     showPending: () => undefined,
+    demoAutoOn: true,
+    demoSpins: 0,
+    demoAuto: () => (ctx.demo ? ctx.demoAutoOn : null),
+    toggleDemoAuto: () => void (ctx.demoAutoOn = !ctx.demoAutoOn),
+    demoSpin: () => {
+      ctx.demoSpins++
+      return true
+    },
     announce: text => void ctx.announced.push(text),
     menuIcons: () => ({ icon: () => undefined }),
     progress: <K extends ProgressKind>(kind: K, seasonId?: string) => {

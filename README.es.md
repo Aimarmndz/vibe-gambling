@@ -57,7 +57,7 @@ Lo que conviene saber:
 - **Nunca frena a Claude.** Todas las peticiones van en segundo plano y con 1,5 s de tope. Si el casino se cae, la barra de estado pone `🎰 sin conexión` y a seguir programando.
 - **Hace falta un navegador.** Con Chrome, Chromium, Brave, Edge o Vivaldi la ventana se abre como app sin marco de 960×720; si no, en tu navegador de siempre. Linux, macOS y Windows.
 - **El login de GitHub no pide ningún permiso**: solo tu perfil público.
-- **¿Solo quieres cotillear?** [Prueba la demo sin conexión](https://vibe.aimar.dev/play?demo): sin cuenta, sin plugin y sin guardar nada. La ruleta gira sola.
+- **¿Solo quieres cotillear?** [Prueba la demo sin conexión](https://vibe.aimar.dev/play?demo): sin cuenta, sin plugin y sin guardar nada. La ruleta gira sola; pulsa `A` para pausarla (o toca AUTO) y `G` para girar cuando quieras, como si acabaras de mandar un prompt.
 
 ## Cómo se juega
 

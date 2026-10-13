@@ -36,6 +36,7 @@ import { WheelMotion } from '../game/wheelMotion.ts'
 import { applyDocumentLanguage, loadTranslator } from '../i18n/index.ts'
 import type { Translator } from '../i18n/index.ts'
 import { fetchHallOfRuin, fetchLeaderboard, fetchMe, logout } from '../net/api.ts'
+import type { DemoAutoControl } from '../net/demo.ts'
 import { ProgressRequests } from '../net/progress.ts'
 import type { ProgressData, ProgressKind } from '../net/progress.ts'
 import { MenuIconLayer } from '../render/menuIcons/layer.ts'
@@ -61,6 +62,7 @@ import { dailyLimitNotice } from '../game/dailyLimit.ts'
 import { ResultScreen } from '../ui/screens/result.ts'
 import { TableScreen } from '../ui/screens/table.ts'
 import { TipScreen } from '../ui/screens/tip.ts'
+import { demoSpinReady } from '../ui/demoPanel.ts'
 import type { AppContext, ButtonLabels, Screen, ToastKind } from './context.ts'
 import { Input } from './input.ts'
 import type { ActionEvent } from './input.ts'
@@ -100,6 +102,8 @@ export interface GameOptions {
   linkExpired?: boolean
   /** Traducción del idioma inicial, ya cargada (preferencia guardada → navegador → inglés). */
   translator: Translator
+  /** Mandos AUTO/PAUSA y GIRAR de la demo (solo con `demo`). */
+  demoControl?: DemoAutoControl
 }
 
 /** Curva barril del CRT (la misma que el shader), para que el ratón apunte bien con el filtro. */
@@ -152,6 +156,7 @@ export class Game implements AppContext {
   private loanOfferedFor = ''
   private ended = false
   private readonly linkExpired: boolean
+  private readonly demoControl: DemoAutoControl | null
   /** Para quedarse solo con el último cambio de idioma pedido. */
   private localeRequest = 0
   /** Se cumple cuando el último cambio de idioma pedido ya está aplicado (o ha fallado). */
@@ -180,6 +185,7 @@ export class Game implements AppContext {
     this.live = opts.live
     this.link = opts.link
     this.linkExpired = opts.linkExpired ?? false
+    this.demoControl = opts.demo ? (opts.demoControl ?? null) : null
     // Si el servidor dice que la bola anterior aún rueda, se reintenta pasado un giro rápido.
     this.spinLoop = new SpinAllLoop(opts.web.game, opts.web.game.pendingSpins.quickSpinMs)
     this.prefs = loadPrefs(safeStorage('local'))
@@ -239,13 +245,18 @@ export class Game implements AppContext {
       },
       (cx, cy) => this.toVirtual(cx, cy),
     )
+    // AUTO ↔ PAUSA de la demo (también desde `__vgDemo`): se recuerda y se anuncia.
+    this.demoControl?.onAutoChange(on => {
+      if (this.prefs.demoAuto !== on) this.setPrefs({ demoAuto: on })
+      this.announce(this.tr.t(on ? 'demo.autoOn' : 'demo.autoOff', { ...this.buttons() }))
+    })
     this.link.onMessage(msg => this.onMessage(msg))
     this.link.onStatus(status => this.onStatus(status))
     // Con todas las ventanas ocultas, los prompts se guardan como tiradas pendientes.
     watchPresence(document, visible => this.sendPresence(visible))
     new ResizeObserver(() => this.resize()).observe(this.canvas)
     this.resize()
-    this.canvas.setAttribute('aria-label', this.tr.t('a11y.canvas'))
+    this.canvas.setAttribute('aria-label', this.canvasLabel(this.tr))
     // Ganchos de inspección para los tests E2E (solo lectura del estado propio).
     Object.assign(window, {
       __vg: {
@@ -275,6 +286,12 @@ export class Game implements AppContext {
         }),
       },
     })
+  }
+
+  /** Descripción del canvas para lectores de pantalla (en la demo, con sus dos teclas de más). */
+  private canvasLabel(tr: Translator): string {
+    const base = tr.t('a11y.canvas')
+    return this.demoControl ? `${base} ${tr.t('a11y.canvasDemo')}` : base
   }
 
   /** ¿Debe saltarse el arranque? (ya se vio en esta sesión del navegador). */
@@ -321,7 +338,7 @@ export class Game implements AppContext {
         if (request !== this.localeRequest) return
         this.tr = tr
         applyDocumentLanguage(tr)
-        this.canvas.setAttribute('aria-label', tr.t('a11y.canvas'))
+        this.canvas.setAttribute('aria-label', this.canvasLabel(tr))
       },
       (error: unknown) => {
         console.error('[i18n] no se pudo cargar el idioma', locale, error)
@@ -369,8 +386,8 @@ export class Game implements AppContext {
 
   buttons(): ButtonLabels {
     return this.input?.usingPad
-      ? { x: '✕', o: '○', tri: '△', sq: '□', start: 'START', sel: 'SELECT' }
-      : { x: 'X', o: 'O', tri: 'C', sq: 'Z', start: 'P', sel: 'G' }
+      ? { x: '✕', o: '○', tri: '△', sq: '□', start: 'START', sel: 'SELECT', auto: 'L1' }
+      : { x: 'X', o: 'O', tri: 'C', sq: 'Z', start: 'P', sel: 'G', auto: 'A' }
   }
 
   hoverId(): string | null {
@@ -442,6 +459,38 @@ export class Game implements AppContext {
 
   achievements(): AchievementBook {
     return this.book
+  }
+
+  // ------------------------------------------------------------------ demo: AUTO / PAUSA
+
+  demoAuto(): boolean | null {
+    return this.demoControl?.isAuto() ?? null
+  }
+
+  toggleDemoAuto(): void {
+    const control = this.demoControl
+    if (!control) return
+    const on = !control.isAuto()
+    control.setAuto(on)
+    this.sfx.play(on ? 'accept' : 'back')
+    this.toast(this.tr.t(on ? 'demo.autoOn' : 'demo.autoOff', { ...this.buttons() }))
+  }
+
+  demoSpin(): boolean {
+    const control = this.demoControl
+    if (!control) return false
+    if (!demoSpinReady(this) || !control.canSpin()) {
+      this.sfx.play('error')
+      this.toast(this.tr.t('demo.busy'), 'error')
+      return false
+    }
+    // Quien gira a mano quiere llevar el control: la demo deja de girar sola.
+    const wasAuto = control.isAuto()
+    if (wasAuto) control.setAuto(false)
+    if (!control.spinNow()) return false
+    this.sfx.play('accept')
+    if (wasAuto) this.toast(this.tr.t('demo.pausedBySpin', { ...this.buttons() }))
+    return true
   }
 
   // ------------------------------------------------------------------ tiradas pendientes
@@ -601,7 +650,12 @@ export class Game implements AppContext {
     if (msg.type === 'achievement.unlocked') this.fx.achievement(msg.achievement)
     // Primera ficha sin ronda abierta: se explica que se jugará con el próximo prompt.
     if (msg.type === 'slip' && betReadyHint(before, this.game.slip.total, this.game.phase)) {
-      this.toast(this.tr.t(this.demo ? 'toast.betReadyDemo' : 'toast.betReady'))
+      const key = !this.demo
+        ? 'toast.betReady'
+        : this.demoAuto() === false
+          ? 'toast.betReadyDemoPaused'
+          : 'toast.betReadyDemo'
+      this.toast(this.tr.t(key, { ...this.buttons() }))
     }
     for (const effect of step.effects) this.onEffect(effect)
   }
@@ -840,6 +894,11 @@ export class Game implements AppContext {
   }
 
   private onAction(e: ActionEvent): void {
+    // Demo: A (L1) pasa de AUTO a PAUSA y al revés, esté la pantalla que esté.
+    if (e.action === 'auto') {
+      this.toggleDemoAuto()
+      return
+    }
     if (e.action === 'mute') {
       this.setPrefs({ sound: !this.prefs.sound })
       this.toast(

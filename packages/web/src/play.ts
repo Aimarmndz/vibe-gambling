@@ -65,24 +65,29 @@ async function main(): Promise<void> {
     import('./net/demoFx.ts'),
   ])
   let link
+  let demoControl
   if (demo) {
     // `?demo&fx=mega`: fuerza una animación de espectáculo (capturas, GIF y E2E).
     const fx = params.get('fx')
+    // `?demo=manual` (tests) empieza sin turnos automáticos; si no, como lo dejó la persona.
     const demoLink = new DemoLink(
       web.game,
       clientConfig.demo,
-      params.get('demo') !== 'manual',
+      params.get('demo') !== 'manual' && prefs.demoAuto,
       window.location.origin,
       isDemoFx(fx) ? fx : null,
     )
     Object.assign(window, { __vgDemo: demoLink.controls })
     link = demoLink
+    // Con una animación forzada (capturas, GIF) no hay mandos AUTO/PAUSA: la mesa sale como antes.
+    if (!isDemoFx(fx)) demoControl = demoLink
   } else {
     link = new WsLink(wsUrl(window.location), clientConfig.ws)
   }
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  const canvas = document.getElementById('screen') as HTMLCanvasElement
   const game = new Game({
-    canvas: document.getElementById('screen') as HTMLCanvasElement,
+    canvas,
     live: document.getElementById('live')!,
     web,
     client: clientConfig,
@@ -92,9 +97,10 @@ async function main(): Promise<void> {
     skipBoot: Game.bootSeen() || params.has('noboot'),
     linkExpired,
     translator: tr,
+    demoControl,
   })
   game.start()
-  document.getElementById('screen')?.focus()
+  canvas.focus()
 }
 
 main().catch(async (error: unknown) => {

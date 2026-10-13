@@ -4,10 +4,26 @@
 // girar). Aquí se decide qué texto toca en cada momento; las pantallas solo lo pintan.
 import type { Phase } from './state.ts'
 
-export type IdleStatusKey = 'status.idle' | 'status.ready' | 'status.demo' | 'status.demoReady'
+export type IdleStatusKey =
+  | 'status.idle'
+  | 'status.ready'
+  | 'status.demo'
+  | 'status.demoReady'
+  | 'status.demoPaused'
+  | 'status.demoPausedReady'
 
-/** Rótulo de la mesa sin ronda abierta: invita a mandar un prompt (o avisa de que ya está lista). */
-export function idleStatusKey(demo: boolean, slipTotal: number): IdleStatusKey {
+/**
+ * Rótulo de la mesa sin ronda abierta: invita a mandar un prompt (o avisa de que ya está lista).
+ * En la demo en PAUSA (`demoAuto` false) dice cómo se gira a mano.
+ */
+export function idleStatusKey(
+  demo: boolean,
+  slipTotal: number,
+  demoAuto: boolean | null = null,
+): IdleStatusKey {
+  if (demo && demoAuto === false) {
+    return slipTotal > 0 ? 'status.demoPausedReady' : 'status.demoPaused'
+  }
   if (demo) return slipTotal > 0 ? 'status.demoReady' : 'status.demo'
   return slipTotal > 0 ? 'status.ready' : 'status.idle'
 }
@@ -28,15 +44,22 @@ export function spinHelpOnRepeat(alreadyOnIt: boolean, phase: Phase): boolean {
   return alreadyOnIt && phase === 'idle'
 }
 
-export type TableHelpKey = 'help.table' | 'help.spin' | 'help.spinDemo'
+export type TableHelpKey = 'help.table' | 'help.spin' | 'help.spinDemo' | 'help.spinDemoPaused'
 
 /**
  * Ayuda de la barra inferior: en cada vuelta de tres periodos de `cycleMs`, dos enseñan los
- * controles y uno recuerda cómo se gira (en la demo, que gira sola).
+ * controles y uno recuerda cómo se gira (en la demo, que gira sola y cómo pausarla, o, en PAUSA,
+ * cómo girar a mano y volver a AUTO).
  */
-export function tableHelpKey(timeMs: number, cycleMs: number, demo: boolean): TableHelpKey {
+export function tableHelpKey(
+  timeMs: number,
+  cycleMs: number,
+  demo: boolean,
+  demoAuto: boolean | null = null,
+): TableHelpKey {
   if (cycleMs <= 0) return 'help.table'
   const slot = Math.floor(timeMs / cycleMs) % 3
   if (slot !== 2) return 'help.table'
-  return demo ? 'help.spinDemo' : 'help.spin'
+  if (!demo) return 'help.spin'
+  return demoAuto === false ? 'help.spinDemoPaused' : 'help.spinDemo'
 }

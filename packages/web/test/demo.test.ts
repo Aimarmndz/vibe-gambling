@@ -114,6 +114,92 @@ describe('modo demo', () => {
     link.stop()
   })
 
+  describe('AUTO y PAUSA', () => {
+    const count = (got: ServerMessage[], type: ServerMessage['type']) =>
+      got.filter(m => m.type === type).length
+    /** Un turno entero: la pausa entre turnos y lo que "piensa Claude". */
+    const cycle = demoCfg.pauseMs + demoCfg.thinkMs
+
+    it('en PAUSA no se encadena ningún turno; al volver a AUTO, sí', async () => {
+      const { link, got } = setup(true)
+      const changes: boolean[] = []
+      link.onAutoChange(on => changes.push(on))
+      expect(link.isAuto()).toBe(true)
+      link.controls.setAuto(false)
+      expect(link.controls.isAuto()).toBe(false)
+      await vi.advanceTimersByTimeAsync(cycle * 3)
+      expect(count(got, 'round.started')).toBe(0)
+      link.setAuto(true)
+      // El siguiente sale `pauseMs` después de volver a AUTO, no antes.
+      await vi.advanceTimersByTimeAsync(demoCfg.pauseMs - 10)
+      expect(count(got, 'round.started')).toBe(0)
+      await vi.advanceTimersByTimeAsync(demoCfg.thinkMs + 20)
+      expect(count(got, 'round.resolved')).toBe(1)
+      // Repetir el mismo modo no avisa ni reprograma nada.
+      link.setAuto(true)
+      expect(changes).toEqual([false, true])
+      link.stop()
+    })
+
+    it('pausar con la ronda en curso la deja terminar y no abre la siguiente', async () => {
+      const { link, got } = setup(true)
+      await vi.advanceTimersByTimeAsync(demoCfg.pauseMs + 10)
+      expect(count(got, 'round.started')).toBe(1)
+      expect(link.canSpin()).toBe(false)
+      link.setAuto(false)
+      await vi.advanceTimersByTimeAsync(demoCfg.thinkMs)
+      expect(count(got, 'round.resolved')).toBe(1)
+      await vi.advanceTimersByTimeAsync(cycle * 3)
+      expect(count(got, 'round.started')).toBe(1)
+      link.stop()
+    })
+
+    it('GIRAR lanza una tirada ya, solo sin ronda en curso, y no cambia de modo', async () => {
+      const { link, got } = setup(false)
+      expect(link.canSpin()).toBe(true)
+      expect(link.spinNow()).toBe(true)
+      // Con la ronda abierta no se puede lanzar otra.
+      await vi.advanceTimersByTimeAsync(10)
+      expect(link.canSpin()).toBe(false)
+      expect(link.spinNow()).toBe(false)
+      await vi.advanceTimersByTimeAsync(demoCfg.thinkMs)
+      expect(count(got, 'round.started')).toBe(1)
+      expect(count(got, 'round.resolved')).toBe(1)
+      expect(link.isAuto()).toBe(false)
+      // En PAUSA, tras la tirada a mano no sale ninguna sola.
+      await vi.advanceTimersByTimeAsync(cycle * 2)
+      expect(count(got, 'round.started')).toBe(1)
+      link.stop()
+    })
+
+    it('en AUTO, una tirada a mano retrasa la siguiente automática a `pauseMs` después', async () => {
+      const { link, got } = setup(true)
+      await vi.advanceTimersByTimeAsync(demoCfg.pauseMs - 100)
+      expect(link.spinNow()).toBe(true)
+      await vi.advanceTimersByTimeAsync(demoCfg.thinkMs + 10)
+      expect(count(got, 'round.resolved')).toBe(1)
+      // El temporizador viejo (que vencía a los 100 ms) no lanza otra encima.
+      await vi.advanceTimersByTimeAsync(demoCfg.pauseMs - 50)
+      expect(count(got, 'round.started')).toBe(1)
+      await vi.advanceTimersByTimeAsync(100)
+      expect(count(got, 'round.started')).toBe(2)
+      link.stop()
+    })
+
+    it('parada, no gira ni en AUTO ni a mano', async () => {
+      const { link, got } = setup(true)
+      link.stop()
+      await vi.advanceTimersByTimeAsync(cycle * 2)
+      expect(link.spinNow()).toBe(false)
+      expect(count(got, 'round.started')).toBe(0)
+    })
+
+    it('con una animación forzada empieza en PAUSA', () => {
+      const link = new DemoLink(testWebConfig.game, demoCfg, true, testWebConfig.publicUrl, 'mega')
+      expect(link.isAuto()).toBe(false)
+    })
+  })
+
   it('GIRAR en la demo responde como el servidor: requestId en la tirada y re en el error', async () => {
     const { link, got } = setup()
     link.send(withVersion({ type: 'spin.pending', quick: true, requestId: 'spin-demo-0001' }))

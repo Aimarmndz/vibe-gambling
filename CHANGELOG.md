@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- **The demo can be paused**: `/play?demo` still spins by itself, but `A` (L1 on a gamepad) toggles between AUTO and PAUSED and `G` (SELECT) spins once right away, as if you had just sent a prompt. Both live in a small panel under the streak box that you can also click or tap, the status sign says which mode you are in, spinning by hand switches to PAUSED, and the choice is remembered in this browser. Screen readers hear every switch.
+
 ## [0.3.2] - 2026-10-13
 
 ### Changed

@@ -52,8 +52,10 @@ export interface ButtonLabels {
   tri: string
   sq: string
   start: string
-  /** SELECT: GIRAR una tirada pendiente. */
+  /** SELECT: GIRAR una tirada pendiente (en la demo, también una tirada ya). */
   sel: string
+  /** Solo en la demo: AUTO ↔ PAUSA. */
+  auto: string
 }
 
 export type ToastKind = 'info' | 'error' | 'save' | 'money'
@@ -99,6 +101,12 @@ export interface AppContext {
   spinAll(): SpinAllStatus
   /** Abre la pantalla de tiradas pendientes. */
   showPending(): void
+  /** Demo: si gira sola (AUTO) o espera a la persona (PAUSA); null fuera de la demo. */
+  demoAuto(): boolean | null
+  /** Demo: AUTO ↔ PAUSA (la ronda en curso termina normal; solo cambia si se encadena otra). */
+  toggleDemoAuto(): void
+  /** Demo: GIRAR una tirada ya, como si se mandara un prompt (pasa a PAUSA). Si se ha lanzado. */
+  demoSpin(): boolean
   /** Llamitas de ON FIRE detrás de la racha (las pinta la mesa bajo el texto del HUD). */
   hudFlames?(g: CanvasRenderingContext2D): void
   /** Escribe en la región `aria-live` (lo importante para lectores de pantalla). */

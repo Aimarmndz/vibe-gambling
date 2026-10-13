@@ -14,6 +14,7 @@ import { INITIAL_CURSOR, hitTest, moveCursor } from '../../game/layout.ts'
 import { pendingSpins } from '../../game/state.ts'
 import { Odometer } from '../../render/fx/odometer.ts'
 import type { Point } from '../../game/layout.ts'
+import { drawDemoPanel } from '../demoPanel.ts'
 import { drawChipIcon, drawWindow } from '../draw.ts'
 import { CHIP_COLORS, PALETTE } from '../palette.ts'
 import { STATUS_BOX, STATUS_LOOKS, statusColor } from '../status.ts'
@@ -86,7 +87,12 @@ export class TableScreen implements Screen {
     this.ctx.sfx.play(ok ? 'chip' : 'error')
     // ✕ otra vez sobre las mismas fichas suele ser buscar "girar": se explica cómo se gira.
     if (ok && fromPad && spinHelpOnRepeat(onIt, state.phase)) {
-      this.ctx.toast(this.ctx.tr.t(this.ctx.demo ? 'toast.howToSpinDemo' : 'toast.howToSpin'))
+      const key = !this.ctx.demo
+        ? 'toast.howToSpin'
+        : this.ctx.demoAuto() === false
+          ? 'toast.howToSpinDemoPaused'
+          : 'toast.howToSpinDemo'
+      this.ctx.toast(this.ctx.tr.t(key, { ...this.ctx.buttons() }))
     }
   }
 
@@ -130,11 +136,14 @@ export class TableScreen implements Screen {
         this.ctx.push(new MenuScreen(this.ctx))
         return
       case 'spin':
-        // GIRAR: con pendientes, gasta una; sin ellas, explica de dónde salen.
+        // GIRAR: con pendientes, gasta una; sin ellas, explica de dónde salen (en la demo, que no
+        // las acumula, lanza una tirada ya, como si se mandara un prompt).
         if (pendingSpins(this.ctx.state()) > 0) this.ctx.spinPending()
+        else if (this.ctx.demo) this.ctx.demoSpin()
         else this.ctx.showPending()
         return
       case 'mute':
+      case 'auto':
         return
     }
   }
@@ -259,6 +268,12 @@ export class TableScreen implements Screen {
 
     if (w && pending > 0) this.drawPendingRow(g, t, pending)
 
+    // Demo: AUTO/PAUSA y GIRAR, bajo el panel de la racha.
+    const demoAuto = this.ctx.demoAuto()
+    if (demoAuto !== null) {
+      drawDemoPanel(g, this.ctx, 4 + (pending > 0 ? 40 : 29) + 3, demoAuto)
+    }
+
     // Estado: centrado bajo la ruleta.
     const status = this.statusText()
     if (status) {
@@ -317,7 +332,12 @@ export class TableScreen implements Screen {
       x += slotW + 4
     })
     // La ayuda alterna los controles con cómo se gira (no hay botón de girar).
-    const helpKey = tableHelpKey(t * 1000, this.ctx.client.ui.helpCycleMs, this.ctx.demo)
+    const helpKey = tableHelpKey(
+      t * 1000,
+      this.ctx.client.ui.helpCycleMs,
+      this.ctx.demo,
+      this.ctx.demoAuto(),
+    )
     drawText(g, tr.t(helpKey, { ...this.ctx.buttons() }), 6, 231, {
       color: helpKey === 'help.table' ? muted : PALETTE.gold,
     })
@@ -348,9 +368,10 @@ export class TableScreen implements Screen {
           }
         }
         // Sin ronda abierta: el giro lo lanza un prompt en Claude Code, no la ventana.
-        const key = idleStatusKey(this.ctx.demo, state.slip.total)
-        const ready = key === 'status.ready' || key === 'status.demoReady'
-        return { text: tr.t(key), kind: ready ? 'ready' : 'idle' }
+        const key = idleStatusKey(this.ctx.demo, state.slip.total, this.ctx.demoAuto())
+        // En PAUSA, en oro: la ruleta espera a que gires tú.
+        const ready = key !== 'status.idle' && key !== 'status.demo'
+        return { text: tr.t(key, { ...this.ctx.buttons() }), kind: ready ? 'ready' : 'idle' }
       }
       default:
         return null

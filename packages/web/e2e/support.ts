@@ -7,7 +7,7 @@ import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { expect } from '@playwright/test'
-import type { APIRequestContext, Page } from '@playwright/test'
+import type { APIRequestContext, Browser, Page } from '@playwright/test'
 import {
   API_ROUTES,
   PROTOCOL_VERSION,
@@ -262,4 +262,45 @@ export async function round(
   await skipToResult(page)
   await expect(page.locator('#live')).toContainText(String(end.round.result))
   return end
+}
+
+/** Errores de cada página (se comprueban al cerrar su contexto con `closePlayContext`). */
+const pageErrors = new WeakMap<Page, string[]>()
+
+export async function closePlayContext(page: Page): Promise<void> {
+  for (const p of page.context().pages()) expect(pageErrors.get(p) ?? []).toEqual([])
+  await page.context().close()
+}
+
+/** Contexto nuevo, sin CRT (el ratón apunta en línea recta) ni "cómo se juega". */
+export async function newPlayPage(browser: Browser, locale = 'es'): Promise<Page> {
+  const context = await browser.newContext({
+    viewport: { width: 960, height: 720 },
+    locale: locale === 'es' ? 'es-ES' : 'en-US',
+  })
+  context.on('page', p => {
+    const errors: string[] = []
+    pageErrors.set(p, errors)
+    p.on('pageerror', e => errors.push(e.message))
+  })
+  // Solo la primera vez: lo que guarde la propia ventana tiene que sobrevivir a las recargas.
+  await context.addInitScript(loc => {
+    // También corre en about:blank (sin localStorage) al abrir cada pestaña.
+    if (!location.protocol.startsWith('http')) return
+    localStorage.setItem('vibe-gambling:tip-seen', '1')
+    if (!localStorage.getItem('vibe-gambling:prefs')) {
+      localStorage.setItem(
+        'vibe-gambling:prefs',
+        JSON.stringify({ sound: false, crt: false, quality: 'high', locale: loc }),
+      )
+    }
+  }, locale)
+  return context.newPage()
+}
+
+/** Espera a que la ventana tenga usuario (el `hello` de la demo o del servidor). */
+export async function playReady(page: Page): Promise<void> {
+  await page.waitForFunction(
+    () => (window as unknown as { __vg?: { state(): GameState } }).__vg?.state().user,
+  )
 }

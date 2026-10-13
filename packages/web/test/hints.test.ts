@@ -15,6 +15,11 @@ describe('cómo se gira', () => {
     expect(idleStatusKey(false, 50)).toBe('status.ready')
     expect(idleStatusKey(true, 0)).toBe('status.demo')
     expect(idleStatusKey(true, 10)).toBe('status.demoReady')
+    // Demo en AUTO: como siempre; en PAUSA, dice cómo se gira a mano.
+    expect(idleStatusKey(true, 0, true)).toBe('status.demo')
+    expect(idleStatusKey(true, 0, false)).toBe('status.demoPaused')
+    expect(idleStatusKey(true, 10, false)).toBe('status.demoPausedReady')
+    expect(idleStatusKey(false, 0, false)).toBe('status.idle')
     expect(CATALOGS.en['status.idle']).toBe('SEND A PROMPT IN CLAUDE CODE TO SPIN')
     expect(CATALOGS.es['status.idle']).toBe('MANDA UN PROMPT EN CLAUDE CODE PARA GIRAR')
     for (const catalog of Object.values(CATALOGS)) {
@@ -23,6 +28,12 @@ describe('cómo se gira', () => {
       // "prompt" con mayúscula en alemán (es un sustantivo).
       expect(catalog['toast.betReady']).toMatch(/prompt/i)
       expect(catalog['toast.howToSpin']).toMatch(/Claude Code/)
+      // La demo dice sus dos teclas: AUTO/PAUSA y GIRAR.
+      for (const key of ['help.spinDemo', 'help.spinDemoPaused', 'status.demoPaused'] as const) {
+        expect(catalog[key], key).toContain('{sel}')
+      }
+      expect(catalog['help.spinDemo']).toContain('{auto}')
+      expect(catalog['help.spinDemoPaused']).toContain('{auto}')
       expect(catalog['tip.2']).toMatch(/Claude Code/)
     }
   })
@@ -46,6 +57,9 @@ describe('cómo se gira', () => {
     expect(tableHelpKey(cycle, cycle, false)).toBe('help.table')
     expect(tableHelpKey(2 * cycle, cycle, false)).toBe('help.spin')
     expect(tableHelpKey(2 * cycle, cycle, true)).toBe('help.spinDemo')
+    expect(tableHelpKey(2 * cycle, cycle, true, true)).toBe('help.spinDemo')
+    expect(tableHelpKey(2 * cycle, cycle, true, false)).toBe('help.spinDemoPaused')
+    expect(tableHelpKey(cycle, cycle, true, false)).toBe('help.table')
     expect(tableHelpKey(3 * cycle, cycle, false)).toBe('help.table')
     expect(tableHelpKey(2 * cycle, 0, false)).toBe('help.table')
   })
@@ -79,7 +93,12 @@ describe('legibilidad en la pantalla de 320×240', () => {
           expect(measure(catalog[key]) + 16, key).toBeLessThanOrEqual(316)
         }
       }
-      for (const key of ['help.table', 'help.spin', 'help.spinDemo'] as const) {
+      for (const key of [
+        'help.table',
+        'help.spin',
+        'help.spinDemo',
+        'help.spinDemoPaused',
+      ] as const) {
         const text = catalog[key].replace(/\{\w+\}/g, 'X')
         expect(measure(text), key).toBeLessThanOrEqual(308)
       }

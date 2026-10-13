@@ -509,7 +509,7 @@ function fakeKit(reduced = false): Fake {
     state: (): GameState => ({ ...INITIAL_STATE, phase: phase.value }),
     push: (s: Screen) => pushed.push(s),
     pop: (s: Screen) => popped.push(s),
-    buttons: () => ({ x: 'X', o: 'O', tri: 'C', sq: 'Z', start: 'P', sel: 'G' }),
+    buttons: () => ({ x: 'X', o: 'O', tri: 'C', sq: 'Z', start: 'P', sel: 'G', auto: 'A' }),
   } as unknown as AppContext
   const coins = {
     fountain: () => {

@@ -71,3 +71,29 @@ describe('preferencias del navegador', () => {
     warn.mockRestore()
   })
 })
+
+describe('preferencias de la demo', () => {
+  it('por defecto, AUTO; las de antes (sin este campo) siguen valiendo', () => {
+    expect(DEFAULT_PREFS.demoAuto).toBe(true)
+    const store = new Map<string, string>()
+    const storage = {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => void store.set(k, v),
+    }
+    store.set(
+      'vibe-gambling:prefs',
+      JSON.stringify({ sound: false, crt: true, quality: 'low', locale: 'fr' }),
+    )
+    expect(loadPrefs(storage)).toMatchObject({
+      sound: false,
+      quality: 'low',
+      locale: 'fr',
+      demoAuto: true,
+    })
+    savePrefs(storage, { ...DEFAULT_PREFS, demoAuto: false })
+    expect(loadPrefs(storage)).toMatchObject({ demoAuto: false })
+    // Un valor raro en el campo nuevo no tira el resto.
+    store.set('vibe-gambling:prefs', JSON.stringify({ ...DEFAULT_PREFS, demoAuto: 'yes' }))
+    expect(loadPrefs(storage)).toEqual(DEFAULT_PREFS)
+  })
+})

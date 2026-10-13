@@ -132,8 +132,9 @@ test.describe('humo', () => {
     await page.waitForFunction(
       () => (window as unknown as { __vg: Hooks }).__vg.state().slip.total > 0,
     )
-    // Sin botón de girar: se avisa de cuándo se juega la apuesta (en la demo, en el próximo giro).
-    await expect(page.locator('#live')).toContainText(/próximo giro|next demo spin/)
+    // Sin botón de girar: se avisa de cuándo se juega la apuesta. La demo manual (los tests) está en
+    // PAUSA, así que dice cómo se gira a mano.
+    await expect(page.locator('#live')).toContainText(/pulsa G para girar|press G to spin/)
     // Turno simulado (en la demo no hay servidor): Claude "piensa" y la bola cae.
     await page.evaluate(() => {
       void (window as unknown as { __vgDemo: { turn(o: object): Promise<void> } }).__vgDemo.turn({

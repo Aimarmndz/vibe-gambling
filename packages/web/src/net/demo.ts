@@ -60,6 +60,20 @@ export interface DemoControls {
   fx(kind: DemoFx): Promise<void>
   /** Temporada de ejemplo con azar fijo: estadísticas, banco, logros y tiradas pendientes. */
   showcase(): void
+  /** AUTO (gira sola cada `demo.pauseMs`) o PAUSA (solo gira cuando se pide). */
+  setAuto(on: boolean): void
+  isAuto(): boolean
+}
+
+/** Lo que la ventana necesita de la demo para sus mandos AUTO/PAUSA y GIRAR. */
+export interface DemoAutoControl {
+  isAuto(): boolean
+  setAuto(on: boolean): void
+  onAutoChange(listener: (on: boolean) => void): void
+  /** ¿Se puede lanzar ya una tirada? (sin ronda abierta) */
+  canSpin(): boolean
+  /** Lanza una tirada ya. Devuelve si se ha lanzado. */
+  spinNow(): boolean
 }
 
 /** La configuración completa que necesitan las funciones de shared, a partir de la pública. */
@@ -113,13 +127,19 @@ function uuid(): string {
 
 const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms))
 
-export class DemoLink implements Link {
+export class DemoLink implements Link, DemoAutoControl {
   readonly controls: DemoControls
   private readonly cfg: GameConfig
   private readonly client: WebClientConfig['demo']
   /** Lo que piden ESTADÍSTICAS, BANCO y LOGROS. */
   private readonly progress: DemoProgress
-  private readonly auto: boolean
+  /**
+   * AUTO: un turno cada `pauseMs` desde que acaba el anterior. En PAUSA la ronda en curso termina
+   * normal y simplemente no se encadena la siguiente.
+   */
+  private autoOn: boolean
+  private autoTimer: ReturnType<typeof setTimeout> | null = null
+  private readonly autoListeners: ((on: boolean) => void)[] = []
   private readonly messageListeners: ((msg: ServerMessage) => void)[] = []
   private readonly statusListeners: ((status: LinkStatus) => void)[] = []
   private user: SelfUser
@@ -141,7 +161,10 @@ export class DemoLink implements Link {
    */
   private pocket: () => number = randomPocket
 
-  /** `origin`: el de la página (de ahí salen el avatar y el "perfil" del jugador de la demo). */
+  /**
+   * `auto`: si empieza en AUTO. `origin`: el de la página (de ahí salen el avatar y el "perfil" del
+   * jugador de la demo).
+   */
   constructor(
     pub: PublicGameConfig,
     client: WebClientConfig['demo'],
@@ -155,7 +178,7 @@ export class DemoLink implements Link {
     this.client = client
     this.startFx = startFx
     // Con una animación forzada no hay turnos automáticos: la captura sale siempre igual.
-    this.auto = auto && startFx === null
+    this.autoOn = auto && startFx === null
     const now = new Date()
     this.user = {
       login: client.login,
@@ -187,6 +210,8 @@ export class DemoLink implements Link {
       },
       fx: kind => this.forceFx(kind),
       showcase: () => this.showcase(),
+      setAuto: on => this.setAuto(on),
+      isAuto: () => this.isAuto(),
     }
   }
 
@@ -198,12 +223,43 @@ export class DemoLink implements Link {
     this.statusListeners.push(listener)
   }
 
+  /** ¿Gira sola? */
+  isAuto(): boolean {
+    return this.autoOn
+  }
+
+  /** Pasa a AUTO o a PAUSA. Al volver a AUTO, el siguiente turno sale pasado `pauseMs`. */
+  setAuto(on: boolean): void {
+    if (on === this.autoOn) return
+    this.autoOn = on
+    if (on) this.scheduleAuto()
+    else this.cancelAuto()
+    for (const l of this.autoListeners) l(on)
+  }
+
+  /** Avisa de cada cambio entre AUTO y PAUSA (también los que llegan por `__vgDemo`). */
+  onAutoChange(listener: (on: boolean) => void): void {
+    this.autoListeners.push(listener)
+  }
+
+  /** ¿Se puede lanzar ya una tirada? Solo sin ronda abierta. */
+  canSpin(): boolean {
+    return this.running && !this.busy && this.round === null
+  }
+
+  /** GIRAR en la demo: una tirada ahora, como si se acabara de mandar un prompt. */
+  spinNow(): boolean {
+    if (!this.canSpin()) return false
+    void this.turn()
+    return true
+  }
+
   start(): void {
     if (this.running) return
     this.running = true
     for (const l of this.statusListeners) l('open')
     setTimeout(() => this.emit(this.hello()), 0)
-    if (this.auto) void this.loop()
+    if (this.autoOn) this.scheduleAuto()
     if (this.startFx) {
       const kind = this.startFx
       setTimeout(() => void this.forceFx(kind), 0)
@@ -212,6 +268,7 @@ export class DemoLink implements Link {
 
   stop(): void {
     this.running = false
+    this.cancelAuto()
   }
 
   send(msg: ClientMessageInput): boolean {
@@ -326,12 +383,23 @@ export class DemoLink implements Link {
     }
   }
 
-  private async loop(): Promise<void> {
-    while (this.running) {
-      await sleep(this.client.pauseMs)
-      if (!this.running) return
-      await this.turn()
-    }
+  /** Programa el siguiente turno automático dentro de `pauseMs` (sustituye al que hubiera). */
+  private scheduleAuto(): void {
+    this.cancelAuto()
+    if (!this.running) return
+    this.autoTimer = setTimeout(() => {
+      this.autoTimer = null
+      if (!this.running || !this.autoOn) return
+      // Hay una ronda abierta (una tirada pedida a mano): al terminar se vuelve a programar.
+      if (this.busy || this.round) return
+      void this.turn()
+    }, this.client.pauseMs)
+  }
+
+  private cancelAuto(): void {
+    if (this.autoTimer === null) return
+    clearTimeout(this.autoTimer)
+    this.autoTimer = null
   }
 
   /** Prepara la cartera, el boleto y el historial del guion y juega su tirada. */
@@ -448,6 +516,8 @@ export class DemoLink implements Link {
       this.resolve(openedAt, options)
     } finally {
       this.busy = false
+      // En AUTO, la siguiente sale `pauseMs` después de esta (la haya lanzado quien la haya lanzado).
+      if (this.autoOn) this.scheduleAuto()
     }
   }
 

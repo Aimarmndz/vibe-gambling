@@ -57,7 +57,7 @@ Good to know:
 - **It never slows Claude down.** Every request runs in the background with a 1.5 s timeout. If the casino is down, the status line says `🎰 offline` and life goes on.
 - **It needs a browser.** With Chrome, Chromium, Brave, Edge or Vivaldi the window opens as a borderless 960×720 app; otherwise, in your default browser. Linux, macOS and Windows.
 - **The GitHub login asks for no permissions**: just your public profile.
-- **Just looking?** [Try the offline demo](https://vibe.aimar.dev/play?demo): no account, no plugin, nothing saved. The wheel spins by itself.
+- **Just looking?** [Try the offline demo](https://vibe.aimar.dev/play?demo): no account, no plugin, nothing saved. The wheel spins by itself; press `A` to pause it (or tap AUTO) and `G` to spin whenever you like, as if you had just sent a prompt.
 
 ## How to play
 
