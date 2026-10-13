@@ -29,17 +29,18 @@ En cada turno de Claude Code, el plugin envía **solo**:
 | La versión del plugin y el SO genérico (`linux`, `darwin`, `win32`, `other`) | Tu nombre de usuario del sistema, variables de entorno    |
 | Tu token de sesión (para saber quién eres)                                   | El identificador interno de la sesión de Claude Code      |
 
-Los dos sí/no se calculan **en tu ordenador** mirando las órdenes de Bash, que después se olvidan. Además, cuando usas un comando se envía lo que escribes en él (la cantidad y la casilla de `/bet`, tu login al confirmar `/vibe-delete-account`). Un test del plugin (`packages/mod/tests/privacy.test.ts`) falla si cualquier petición lleva algo más.
+Los dos sí/no se calculan **en tu ordenador** mirando las órdenes de Bash, que después se olvidan. Además, cuando usas un comando se envía lo que escribes en él (la cantidad y la casilla de `/bet`, el código de `/vibe-redeem`, tu login al confirmar `/vibe-delete-account`). Un test del plugin (`packages/mod/tests/privacy.test.ts`) falla si cualquier petición lleva algo más.
 
 ### Qué se guarda y para qué
 
-| Dato                                                                                                                                                                                                       | Para qué                                |
-| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
-| De GitHub: id numérico, login y URL del avatar                                                                                                                                                             | Identificarte y mostrarte en el ranking |
-| De GitHub: fecha de creación de tu cuenta de GitHub (`created_at` del perfil público, se actualiza en cada login)                                                                                          | Antiabuso del ranking (abajo)           |
-| Tus ajustes: oculto o no en el ranking, idioma                                                                                                                                                             | Respetar tus preferencias               |
-| El juego: cartera de cada temporada, rondas y turnos (cuándo empezó y terminó cada uno, resultado, apuestas, duración del turno y los dos sí/no), préstamos, rachas, logros conseguidos, Salón de la Ruina | Que el juego funcione y el ranking      |
-| Sesiones: el **hash** de cada token, su tipo (plugin o ventana) y fechas de uso y caducidad                                                                                                                | Mantenerte con la sesión iniciada       |
+| Dato                                                                                                                                                                                                       | Para qué                                                     |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| De GitHub: id numérico, login y URL del avatar                                                                                                                                                             | Identificarte y mostrarte en el ranking                      |
+| De GitHub: fecha de creación de tu cuenta de GitHub (`created_at` del perfil público, se actualiza en cada login)                                                                                          | Antiabuso del ranking (abajo)                                |
+| Tus ajustes: oculto o no en el ranking, idioma                                                                                                                                                             | Respetar tus preferencias                                    |
+| El juego: cartera de cada temporada, rondas y turnos (cuándo empezó y terminó cada uno, resultado, apuestas, duración del turno y los dos sí/no), préstamos, rachas, logros conseguidos, Salón de la Ruina | Que el juego funcione y el ranking                           |
+| Sesiones: el **hash** de cada token, su tipo (plugin o ventana) y fechas de uso y caducidad                                                                                                                | Mantenerte con la sesión iniciada                            |
+| Programa de afiliados: tu código (aleatorio) y, si canjeas uno o alguien canjea el tuyo, quién invitó a quién, cuándo, el bono de bienvenida y la comisión                                                 | Que funcione el programa de afiliados y su antiabuso (abajo) |
 
 **No se guarda:** el token de GitHub (se descarta nada más leer tu perfil; el login no pide ningún permiso, solo el perfil público), la versión del plugin ni el SO (se comprueban y se tiran), tu IP (solo se usa en memoria durante un minuto para el límite de peticiones), si la ventana está a la vista o en segundo plano (solo en memoria mientras está conectada, para decidir si un prompt se juega en directo o se guarda como tirada pendiente), ni ninguna URL, cabecera o token en los logs.
 
@@ -53,6 +54,12 @@ Los dos sí/no se calculan **en tu ordenador** mirando las órdenes de Bash, que
 Por defecto apareces en el ranking público con tu login, tu avatar y tus estadísticas; te lo avisamos al iniciar sesión. Ocúltate cuando quieras con `/vibe-hide` (o desde los ajustes de la ventana): desapareces del ranking y del Salón de la Ruina, también de temporadas pasadas. `/vibe-show` te vuelve a mostrar.
 
 **Cuentas de GitHub nuevas.** Para que no compense crear cuentas en masa para inflar el ranking, una cuenta de GitHub con menos de **30 días** (`leaderboard.minAccountAgeDays` en `config/game.json`) juega con normalidad, pero no sale en el ranking ni en el Salón de la Ruina hasta cumplirlos; al iniciar sesión, la ventana y `/balance` te dicen desde qué día. Es el único uso de la fecha de creación de tu cuenta de GitHub, que se guarda hasta que borres tu cuenta. Las cuentas que ya existían antes de esta regla no tienen el dato hasta su próximo login y, mientras tanto, cuentan como antiguas.
+
+### Programa de afiliados
+
+Si pides tu enlace de afiliado (`/vibe-invite` o la pantalla AFILIADOS), se te crea un código aleatorio que no dice nada de ti. Si canjeas el código de otra persona (`/vibe-redeem`), se guarda quién invitó a quién, cuándo, el bono de bienvenida y, cuando te activas, la comisión que se le paga. Solo sirve para que el programa funcione y para sus reglas antiabuso (un código por cuenta, sin ciclos, un tope de comisiones por temporada). La página de invitación `/r/<código>` enseña el login y el avatar de quien la comparte, **salvo si está oculto** del ranking (entonces dice "alguien te ha invitado"). Quien te invitó solo ve números (cuántos invitados y activados), nunca quién eres.
+
+Al borrar tu cuenta se borra tu lado de cada invitación: la fila que queda ya no es de nadie y solo sigue contando para el tope de comisiones de la temporada de la otra persona (si no, borrar y volver a crear una cuenta daría comisiones sin fin); si no queda ninguno de los dos lados, se borra.
 
 ### Dónde
 
@@ -76,12 +83,13 @@ Una sola cookie, **de sesión** (`HttpOnly`, `Secure`, `SameSite=Strict`), para 
 | Sesión del plugin / de la ventana        | 1 año / 30 días desde el login, o hasta cerrar sesión; luego se borran |
 | Enlace para abrir la ventana             | 60 segundos y un solo uso; luego se borra                              |
 | Login de GitHub a medias                 | Hasta que termina o caduca (~15 min); luego se borra                   |
+| Canjes de afiliado                       | Hasta que borres tu cuenta (tu lado se borra; ver arriba)              |
 | Copias de seguridad                      | 14 días: una cuenta borrada puede seguir en ellas hasta entonces       |
 | Logs del servidor (sin datos personales) | Rotados por tamaño                                                     |
 
 ### Tus derechos y cómo borrar la cuenta
 
-- **Borrar la cuenta**: `/vibe-delete-account <tu-login>` en Claude Code. Se borra **todo** lo tuyo al momento (sesiones, partidas, apuestas, préstamos, logros, Salón de la Ruina, la fecha de creación de tu cuenta de GitHub) y se cierran tus ventanas.
+- **Borrar la cuenta**: `/vibe-delete-account <tu-login>` en Claude Code. Se borra **todo** lo tuyo al momento (sesiones, partidas, apuestas, préstamos, logros, Salón de la Ruina, la fecha de creación de tu cuenta de GitHub, tu código de afiliado y tu lado de cada invitación) y se cierran tus ventanas.
 - **Oponerte al ranking público**: `/vibe-hide`.
 - **Acceder a tus datos**: `/balance` y la ventana enseñan lo que hay; para una copia completa, pídela (abajo).
 - **Rectificar**: tu login, tu avatar y la fecha de creación de tu cuenta se actualizan desde GitHub cada vez que inicias sesión.
@@ -114,17 +122,18 @@ On every Claude Code turn, the plugin sends **only**:
 | The plugin version and the generic OS (`linux`, `darwin`, `win32`, `other`) | Your system user name, environment variables |
 | Your session token (so the server knows who you are)                        | Claude Code's internal session id            |
 
-Both yes/no flags are computed **on your computer** by looking at Bash commands, which are then forgotten. When you use a command, what you type in it is sent too (the amount and square of `/bet`, your login when confirming `/vibe-delete-account`). A plugin test (`packages/mod/tests/privacy.test.ts`) fails if any request carries anything else.
+Both yes/no flags are computed **on your computer** by looking at Bash commands, which are then forgotten. When you use a command, what you type in it is sent too (the amount and square of `/bet`, the code of `/vibe-redeem`, your login when confirming `/vibe-delete-account`). A plugin test (`packages/mod/tests/privacy.test.ts`) fails if any request carries anything else.
 
 ### What is stored and why
 
-| Data                                                                                                                                                                                | Why                                             |
-| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
-| From GitHub: numeric id, login and avatar URL                                                                                                                                       | To identify you and show you on the leaderboard |
-| From GitHub: the date your GitHub account was created (`created_at` of the public profile, refreshed at every login)                                                                | Leaderboard anti-abuse (below)                  |
-| Your settings: hidden from the leaderboard or not, language                                                                                                                         | To respect your preferences                     |
-| The game: wallet per season, rounds and turns (when each one started and ended, result, bets, turn duration and the two flags), loans, streaks, unlocked achievements, Hall of Ruin | To run the game and the leaderboard             |
-| Sessions: the **hash** of each token, its kind (plugin or window), usage and expiry dates                                                                                           | To keep you logged in                           |
+| Data                                                                                                                                                                                | Why                                                           |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| From GitHub: numeric id, login and avatar URL                                                                                                                                       | To identify you and show you on the leaderboard               |
+| From GitHub: the date your GitHub account was created (`created_at` of the public profile, refreshed at every login)                                                                | Leaderboard anti-abuse (below)                                |
+| Your settings: hidden from the leaderboard or not, language                                                                                                                         | To respect your preferences                                   |
+| The game: wallet per season, rounds and turns (when each one started and ended, result, bets, turn duration and the two flags), loans, streaks, unlocked achievements, Hall of Ruin | To run the game and the leaderboard                           |
+| Sessions: the **hash** of each token, its kind (plugin or window), usage and expiry dates                                                                                           | To keep you logged in                                         |
+| Affiliate program: your code (random) and, if you redeem one or someone redeems yours, who invited whom, when, the welcome bonus and the commission                                 | To run the affiliate program and its anti-abuse rules (below) |
 
 **Not stored:** the GitHub token (thrown away right after reading your profile; login asks for no permissions, only the public profile), the plugin version or the OS (checked and dropped), your IP (only kept in memory for a minute for rate limiting), whether the game window is visible or in the background (only in memory while it is connected, to decide if a prompt is played live or saved as a pending spin), and no URLs, headers or tokens in the logs.
 
@@ -138,6 +147,12 @@ Both yes/no flags are computed **on your computer** by looking at Bash commands,
 By default you appear on the public leaderboard with your login, avatar and stats; you are told so when you log in. Hide any time with `/vibe-hide` (or in the window settings): you disappear from the leaderboard and the Hall of Ruin, past seasons included. `/vibe-show` brings you back.
 
 **New GitHub accounts.** So that mass-creating accounts to inflate the leaderboard is not worth it, a GitHub account younger than **30 days** (`leaderboard.minAccountAgeDays` in `config/game.json`) plays as usual but does not appear on the leaderboard or in the Hall of Ruin until it turns 30 days old; at login, the window and `/balance` tell you from which day. That is the only use of your GitHub account's creation date, which is kept until you delete your account. Accounts that existed before this rule do not have the date until their next login and, meanwhile, count as old.
+
+### Affiliate program
+
+If you ask for your affiliate link (`/vibe-invite` or the AFFILIATES screen), a random code is created for you; it says nothing about you. If you redeem someone else's code (`/vibe-redeem`), the server stores who invited whom, when, the welcome bonus and, once you activate, the commission paid to them. It is only used to run the program and its anti-abuse rules (one code per account, no cycles, a cap on commissions per season). The invite page `/r/<code>` shows the login and avatar of whoever shares it, **unless they are hidden** from the leaderboard (then it says "someone invited you"). Whoever invited you only sees numbers (how many invited and activated), never who you are.
+
+When you delete your account, your side of every invite is erased: the remaining row belongs to nobody and only keeps counting towards the other person's seasonal commission cap (otherwise deleting and re-creating an account would mean endless commissions); if neither side is left, it is deleted.
 
 ### Where
 
@@ -161,12 +176,13 @@ One **session** cookie (`HttpOnly`, `Secure`, `SameSite=Strict`) so the window k
 | Plugin / window session             | 1 year / 30 days from login, or until you log out; then deleted |
 | Link that opens the window          | 60 seconds, single use; then deleted                            |
 | Unfinished GitHub login             | Until it finishes or expires (~15 min); then deleted            |
+| Affiliate invites                   | Until you delete your account (your side is erased; see above)  |
 | Backups                             | 14 days: a deleted account may remain in them until then        |
 | Server logs (no personal data)      | Rotated by size                                                 |
 
 ### Your rights and deleting your account
 
-- **Delete your account**: `/vibe-delete-account <your-login>` in Claude Code. **Everything** about you is deleted at once (sessions, games, bets, loans, achievements, Hall of Ruin, your GitHub account's creation date) and your windows are closed.
+- **Delete your account**: `/vibe-delete-account <your-login>` in Claude Code. **Everything** about you is deleted at once (sessions, games, bets, loans, achievements, Hall of Ruin, your GitHub account's creation date, your affiliate code and your side of every invite) and your windows are closed.
 - **Object to the public leaderboard**: `/vibe-hide`.
 - **Access your data**: `/balance` and the window show what there is; ask (below) for a full copy.
 - **Rectification**: your login, avatar and account creation date are refreshed from GitHub every time you log in.

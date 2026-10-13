@@ -14,7 +14,7 @@ El contrato (esquemas zod de cada mensaje y la lógica pura de la ruleta) vive e
 | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [`packages/shared`](../packages/shared) | Contrato: esquemas zod del protocolo HTTP y WS (`protocol/`), rutas (`API_ROUTES`), lógica pura de la ruleta (`roulette/`: casillas, apuestas, pagos, parser de `/bet`), economía, rachas y temporadas (`game/`) e i18n (`i18n/`: lógica de las frases, esquemas de `locales/` y la lista de idiomas generada). Sin E/S.      |
 | [`packages/server`](../packages/server) | Fastify 5 + `@fastify/websocket` + Drizzle/Postgres 17. API, WebSocket, Device Flow de GitHub, job de temporadas, estáticos de la web, GitHub falso para desarrollo.                                                                                                                                                          |
-| [`packages/web`](../packages/web)       | Vite + Three.js. Tres páginas: `/` (landing + ranking), `/play` (la ventana del juego) y `/privacy`. Pipeline PSX propio (320×240, _vertex snapping_, texturas afines, 15 bits con _dithering_, CRT).                                                                                                                         |
+| [`packages/web`](../packages/web)       | Vite + Three.js. Cuatro páginas: `/` (landing + ranking), `/play` (la ventana del juego), `/privacy` y `/r/<código>` (invitación del programa de afiliados). Pipeline PSX propio (320×240, _vertex snapping_, texturas afines, 15 bits con _dithering_, CRT).                                                                 |
 | [`packages/mod`](../packages/mod)       | Plugin de Claude Code (API de módulos de hooks). Hooks de turno, comandos, status line, toasts y apertura de la ventana. Sin dependencias: corre en el entorno del engine, no en Node.                                                                                                                                        |
 | [`locales/`](../locales)                | Un idioma por carpeta (`en`, `es`, `fr`, `de`): textos del juego, la landing, `/privacy` y el mod, frases de ludópata, metadatos y bandera en pixel art. La web los descubre con `import.meta.glob`; `scripts/gen-locales.ts` genera la lista para el protocolo y la copia del mod ([cómo añadir uno](../locales/README.md)). |
 | [`config/`](../config)                  | `game.json` (números del juego), `site.json` (textos de marca y enlaces), `web.json` (ajustes del cliente web). Validados con zod al arrancar.                                                                                                                                                                                |
@@ -227,6 +227,9 @@ erDiagram
   seasons ||--o{ hall_of_ruin : "top N"
   users ||--o{ achievements : "consigue"
   seasons ||--o{ achievements : ""
+  users |o--o{ referrals : "invita (referrer)"
+  users |o--o| referrals : "canjea (invitee)"
+  seasons ||--o{ referrals : ""
 
   users {
     uuid id PK
@@ -236,6 +239,7 @@ erDiagram
     timestamptz github_created_at "alta de la cuenta de GitHub (antiabuso) o null"
     text locale "idioma de locales/ o null"
     jsonb last_bets "apuesta a repetir"
+    text referral_code UK "código de afiliado o null"
     timestamptz created_at
   }
   sessions {
@@ -332,6 +336,17 @@ erDiagram
     text season_id FK "en la que se consiguió"
     timestamptz unlocked_at
   }
+  referrals {
+    uuid id PK
+    uuid referrer_id FK "quien invita (null si borró su cuenta)"
+    uuid invitee_id FK, UK "quien canjea (null si borró su cuenta)"
+    timestamptz redeemed_at
+    text season_id FK "temporada del bono"
+    bigint welcome_bonus
+    timestamptz activated_at "null hasta activarse"
+    bigint commission "0 si ya estaba el tope"
+    text paid_season_id FK "temporada de la comisión"
+  }
   hall_of_ruin {
     text season_id PK, FK
     smallint rank PK
@@ -348,7 +363,8 @@ Reglas que garantiza la base de datos además del código:
 - **Una ronda abierta por usuario**: índice único parcial `WHERE status = 'open'`.
 - **Logros**: clave primaria `(user_id, achievement_id)` + `INSERT … ON CONFLICT DO NOTHING RETURNING`: cada logro se guarda y se anuncia una sola vez aunque dos transacciones lo intenten a la vez.
 - **Tiradas pendientes**: rondas `deferred` (con `deferred_at` y el turno que las guardó, por `CHECK`), en cola por el índice parcial `(user_id, season_id, deferred_at) WHERE status = 'deferred'`; `(user_id, spend_request_id)` único para que un GIRAR repetido no tire dos veces.
-- **Borrado de cuenta**: todo lo que cuelga de `users` es `ON DELETE CASCADE`.
+- **Borrado de cuenta**: todo lo que cuelga de `users` es `ON DELETE CASCADE`, salvo los canjes de afiliado (`referrals`): cada lado es `ON DELETE SET NULL`, para que la fila siga contando para el tope de comisiones de quien queda, y el borrado elimina las filas que se quedan sin ninguno de los dos.
+- **Afiliados**: un canje por cuenta para siempre (índice único de `referrals.invitee_id`), un código por usuario (índice único de `users.referral_code`, con `CHECK` del formato), sin autoinvitarse (`CHECK`), y la comisión se paga una sola vez (`activated_at IS NULL` con la fila bloqueada, en una transacción aparte de la tirada del invitado: nunca dos carteras bloqueadas a la vez). Detalle en [PROTOCOLO.md](PROTOCOLO.md#programa-de-afiliados).
 - **Cuentas de GitHub nuevas fuera del ranking**: `users.github_created_at` (el `created_at` del perfil público de GitHub, reescrito en cada login) decide quién sale en los rankings, en el puesto propio de `/api/me` y en el Salón de la Ruina: solo las cuentas con al menos `leaderboard.minAccountAgeDays` días (de 24 h, contra el reloj inyectado) o sin el dato (las de antes de la regla, hasta su próximo login). Se borra con la cuenta.
 - **Tokens**: solo hashes SHA-256 (`sessions`, `link_codes`, `device_auths`). El token de GitHub no se guarda nunca.
 
@@ -385,12 +401,12 @@ Las carteras de la temporada nueva se crean de forma perezosa con la primera ope
 
 Nada configurable está escrito en el código:
 
-| Dónde                                                     | Qué                                                                                                           | Lo valida                                  |
-| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
-| Variables de entorno (`deploy/.env.example`)              | URLs, puertos, base de datos, GitHub, sesiones, rate limits, WebSocket, cachés, proxy                         | `packages/server/src/config.ts` (zod)      |
-| `config/game.json`                                        | Saldo inicial, fichas, préstamo y TAE, jackpot, temporada, giro mínimo, rachas, edad mínima para el ranking   | `gameConfigSchema` (shared)                |
-| `config/site.json`                                        | Autor, repo, comando de instalación, enlaces de ayuda, otros proyectos, datos de la instancia para `/privacy` | `siteConfigSchema` (server)                |
-| `config/web.json`                                         | Ping y reconexión del WebSocket, tiempos de la interfaz, ranking, demo                                        | `webClientConfigSchema` (web, en la build) |
-| `userConfig` de `packages/mod/.claude-plugin/plugin.json` | URL del servidor, apertura automática, idioma, timeouts del mod                                               | el engine (rangos `min`/`max`) y el mod    |
+| Dónde                                                     | Qué                                                                                                                                | Lo valida                                  |
+| --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| Variables de entorno (`deploy/.env.example`)              | URLs, puertos, base de datos, GitHub, sesiones, rate limits, WebSocket, cachés, proxy                                              | `packages/server/src/config.ts` (zod)      |
+| `config/game.json`                                        | Saldo inicial, fichas, préstamo y TAE, jackpot, temporada, giro mínimo, rachas, edad mínima para el ranking, programa de afiliados | `gameConfigSchema` (shared)                |
+| `config/site.json`                                        | Autor, repo, comando de instalación, enlaces de ayuda, otros proyectos, datos de la instancia para `/privacy`                      | `siteConfigSchema` (server)                |
+| `config/web.json`                                         | Ping y reconexión del WebSocket, tiempos de la interfaz, ranking, demo                                                             | `webClientConfigSchema` (web, en la build) |
+| `userConfig` de `packages/mod/.claude-plugin/plugin.json` | URL del servidor, apertura automática, idioma, timeouts del mod                                                                    | el engine (rangos `min`/`max`) y el mod    |
 
 Si falta algo o no cuadra, el proceso no arranca y dice qué. Las únicas constantes del código son las reglas de la ruleta europea (casillas, colores, orden del cilindro, pagos).

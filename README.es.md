@@ -109,10 +109,18 @@ Son los valores de la instancia oficial; todos están en [`config/game.json`](co
 - **Tests en rojo**: frase de consuelo. ¿Cinco rojos seguidos? La ventana te recordará que ahora TIENE que salir negro. No tiene: es la falacia del jugador, y ahí está el chiste.
 - **Temporadas** de un mes natural (hora de Madrid). El día 1 todo el mundo vuelve a 1.000 monedas y deuda cero. Las pendientes caducan.
 - **Rankings** de cada temporada: **Arruinados** (el bueno), **Ricos** (por si alguien gana de verdad) y **Adictos** (el que más tiradas lleva). Los 10 más arruinados de cada temporada se quedan para siempre en el **Salón de la Ruina**.
-- **17 logros de broma** con su aviso de trofeo de la época: _Primera ruina_, _Deudor profesional_, _Todo al 0_, _Push el viernes_, _Lo dejo cuando quiera_, _Deploy de madrugada_, _Demasiado grande para caer_…
+- **19 logros de broma** con su aviso de trofeo de la época: _Primera ruina_, _Deudor profesional_, _Todo al 0_, _Push el viernes_, _Lo dejo cuando quiera_, _Deploy de madrugada_, _Demasiado grande para caer_, _Jefe de la Pirámide_…
 - **Limpio, dentro de lo que cabe.** Cada resultado lo decide el servidor con `crypto.randomInt`, nunca tu navegador. La bola tarda al menos unos 4 s en caer, aunque Claude conteste en uno.
 
 Por defecto sales en el ranking público (login, avatar y estadísticas), y te lo decimos al iniciar sesión. Con `/vibe-hide` desapareces, también del Salón de la Ruina.
+
+### Programa de Afiliados Piramidal (legalmente distinto)
+
+Invita a 3 amigos y deja de tenerlos. `/vibe-invite` te da tu enlace de afiliado (`/r/<código>`) y las cuentas de tu pirámide; la pantalla AFILIADOS de la ventana enseña lo mismo y copia el enlace.
+
+- **Tu amigo** canjea tu código con `/vibe-redeem <código>` en sus primeros **7 días** y antes de **100 tiradas**, y cobra **500 monedas** al momento. Un código por cuenta, para siempre. Ni el tuyo ni el de quien canjeó el tuyo.
+- **Tú** cobras **1.000 monedas** cuando juegue **50 tiradas** y su cuenta de GitHub tenga edad para el ranking. Como mucho **10 comisiones por temporada**: después, la pirámide está llena y no paga hasta el mes siguiente.
+- Monedas de mentira, reglas de verdad: lo comprueba todo el servidor (y solo cuenta: nunca te dice quiénes son tus invitados). Los valores están en [`config/game.json`](config/game.json) (`referral`).
 
 ### Cuatro idiomas
 
@@ -122,16 +130,18 @@ Por defecto sales en el ranking público (login, avatar y estadísticas), y te l
 
 Toda la superficie de la API. No hay plan premium: todos los comandos son gratis, y todas las pérdidas también.
 
-| Comando                        | Alias      | Qué hace                                                              |
-| ------------------------------ | ---------- | --------------------------------------------------------------------- |
-| `/roulette`                    | `/ruleta`  | Abre la ventana                                                       |
-| `/bet <cantidad> <casilla>`    | `/apostar` | Apuesta a la tirada en curso o a la siguiente (`/apostar 50 17`)      |
-| `/all-in [casilla]`            |            | Todo tu saldo (al rojo si no dices nada)                              |
-| `/balance`                     | `/saldo`   | Saldo, deuda, patrimonio, puesto y tiradas pendientes                 |
-| `/vibe-login` · `/vibe-logout` |            | Entrar con un código de GitHub · cerrar sesión                        |
-| `/vibe-hide` · `/vibe-show`    |            | Ocultarte del ranking público · volver a salir                        |
-| `/vibe-server [url\|default]`  |            | Ver o cambiar de servidor (para tu propio casino)                     |
-| `/vibe-delete-account <login>` |            | Borra tu cuenta y todos tus datos (escribe tu login para confirmarlo) |
+| Comando                        | Alias           | Qué hace                                                              |
+| ------------------------------ | --------------- | --------------------------------------------------------------------- |
+| `/roulette`                    | `/ruleta`       | Abre la ventana                                                       |
+| `/bet <cantidad> <casilla>`    | `/apostar`      | Apuesta a la tirada en curso o a la siguiente (`/apostar 50 17`)      |
+| `/all-in [casilla]`            |                 | Todo tu saldo (al rojo si no dices nada)                              |
+| `/balance`                     | `/saldo`        | Saldo, deuda, patrimonio, puesto y tiradas pendientes                 |
+| `/vibe-login` · `/vibe-logout` |                 | Entrar con un código de GitHub · cerrar sesión                        |
+| `/vibe-hide` · `/vibe-show`    |                 | Ocultarte del ranking público · volver a salir                        |
+| `/vibe-server [url\|default]`  |                 | Ver o cambiar de servidor (para tu propio casino)                     |
+| `/vibe-delete-account <login>` |                 | Borra tu cuenta y todos tus datos (escribe tu login para confirmarlo) |
+| `/vibe-invite`                 | `/vibe-invitar` | Tu enlace de afiliado, tu código y las cuentas de tu pirámide         |
+| `/vibe-redeem <código>`        | `/vibe-canjear` | Canjea el código de quien te invitó (bono de bienvenida)              |
 
 Las opciones del plugin (servidor, apertura automática, idioma, tiempos de espera, tamaño de la ventana) están en `/config`; detalles en [packages/mod](packages/mod/README.md#options).
 

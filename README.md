@@ -109,10 +109,18 @@ Defaults of the official instance; all of them live in [`config/game.json`](conf
 - **Failed tests** get a consolation phrase. Five reds in a row? The window will remind you that black HAS to come up now. It doesn't: that is the gambler's fallacy, and that is the joke.
 - **Seasons** are calendar months (Europe/Madrid). On the 1st, everyone goes back to 1,000 coins and zero debt. Pending spins expire.
 - **Leaderboards** per season: **Most broke** (the star one), **Richest** (in case someone actually wins) and **Most spins** (the most hooked). The 10 most broke devs of every season are kept forever in the **Hall of Ruin**.
-- **17 joke achievements** with a period-correct trophy pop-up: _First ruin_, _Professional debtor_, _All on zero_, _Push on Friday_, _I can quit anytime_, _3 a.m. deploy_, _Too big to fail_…
+- **19 joke achievements** with a period-correct trophy pop-up: _First ruin_, _Professional debtor_, _All on zero_, _Push on Friday_, _I can quit anytime_, _3 a.m. deploy_, _Too big to fail_, _Top of the Pyramid_…
 - **Fair, as far as fake gambling goes.** The server decides every result with `crypto.randomInt`, never your browser. The ball takes at least ~4 s to drop, even if Claude answers in one.
 
 You show up on the public leaderboard by default (login, avatar and stats), and you are told so when you log in. `/vibe-hide` makes you vanish, Hall of Ruin included.
+
+### Pyramid Affiliate Program (legally distinct)
+
+Invite 3 friends and stop having them. `/vibe-invite` gives you your affiliate link (`/r/<code>`) and your pyramid stats; the AFFILIATES screen of the window shows the same and copies the link.
+
+- **Your friend** redeems your code with `/vibe-redeem <code>` within their first **7 days** and **100 spins**, and gets **500 coins** on the spot. One code per account, forever. Not your own, and not the code of someone who redeemed yours.
+- **You** get **1,000 coins** once they play **50 spins** and their GitHub account is old enough for the leaderboard. Up to **10 commissions per season**: after that, the pyramid is full and pays nothing until next month.
+- Fake coins, real rules: the server checks everything (and only counts, it never tells you who your invitees are). Defaults in [`config/game.json`](config/game.json) (`referral`).
 
 ### Four languages
 
@@ -122,16 +130,18 @@ You show up on the public leaderboard by default (login, avatar and stats), and 
 
 The whole API surface. There is no premium tier: every command is free, and so is every loss.
 
-| Command                        | Alias      | What it does                                                         |
-| ------------------------------ | ---------- | -------------------------------------------------------------------- |
-| `/roulette`                    | `/ruleta`  | Open the window                                                      |
-| `/bet <amount> <square>`       | `/apostar` | Bet on the current or next spin (`/bet 200 red`, `/apostar 50 17`)   |
-| `/all-in [square]`             |            | Your whole balance (red by default)                                  |
-| `/balance`                     | `/saldo`   | Balance, debt, net worth, rank and pending spins                     |
-| `/vibe-login` · `/vibe-logout` |            | GitHub device-code login · log out                                   |
-| `/vibe-hide` · `/vibe-show`    |            | Hide from / show on the public leaderboard                           |
-| `/vibe-server [url\|default]`  |            | Show or change the server (self-hosting)                             |
-| `/vibe-delete-account <login>` |            | Delete your account and all its data (type your login to confirm it) |
+| Command                        | Alias           | What it does                                                         |
+| ------------------------------ | --------------- | -------------------------------------------------------------------- |
+| `/roulette`                    | `/ruleta`       | Open the window                                                      |
+| `/bet <amount> <square>`       | `/apostar`      | Bet on the current or next spin (`/bet 200 red`, `/apostar 50 17`)   |
+| `/all-in [square]`             |                 | Your whole balance (red by default)                                  |
+| `/balance`                     | `/saldo`        | Balance, debt, net worth, rank and pending spins                     |
+| `/vibe-login` · `/vibe-logout` |                 | GitHub device-code login · log out                                   |
+| `/vibe-hide` · `/vibe-show`    |                 | Hide from / show on the public leaderboard                           |
+| `/vibe-server [url\|default]`  |                 | Show or change the server (self-hosting)                             |
+| `/vibe-delete-account <login>` |                 | Delete your account and all its data (type your login to confirm it) |
+| `/vibe-invite`                 | `/vibe-invitar` | Your affiliate link, your code and your pyramid stats                |
+| `/vibe-redeem <code>`          | `/vibe-canjear` | Redeem the code of whoever invited you (welcome bonus)               |
 
 Plugin options (server, auto-open, language, timeouts, window size) are in `/config`; see [packages/mod](packages/mod/README.md#options).
 
