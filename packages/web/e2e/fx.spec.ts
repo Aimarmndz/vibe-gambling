@@ -282,10 +282,8 @@ test.describe('espectáculo', () => {
       page.evaluate(
         () => (window as unknown as { __vg: { render(): { gl: Gl } } }).__vg.render().gl,
       )
-    /** El premio entero: ✕ al final, ✕ cierra, ✕ quita el resultado; hasta la mesa quieta. */
-    const prize = async () => {
-      await waitFx(page, 'fx:prize')
-      // Coste por fotograma con la lluvia de fichas al máximo (GL por software en el E2E).
+    /** Mediana del tiempo entre fotogramas (90 fotogramas, sin los 5 primeros). */
+    const frameMedian = async (): Promise<number> => {
       const deltas = await page.evaluate(
         () =>
           new Promise<number[]>(resolve => {
@@ -301,9 +299,16 @@ test.describe('espectáculo', () => {
           }),
       )
       const sorted = deltas.slice(5).sort((a, b) => a - b)
-      const median = sorted[Math.floor(sorted.length / 2)]!
+      return sorted[Math.floor(sorted.length / 2)]!
+    }
+    const prizeMedians: number[] = []
+    /** El premio entero: ✕ al final, ✕ cierra, ✕ quita el resultado; hasta la mesa quieta. */
+    const prize = async () => {
+      await waitFx(page, 'fx:prize')
+      // Coste por fotograma con la lluvia de fichas al máximo (GL por software en el E2E).
+      const median = await frameMedian()
       console.log(`[fx] MEGA WIN: mediana ${median.toFixed(1)} ms por fotograma`)
-      expect(median).toBeLessThan(50)
+      prizeMedians.push(median)
       await expect
         .poll(
           async () => {
@@ -357,6 +362,12 @@ test.describe('espectáculo', () => {
     }
     for (let i = 0; i < 15; i++) await menuRound()
     expect(await gl()).toEqual(base)
+    // Presupuesto relativo a la mesa en reposo de la misma máquina: el coste absoluto depende del
+    // runner (GL por software en el CI), pero la lluvia de fichas al máximo no puede más que
+    // duplicar el fotograma de la mesa quieta.
+    const idle = await frameMedian()
+    console.log(`[fx] mesa en reposo: mediana ${idle.toFixed(1)} ms por fotograma`)
+    for (const median of prizeMedians) expect(median).toBeLessThanOrEqual(idle * 2 + 4)
     await done(page)
   })
 })
