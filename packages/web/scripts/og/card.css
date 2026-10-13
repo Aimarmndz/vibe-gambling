@@ -21,15 +21,28 @@ main {
   padding: 0 48px;
   box-sizing: border-box;
 }
-img {
+#shot {
   width: 640px;
   height: 480px;
   image-rendering: pixelated;
   border: 6px solid #3a3d60;
   box-shadow: 12px 12px 0 #000;
 }
-h1 {
+/* Marca + logotipo como en docs/brand/logo.svg: la ficha de 32 a ×3 a la izquierda del nombre. */
+.lockup {
+  display: flex;
+  gap: 24px;
+  align-items: center;
   margin: 0 0 24px;
+}
+.mark {
+  width: 96px;
+  height: 96px;
+  flex: none;
+  image-rendering: pixelated;
+}
+h1 {
+  margin: 0;
   font-size: 96px;
   line-height: 96px;
   font-weight: normal;
