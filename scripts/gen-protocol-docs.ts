@@ -86,6 +86,7 @@ const COMMON = {
   ColorStreak: 'colorStreakSchema',
   OpenRound: 'openRoundSchema',
   Spectacle: 'spectacleSchema',
+  RoundItemEffect: 'roundItemEffectSchema',
   ResolvedRound: 'resolvedRoundSchema',
   Achievement: 'achievementSchema',
   RoundSummary: 'roundSummarySchema',
@@ -95,6 +96,10 @@ const COMMON = {
   LeaderboardRow: 'leaderboardRowSchema',
   HallOfRuinRow: 'hallOfRuinRowSchema',
   ReferralStatus: 'referralStatusSchema',
+  Inventory: 'inventorySchema',
+  ShopItem: 'shopItemSchema',
+  Placebometer: 'placebometerSchema',
+  Shop: 'shopSchema',
   PublicGameConfig: 'publicGameConfigSchema',
   ErrorResponse: 'errorResponseSchema',
 } as const satisfies Record<string, SchemaName>
@@ -305,6 +310,9 @@ const ROUTE_DOCS: Readonly<
     response: 'referralRedeemResponseSchema',
   },
   referralLookup: { query: 'referralLookupQuerySchema', response: 'referralLookupResponseSchema' },
+  shop: { response: 'shopResponseSchema' },
+  shopBuy: { request: 'shopBuyRequestSchema', response: 'shopBuyResponseSchema' },
+  itemArm: { request: 'itemArmRequestSchema', response: 'itemArmResponseSchema' },
 }
 
 const AUTH_TEXT: Readonly<Record<shared.RouteAuth, string>> = {

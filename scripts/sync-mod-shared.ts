@@ -30,6 +30,13 @@ import {
   REFERRAL_CODE_LENGTH,
   REFERRAL_REJECTIONS,
 } from '../packages/shared/src/game/referral.ts'
+import {
+  CHIP_SKIN_IDS,
+  CONSUMABLE_IDS,
+  COSMETIC_IDS,
+  FELT_IDS,
+  ITEM_IDS,
+} from '../packages/shared/src/game/items.ts'
 import { MOD_MANIFEST_MODULE, renderModManifest } from './lib/mod-manifest.ts'
 
 export const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -56,9 +63,9 @@ function renderProtocol(): string {
     `export const ${name} = ${JSON.stringify(value)} as const`
   return [
     SPDX,
-    banner('packages/shared/src/{protocol/common,protocol/routes,game/referral}.ts'),
-    '// Constantes del protocolo que usa el mod: versión, SO, idiomas, errores, textos, rutas y el',
-    '// formato de los códigos de afiliado.',
+    banner('packages/shared/src/{protocol/common,protocol/routes,game/referral,game/items}.ts'),
+    '// Constantes del protocolo que usa el mod: versión, SO, idiomas, errores, textos, rutas, el',
+    '// formato de los códigos de afiliado y los ids del catálogo de la TIENDA.',
     '',
     constant('PROTOCOL_VERSION', PROTOCOL_VERSION),
     constant('OS_VALUES', OS_VALUES),
@@ -75,6 +82,13 @@ function renderProtocol(): string {
     constant('REFERRAL_CODE_LENGTH', REFERRAL_CODE_LENGTH),
     constant('REFERRAL_REJECTIONS', REFERRAL_REJECTIONS),
     'export type ReferralRejection = (typeof REFERRAL_REJECTIONS)[number]',
+    constant('ITEM_IDS', ITEM_IDS),
+    'export type ItemId = (typeof ITEM_IDS)[number]',
+    constant('CONSUMABLE_IDS', CONSUMABLE_IDS),
+    'export type ConsumableId = (typeof CONSUMABLE_IDS)[number]',
+    constant('COSMETIC_IDS', COSMETIC_IDS),
+    constant('FELT_IDS', FELT_IDS),
+    constant('CHIP_SKIN_IDS', CHIP_SKIN_IDS),
     '',
   ].join('\n')
 }

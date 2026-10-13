@@ -453,7 +453,9 @@ describe('datos del servidor', () => {
     page.wheel(-1)
     page.draw(fakeCanvas2d(), 0)
     expect(painted.map(p => p.text)).toContain('???')
-    expect(page.headerRight()).toBe(`2/${ACHIEVEMENTS.length} · 10 %`)
+    expect(page.headerRight()).toBe(
+      `2/${ACHIEVEMENTS.length} · ${Math.floor((2 / ACHIEVEMENTS.length) * 100)} %`,
+    )
   })
 })
 

@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest'
 import {
   ACHIEVEMENT_IDS,
   ACHIEVEMENTS,
+  COSMETIC_IDS,
   achievementDef,
   achievementParams,
   achievementProgress,
@@ -83,6 +84,10 @@ function ctx(over: Partial<AchievementContext> = {}): AchievementContext {
 
 const all = (c: AchievementContext) => evaluateAchievements(c, rules, new Set())
 const wallet = ctx().wallet
+
+function buy(itemId: string): NonNullable<AchievementContext['purchase']> {
+  return { itemId, cosmeticsOwned: 0, revert: null }
+}
 
 describe('catálogo', () => {
   it('al menos 12 logros, ids únicos y en snake_case, algunos secretos', () => {
@@ -225,7 +230,59 @@ describe('cada logro', () => {
       ctx({ event: 'referral', round: null, referral: { activated: 3, seasonCommissions: 3 } }),
       ctx({ event: 'referral', round: null, referral: { activated: 9, seasonCommissions: 2 } }),
     ],
+    [
+      'first_purchase',
+      ctx({ event: 'purchase', round: null, purchase: buy('oracle') }),
+      ctx({ event: 'loan', round: null }),
+    ],
+    [
+      'placebo_win',
+      ctx({ round: mkRound({ net: 10, items: [{ itemId: 'rabbit_foot' }] }) }),
+      ctx({ round: mkRound({ net: 10, items: [{ itemId: 'oracle', hit: false }] }) }),
+    ],
+    [
+      'oracle_hit',
+      ctx({ round: mkRound({ items: [{ itemId: 'oracle', hit: true }] }) }),
+      ctx({ round: mkRound({ items: [{ itemId: 'oracle', hit: false }] }) }),
+    ],
+    [
+      'asterisk_streak',
+      ctx({ round: mkRound({ streak: 3 }), streakAsterisk: true }),
+      ctx({ round: mkRound({ streak: 2 }), streakAsterisk: true }),
+    ],
+    [
+      'revert_regret',
+      ctx({
+        event: 'purchase',
+        round: null,
+        purchase: { ...buy('revert'), revert: { loss: 501, refund: 500 } },
+      }),
+      ctx({
+        event: 'purchase',
+        round: null,
+        purchase: { ...buy('revert'), revert: { loss: 500, refund: 500 } },
+      }),
+    ],
+    [
+      'bad_taste',
+      ctx({
+        event: 'purchase',
+        round: null,
+        purchase: { ...buy('chips_floppy'), cosmeticsOwned: COSMETIC_IDS.length },
+      }),
+      ctx({
+        event: 'purchase',
+        round: null,
+        purchase: { ...buy('chips_floppy'), cosmeticsOwned: COSMETIC_IDS.length - 1 },
+      }),
+    ],
   ]
+
+  it('ON FIRE no vale con una racha salvada por el casco (lleva asterisco)', () => {
+    const got = all(ctx({ round: mkRound({ streak: 3 }), streakAsterisk: true }))
+    expect(got).toContain('asterisk_streak')
+    expect(got).not.toContain('on_fire')
+  })
 
   it('cubre todo el catálogo', () => {
     expect(cases.map(c => c[0]).sort()).toEqual([...ACHIEVEMENT_IDS].sort())

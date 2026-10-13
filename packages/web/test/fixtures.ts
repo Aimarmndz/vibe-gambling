@@ -45,6 +45,18 @@ export const testGame = gameConfigSchema.parse({
     redeemMaxSpins: 40,
     maxCommissionsPerSeason: 4,
   },
+  items: {
+    enabled: true,
+    purchaseCooldownMs: 0,
+    maxArmed: 3,
+    rabbitFoot: { price: 70, charges: 30, maxPerSeason: 3 },
+    oracle: { price: 30, charges: 10, maxPerSeason: 5 },
+    insurance: { price: 300, charges: 5, refundRate: 0.5, coverCap: 150, maxPerSeason: 5 },
+    turbo: { price: 50, charges: 1, multiplier: 2, coverCap: 50, maxPerSeason: 10 },
+    streakHelmet: { price: 120, charges: 3, maxPerSeason: 3 },
+    revert: { price: 400, maxRefund: 350, windowMs: 60_000, maxPerSeason: 1 },
+    cosmetics: { feltPrice: 400, chipsPrice: 200 },
+  },
   stats: { recentRounds: 5, seriesPoints: 10, loanMarks: 3, bankHistory: 5 },
 })
 

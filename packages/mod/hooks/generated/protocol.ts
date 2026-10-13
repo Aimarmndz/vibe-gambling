@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// GENERADO por scripts/sync-mod-shared.ts a partir de packages/shared/src/{protocol/common,protocol/routes,game/referral}.ts. No lo edites a mano.
-// Constantes del protocolo que usa el mod: versión, SO, idiomas, errores, textos, rutas y el
-// formato de los códigos de afiliado.
+// GENERADO por scripts/sync-mod-shared.ts a partir de packages/shared/src/{protocol/common,protocol/routes,game/referral,game/items}.ts. No lo edites a mano.
+// Constantes del protocolo que usa el mod: versión, SO, idiomas, errores, textos, rutas, el
+// formato de los códigos de afiliado y los ids del catálogo de la TIENDA.
 
 export const PROTOCOL_VERSION = 1 as const
 export const OS_VALUES = ['linux', 'darwin', 'win32', 'other'] as const
@@ -45,6 +45,9 @@ export const API_ROUTES = {
   referral: { method: 'GET', path: '/api/referral', auth: 'any' },
   referralRedeem: { method: 'POST', path: '/api/referral/redeem', auth: 'mod' },
   referralLookup: { method: 'GET', path: '/api/referral/lookup', auth: 'public' },
+  shop: { method: 'GET', path: '/api/shop', auth: 'any' },
+  shopBuy: { method: 'POST', path: '/api/shop/buy', auth: 'any' },
+  itemArm: { method: 'POST', path: '/api/items/arm', auth: 'any' },
 } as const
 export type ApiRouteName = keyof typeof API_ROUTES
 export const PAGE_PATHS = {
@@ -66,3 +69,44 @@ export const REFERRAL_REJECTIONS = [
   'too_many_spins',
 ] as const
 export type ReferralRejection = (typeof REFERRAL_REJECTIONS)[number]
+export const ITEM_IDS = [
+  'rabbit_foot',
+  'oracle',
+  'insurance',
+  'turbo',
+  'streak_helmet',
+  'revert',
+  'felt_memory_blue',
+  'felt_montecarlo97',
+  'felt_dark_mode',
+  'felt_vaporwave',
+  'chips_floppy',
+  'chips_cinco_duros',
+  'chips_bottle_cap',
+] as const
+export type ItemId = (typeof ITEM_IDS)[number]
+export const CONSUMABLE_IDS = [
+  'rabbit_foot',
+  'oracle',
+  'insurance',
+  'turbo',
+  'streak_helmet',
+] as const
+export type ConsumableId = (typeof CONSUMABLE_IDS)[number]
+export const COSMETIC_IDS = [
+  'felt_memory_blue',
+  'felt_montecarlo97',
+  'felt_dark_mode',
+  'felt_vaporwave',
+  'chips_floppy',
+  'chips_cinco_duros',
+  'chips_bottle_cap',
+] as const
+export const FELT_IDS = [
+  'classic',
+  'memory_blue',
+  'montecarlo97',
+  'dark_mode',
+  'vaporwave',
+] as const
+export const CHIP_SKIN_IDS = ['classic', 'floppy', 'cinco_duros', 'bottle_cap'] as const

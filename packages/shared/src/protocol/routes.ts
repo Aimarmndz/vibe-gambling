@@ -38,6 +38,12 @@ export const API_ROUTES = Object.freeze({
   referralRedeem: { method: 'POST', path: '/api/referral/redeem', auth: 'mod' },
   /** Quién invita con un código (para la página `/r/<código>`). */
   referralLookup: { method: 'GET', path: '/api/referral/lookup', auth: 'public' },
+  /** TIENDA: catálogo con precios, tu bolsillo, tu armario y el Placebómetro. */
+  shop: { method: 'GET', path: '/api/shop', auth: 'any' },
+  /** Compra un objeto (o `git revert HEAD~1`). Idempotente por `requestId`. */
+  shopBuy: { method: 'POST', path: '/api/shop/buy', auth: 'any' },
+  /** Arma o desarma un consumible del bolsillo. */
+  itemArm: { method: 'POST', path: '/api/items/arm', auth: 'any' },
 } as const satisfies Record<string, ApiRoute>)
 export type ApiRouteName = keyof typeof API_ROUTES
 

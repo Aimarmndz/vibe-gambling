@@ -3,6 +3,7 @@
 import { z } from 'zod'
 
 import { AUTO_BET_SOURCES } from '../game/constants.ts'
+import { CHIP_SKIN_IDS, FELT_IDS, ITEM_EFFECT_KINDS, ITEM_IDS } from '../game/items.ts'
 import { FIRE_STATES, WIN_TIERS } from '../game/spectacle.ts'
 import { betSchema, betSelectionSchema } from '../roulette/bets.ts'
 import { seasonIdSchema } from '../game/season.ts'
@@ -81,6 +82,9 @@ export const turnIdSchema = z.string().regex(/^[A-Za-z0-9_-]{8,64}$/)
 /** Identificador de una petición de GIRAR generado por la ventana (idempotencia). */
 export const spinRequestIdSchema = z.string().regex(/^[A-Za-z0-9_-]{8,64}$/)
 
+/** Identificador de una compra generado por quien compra (idempotencia de los reintentos). */
+export const purchaseRequestIdSchema = z.string().regex(/^[A-Za-z0-9_-]{8,64}$/)
+
 /** Versión del plugin (semver sencillo). */
 export const pluginVersionSchema = z
   .string()
@@ -96,6 +100,10 @@ export const coinsSchema = z
   .max(Number.MAX_SAFE_INTEGER)
 
 export const pocketColorSchema = z.enum(['red', 'black', 'green'])
+
+export const itemIdSchema = z.enum(ITEM_IDS)
+export const feltIdSchema = z.enum(FELT_IDS)
+export const chipSkinIdSchema = z.enum(CHIP_SKIN_IDS)
 
 /** Datos públicos de un usuario (vienen de su perfil de GitHub). */
 export const publicUserSchema = z
@@ -123,6 +131,9 @@ export const selfUserSchema = publicUserSchema
       .strict()
       .nullable()
       .optional(),
+    /** Tapete y fichas equipados (cosméticos de la TIENDA). Opcionales por compatibilidad (`v: 1`). */
+    felt: feltIdSchema.optional(),
+    chipSkin: chipSkinIdSchema.optional(),
   })
   .strict()
 export type SelfUser = z.output<typeof selfUserSchema>
@@ -144,6 +155,11 @@ export const walletSchema = z
      * Cuentan en `spins` cuando se gastan.
      */
     pendingSpins: z.number().int().min(0),
+    /**
+     * La racha ganadora sigue viva gracias al Casco de Racha (se enseña como `7*`). Opcional por
+     * compatibilidad (`v: 1`).
+     */
+    streakAsterisk: z.boolean().optional(),
   })
   .strict()
 export type Wallet = z.output<typeof walletSchema>
@@ -192,6 +208,22 @@ export const spectacleSchema = z
   .strict()
 export type SpectacleView = z.output<typeof spectacleSchema>
 
+/**
+ * Lo que ha hecho un objeto de la TIENDA en una ronda: una línea de la pantalla de resultado. Las
+ * monedas de los objetos van aparte de las de la ruleta (`net` es siempre el neto oficial).
+ */
+export const roundItemEffectSchema = z
+  .object({
+    itemId: itemIdSchema,
+    kind: z.enum(ITEM_EFFECT_KINDS),
+    amount: coinsSchema,
+    /** Solo el oráculo: su predicción y si ha acertado. */
+    prediction: z.number().int().min(0).max(36).optional(),
+    hit: z.boolean().optional(),
+  })
+  .strict()
+export type RoundItemEffect = z.output<typeof roundItemEffectSchema>
+
 /** Ronda abierta (la ruleta gira mientras Claude piensa). */
 export const openRoundSchema = z
   .object({
@@ -226,6 +258,13 @@ export const resolvedRoundSchema = z
      * que sigan valiendo las rondas de clientes y demos anteriores a la v2 (mismo `v: 1`).
      */
     spectacle: spectacleSchema.optional(),
+    /**
+     * Objetos que han actuado en la ronda y lo que pagan en total (aparte de `net`). Lo que siente
+     * el jugador es `net + itemNet`, y con eso se calculan el saldo y el espectáculo. Opcionales
+     * por compatibilidad (`v: 1`); este servidor los manda siempre.
+     */
+    itemNet: coinsSchema.optional(),
+    items: z.array(roundItemEffectSchema).optional(),
   })
   .strict()
 export type ResolvedRound = z.output<typeof resolvedRoundSchema>

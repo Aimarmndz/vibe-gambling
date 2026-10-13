@@ -8,7 +8,9 @@ import { REFERRAL_REJECTIONS, referralCodeSchema } from '../game/referral.ts'
 import { seasonIdSchema } from '../game/season.ts'
 import { betSelectionSchema } from '../roulette/bets.ts'
 import {
+  chipSkinIdSchema,
   coinsSchema,
+  feltIdSchema,
   httpUrlSchema,
   localeSchema,
   perLocaleSchema,
@@ -26,6 +28,7 @@ import {
   walletSchema,
 } from './common.ts'
 import { achievementSchema } from './progress.ts'
+import { inventorySchema } from './shop.ts'
 
 // ---------------------------------------------------------------- /api/meta
 
@@ -252,6 +255,8 @@ export const meResponseSchema = z
     brokeRank: z.number().int().positive().nullable(),
     /** Logros (como en el `hello`). Opcional en el esquema por compatibilidad (`v: 1`). */
     achievements: z.array(achievementSchema).optional(),
+    /** Bolsillo y armario de la TIENDA. Opcional en el esquema por compatibilidad (`v: 1`). */
+    inventory: inventorySchema.optional(),
   })
   .strict()
 export type MeResponse = z.output<typeof meResponseSchema>
@@ -261,11 +266,19 @@ export const settingsRequestSchema = z
     v: versionSchema,
     hidden: z.boolean().optional(),
     locale: localeSchema.nullable().optional(),
+    /** Tapete y fichas (cosméticos): solo los que tienes (los clásicos, siempre). */
+    felt: feltIdSchema.optional(),
+    chipSkin: chipSkinIdSchema.optional(),
   })
   .strict()
-  .refine(body => body.hidden !== undefined || body.locale !== undefined, {
-    message: 'nada que cambiar',
-  })
+  .refine(
+    body =>
+      body.hidden !== undefined ||
+      body.locale !== undefined ||
+      body.felt !== undefined ||
+      body.chipSkin !== undefined,
+    { message: 'nada que cambiar' },
+  )
 export type SettingsRequest = z.output<typeof settingsRequestSchema>
 
 export const settingsResponseSchema = z.object({ v: versionSchema, user: selfUserSchema }).strict()
@@ -298,6 +311,8 @@ export const leaderboardRowSchema = publicUserSchema
     spins: z.number().int().min(0),
     currentStreak: z.number().int(),
     bestStreak: z.number().int().min(0),
+    /** La racha sigue viva gracias al Casco de Racha (`7*`). Opcional por compatibilidad. */
+    streakAsterisk: z.boolean().optional(),
   })
   .strict()
 export type LeaderboardRow = z.output<typeof leaderboardRowSchema>

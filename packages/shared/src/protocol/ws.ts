@@ -7,7 +7,11 @@ import { betSelectionSchema } from '../roulette/bets.ts'
 import {
   errorCodeSchema,
   localeSchema,
+  chipSkinIdSchema,
+  feltIdSchema,
+  itemIdSchema,
   openRoundSchema,
+  purchaseRequestIdSchema,
   resolvedRoundSchema,
   selfUserSchema,
   slipSchema,
@@ -17,6 +21,7 @@ import {
 } from './common.ts'
 import { betAmountSchema, referralStatusSchema } from './http.ts'
 import { achievementSchema, bankStatementSchema, seasonStatsSchema } from './progress.ts'
+import { consumableIdSchema, inventorySchema, shopSchema } from './shop.ts'
 
 /** Tamaño máximo de un mensaje del cliente (bytes). */
 export const WS_CLIENT_MESSAGE_MAX_BYTES = 4096
@@ -40,6 +45,8 @@ export const clientMessageSchema = z.discriminatedUnion('type', [
       type: z.literal('settings.update'),
       hidden: z.boolean().optional(),
       locale: localeSchema.nullable().optional(),
+      felt: feltIdSchema.optional(),
+      chipSkin: chipSkinIdSchema.optional(),
     })
     .strict(),
   /**
@@ -80,6 +87,29 @@ export const clientMessageSchema = z.discriminatedUnion('type', [
     .strict(),
   /** Pide tu situación en el programa de afiliados (pantalla AFILIADOS). Responde `referral`. */
   z.object({ v: versionSchema, type: z.literal('referral.request') }).strict(),
+  /** Pide la TIENDA (catálogo, bolsillo, armario y Placebómetro). Responde `shop`. */
+  z.object({ v: versionSchema, type: z.literal('shop.request') }).strict(),
+  /**
+   * Compra un objeto (o `git revert HEAD~1`). Un reintento con el mismo `requestId` no compra dos
+   * veces. Responde con `inventory` (`bought`) a todas las ventanas del usuario.
+   */
+  z
+    .object({
+      v: versionSchema,
+      type: z.literal('shop.buy'),
+      itemId: itemIdSchema,
+      requestId: purchaseRequestIdSchema,
+    })
+    .strict(),
+  /** Arma o desarma un consumible: vale para la próxima ronda que se resuelva. */
+  z
+    .object({
+      v: versionSchema,
+      type: z.literal('item.arm'),
+      itemId: consumableIdSchema,
+      armed: z.boolean(),
+    })
+    .strict(),
   /** Pide el estado completo (tras reconectar). */
   z.object({ v: versionSchema, type: z.literal('sync') }).strict(),
   z.object({ v: versionSchema, type: z.literal('ping'), t: z.number().int().min(0) }).strict(),
@@ -99,6 +129,9 @@ export const clientMessageTypeSchema = z.enum([
   'stats.request',
   'bank.request',
   'referral.request',
+  'shop.request',
+  'shop.buy',
+  'item.arm',
 ])
 export type ClientMessageType = z.output<typeof clientMessageTypeSchema>
 export type ClientMessageInput = z.input<typeof clientMessageSchema>
@@ -122,6 +155,8 @@ export const serverMessageSchema = z.discriminatedUnion('type', [
        * opcional en el esquema por compatibilidad con clientes de antes de la v2 (`v: 1`).
        */
       achievements: z.array(achievementSchema).optional(),
+      /** Bolsillo y armario de la TIENDA. Opcional por compatibilidad (`v: 1`). */
+      inventory: inventorySchema.optional(),
     })
     .strict(),
   z.object({ v: versionSchema, type: z.literal('round.started'), round: openRoundSchema }).strict(),
@@ -188,7 +223,8 @@ export const serverMessageSchema = z.discriminatedUnion('type', [
     .strict(),
   /**
    * Logro conseguido. Llega siempre **después** del mensaje del evento que lo desbloqueó
-   * (`round.resolved`, `loan.granted` o `pending`), uno por logro y en el orden del catálogo.
+   * (`round.resolved`, `loan.granted`, `pending` o `inventory`), uno por logro y en el orden del
+   * catálogo.
    */
   z
     .object({
@@ -201,6 +237,22 @@ export const serverMessageSchema = z.discriminatedUnion('type', [
   z.object({ v: versionSchema, type: z.literal('stats'), stats: seasonStatsSchema }).strict(),
   /** Respuesta a `bank.request`. */
   z.object({ v: versionSchema, type: z.literal('bank'), bank: bankStatementSchema }).strict(),
+  /** Respuesta a `shop.request`. */
+  z.object({ v: versionSchema, type: z.literal('shop'), shop: shopSchema }).strict(),
+  /**
+   * El bolsillo ha cambiado: compra (`bought`, también `git revert`), armado (`armed`), cargas
+   * gastadas en una ronda (`consumed`, justo después de su `round.resolved`) o fin de temporada
+   * (`expired`). Llega a todas las ventanas del usuario, antes de los `achievement.unlocked`.
+   */
+  z
+    .object({
+      v: versionSchema,
+      type: z.literal('inventory'),
+      inventory: inventorySchema,
+      wallet: walletSchema,
+      event: z.enum(['bought', 'armed', 'consumed', 'expired']),
+    })
+    .strict(),
   /** Respuesta a `referral.request`. */
   z
     .object({ v: versionSchema, type: z.literal('referral'), referral: referralStatusSchema })

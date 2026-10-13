@@ -4,6 +4,7 @@
 import { z } from 'zod'
 
 import { betSelectionSchema } from '../roulette/bets.ts'
+import { itemsConfigSchema } from './itemsConfig.ts'
 
 const coins = z.number().int().positive().max(Number.MAX_SAFE_INTEGER)
 
@@ -198,6 +199,12 @@ export const gameConfigSchema = z
         maxCommissionsPerSeason: z.number().int().min(1).max(10_000),
       })
       .strict(),
+    /**
+     * TIENDA: objetos y potenciadores (`game/items.ts`). Cada consumible lleva un `refine` que
+     * comprueba que la casa siempre gana (beneficio esperado de una carga ≤ lo que cuesta): una
+     * configuración "generosa" no arranca.
+     */
+    items: itemsConfigSchema,
     /** Límites de las pantallas de Estadísticas y Banco (cuánto se lee y se manda). */
     stats: z
       .object({
@@ -276,6 +283,11 @@ export const publicGameConfigSchema = z
         maxCommissionsPerSeason: z.number().int().positive(),
       })
       .strict(),
+    /**
+     * Precios, cargas y reglas de la TIENDA. Van enteros: la web los enseña y la demo los usa con la
+     * misma lógica pura de `game/items.ts`. Opcional en el esquema por compatibilidad (`v: 1`).
+     */
+    items: itemsConfigSchema.optional(),
   })
   .strict()
 export type PublicGameConfig = z.output<typeof publicGameConfigSchema>
@@ -309,5 +321,6 @@ export function toPublicGameConfig(cfg: GameConfig): PublicGameConfig {
     onFireAt: cfg.streak.onFireAt,
     minAccountAgeDays: cfg.leaderboard.minAccountAgeDays,
     referral: { ...cfg.referral },
+    items: structuredClone(cfg.items),
   }
 }

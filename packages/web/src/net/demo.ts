@@ -111,7 +111,14 @@ export function demoGameConfig(pub: PublicGameConfig): GameConfig {
     },
     stats: { recentRounds: 1, seriesPoints: 2, loanMarks: 0, bankHistory: 1 },
     referral: { ...pub.referral },
+    // La tienda de la demo usa la misma lógica pura con los números públicos de la instancia.
+    items: structuredClone(must(pub.items, 'items')),
   }
+}
+
+function must<T>(value: T | undefined, what: string): T {
+  if (value === undefined) throw new Error(`la configuración pública no trae ${what}`)
+  return value
 }
 
 function randomPocket(): number {

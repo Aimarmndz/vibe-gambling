@@ -249,6 +249,8 @@ export function reduce(state: GameState, msg: ServerMessage, nowMs: number): Ste
     case 'stats':
     case 'bank':
     case 'referral':
+    case 'shop':
+    case 'inventory':
       return { state, effects: [] }
     case 'bye':
       return { state, effects: [{ type: 'bye', reason: msg.reason }] }

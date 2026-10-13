@@ -69,6 +69,50 @@
     "redeemMaxSpins": 5,
     "maxCommissionsPerSeason": 2
   },
+  "items": {
+    "enabled": true,
+    "purchaseCooldownMs": 0,
+    "maxArmed": 4,
+    "rabbitFoot": {
+      "price": 77,
+      "charges": 37,
+      "maxPerSeason": 3
+    },
+    "oracle": {
+      "price": 37,
+      "charges": 10,
+      "maxPerSeason": 5
+    },
+    "insurance": {
+      "price": 350,
+      "charges": 5,
+      "refundRate": 0.5,
+      "coverCap": 200,
+      "maxPerSeason": 5
+    },
+    "turbo": {
+      "price": 100,
+      "charges": 1,
+      "multiplier": 2,
+      "coverCap": 100,
+      "maxPerSeason": 10
+    },
+    "streakHelmet": {
+      "price": 150,
+      "charges": 3,
+      "maxPerSeason": 3
+    },
+    "revert": {
+      "price": 550,
+      "maxRefund": 500,
+      "windowMs": 120000,
+      "maxPerSeason": 1
+    },
+    "cosmetics": {
+      "feltPrice": 500,
+      "chipsPrice": 300
+    }
+  },
   "stats": {
     "recentRounds": 4,
     "seriesPoints": 5,

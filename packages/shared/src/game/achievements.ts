@@ -7,6 +7,7 @@
 // El orden del catálogo es el orden de la pantalla de logros. Un logro nuevo se añade al final
 // (los ids nunca se reutilizan ni se renombran: están guardados en la base de datos).
 import type { GameConfig } from './config.ts'
+import { COSMETIC_IDS } from './items.ts'
 import { zonedParts } from './season.ts'
 import type { Spectacle } from './spectacle.ts'
 import { gamblersFallacyPick } from './streaks.ts'
@@ -16,7 +17,7 @@ import type { ColorStreak } from './streaks.ts'
 const FRIDAY = 5
 
 /** Qué ha pasado para que se evalúen los logros. */
-export const ACHIEVEMENT_EVENTS = ['round', 'loan', 'queue', 'referral'] as const
+export const ACHIEVEMENT_EVENTS = ['round', 'loan', 'queue', 'referral', 'purchase'] as const
 export type AchievementEvent = (typeof ACHIEVEMENT_EVENTS)[number]
 
 /** Configuración que miran los logros (la del juego, tal cual). */
@@ -40,6 +41,8 @@ export interface AchievementRound {
     readonly selection: { readonly kind: string; readonly numbers?: readonly number[] }
   }>
   readonly spectacle: Spectacle
+  /** Objetos de la TIENDA que han actuado en la ronda (vacío o ausente: ninguno). */
+  readonly items?: ReadonlyArray<{ readonly itemId: string; readonly hit?: boolean }>
 }
 
 /** Cartera de la temporada después del evento. */
@@ -75,6 +78,20 @@ export interface AchievementContext {
    * comisiones cobradas esta temporada (con la de ahora).
    */
   readonly referral?: { readonly activated: number; readonly seasonCommissions: number }
+  /**
+   * La racha ganadora lleva asterisco (la salvó el Casco de Racha). "ON FIRE" exige una racha sin
+   * asterisco; con él, solo da "Racha con asterisco".
+   */
+  readonly streakAsterisk?: boolean
+  /**
+   * Solo en `purchase` (compra en la TIENDA): qué se ha comprado, cuántos cosméticos tiene ya y,
+   * con `git revert`, la pérdida de la ronda y lo que ha devuelto.
+   */
+  readonly purchase?: {
+    readonly itemId: string
+    readonly cosmeticsOwned: number
+    readonly revert: { readonly loss: number; readonly refund: number } | null
+  }
 }
 
 /** Lo que enseña la barra de progreso de los logros contables. */
@@ -175,7 +192,9 @@ export const ACHIEVEMENTS = [
   {
     id: 'on_fire',
     hidden: false,
-    check: (ctx, rules) => (round(ctx)?.spectacle.streak ?? 0) >= rules.streak.onFireAt,
+    // Una racha salvada por el Casco de Racha no vale (lleva asterisco).
+    check: (ctx, rules) =>
+      ctx.streakAsterisk !== true && (round(ctx)?.spectacle.streak ?? 0) >= rules.streak.onFireAt,
     progress: (snap, rules) => ({ current: snap.bestStreak, goal: rules.streak.onFireAt }),
   },
   {
@@ -280,6 +299,52 @@ export const ACHIEVEMENTS = [
       current: snap.referralCommissions,
       goal: rules.referral.maxCommissionsPerSeason,
     }),
+  },
+  {
+    // TIENDA: comprar cualquier cosa ("Consumidor responsable").
+    id: 'first_purchase',
+    hidden: false,
+    check: ctx => ctx.event === 'purchase',
+  },
+  {
+    // Ganar una ronda con la Pata de Conejo™ armada ("Funciona, te lo juro").
+    id: 'placebo_win',
+    hidden: false,
+    check: ctx => {
+      const r = round(ctx)
+      return r !== null && r.net > 0 && (r.items ?? []).some(item => item.itemId === 'rabbit_foot')
+    },
+  },
+  {
+    // Que la predicción de la IA acierte (1/37, como cualquiera).
+    id: 'oracle_hit',
+    hidden: true,
+    check: ctx =>
+      (round(ctx)?.items ?? []).some(item => item.itemId === 'oracle' && item.hit === true),
+  },
+  {
+    // Llegar al ON FIRE con una racha que salvó el Casco de Racha.
+    id: 'asterisk_streak',
+    hidden: false,
+    check: (ctx, rules) =>
+      ctx.streakAsterisk === true && (round(ctx)?.spectacle.streak ?? 0) >= rules.streak.onFireAt,
+  },
+  {
+    // `git revert` con una pérdida mayor que lo que devuelve ("git revert --no-regrets").
+    id: 'revert_regret',
+    hidden: false,
+    check: ctx => {
+      const revert = ctx.event === 'purchase' ? ctx.purchase?.revert : null
+      return revert !== null && revert !== undefined && revert.loss > revert.refund
+    },
+  },
+  {
+    // Tener todos los cosméticos ("Ballena de píxeles").
+    id: 'bad_taste',
+    hidden: false,
+    params: () => ({ goal: COSMETIC_IDS.length }),
+    check: ctx =>
+      ctx.event === 'purchase' && (ctx.purchase?.cosmeticsOwned ?? 0) >= COSMETIC_IDS.length,
   },
 ] as const satisfies readonly AchievementDef[]
 

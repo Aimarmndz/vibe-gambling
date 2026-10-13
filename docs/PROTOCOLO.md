@@ -19,6 +19,7 @@ Diagramas de los flujos en [ARQUITECTURA.md](ARQUITECTURA.md).
 - [Espectáculo, bancarrota y logros](#espectáculo-bancarrota-y-logros)
 - [Enlace de un solo uso](#enlace-de-un-solo-uso)
 - [Programa de afiliados](#programa-de-afiliados)
+- [Objetos y tienda](#objetos-y-tienda)
 - [WebSocket `/ws`](#websocket-ws)
 - [Rutas fuera de `/api`](#rutas-fuera-de-api)
 - [Piezas comunes](#piezas-comunes)
@@ -125,6 +126,9 @@ Los límites configurables (tamaño del cuerpo, rate limits, conexiones por usua
 | [`referral`](#referral)             | GET    | `/api/referral`          | `any`    |
 | [`referralRedeem`](#referralredeem) | POST   | `/api/referral/redeem`   | `mod`    |
 | [`referralLookup`](#referrallookup) | GET    | `/api/referral/lookup`   | `public` |
+| [`shop`](#shop)                     | GET    | `/api/shop`              | `any`    |
+| [`shopBuy`](#shopbuy)               | POST   | `/api/shop/buy`          | `any`    |
+| [`itemArm`](#itemarm)               | POST   | `/api/items/arm`         | `any`    |
 
 <!-- END GENERATED routes -->
 
@@ -1115,6 +1119,7 @@ Estado del usuario: perfil, cartera de la temporada en curso (si aún no ha juga
 | `round`        | [OpenRound](#openround) \| `null` | sí          |
 | `brokeRank`    | `integer` > 0 \| `null`           | sí          |
 | `achievements` | [Achievement](#achievement)[]     | no          |
+| `inventory`    | [Inventory](#inventory)           | no          |
 
 <details><summary>JSON Schema</summary>
 
@@ -1133,7 +1138,8 @@ Estado del usuario: perfil, cartera de la temporada en curso (si aún no ha juga
         { "type": "null" }
       ]
     },
-    "achievements": { "type": "array", "items": { "$ref": "#/$defs/Achievement" } }
+    "achievements": { "type": "array", "items": { "$ref": "#/$defs/Achievement" } },
+    "inventory": { "$ref": "#/$defs/Inventory" }
   },
   "required": ["v", "user", "wallet", "slip", "round", "brokeRank"],
   "additionalProperties": false
@@ -1160,11 +1166,13 @@ Cambia los ajustes: `hidden` (ocultarse del ranking y del Salón de la Ruina; `/
 
 **Cuerpo de la petición (JSON)** (`settingsRequestSchema`)
 
-| Campo    | Tipo                                           | Obligatorio |
-| -------- | ---------------------------------------------- | ----------- |
-| `v`      | `1`                                            | sí          |
-| `hidden` | `boolean`                                      | no          |
-| `locale` | `"en"` \| `"es"` \| `"fr"` \| `"de"` \| `null` | no          |
+| Campo      | Tipo                                                                                 | Obligatorio |
+| ---------- | ------------------------------------------------------------------------------------ | ----------- |
+| `v`        | `1`                                                                                  | sí          |
+| `hidden`   | `boolean`                                                                            | no          |
+| `locale`   | `"en"` \| `"es"` \| `"fr"` \| `"de"` \| `null`                                       | no          |
+| `felt`     | `"classic"` \| `"memory_blue"` \| `"montecarlo97"` \| `"dark_mode"` \| `"vaporwave"` | no          |
+| `chipSkin` | `"classic"` \| `"floppy"` \| `"cinco_duros"` \| `"bottle_cap"`                       | no          |
 
 <details><summary>JSON Schema</summary>
 
@@ -1176,7 +1184,12 @@ Cambia los ajustes: `hidden` (ocultarse del ranking y del Salón de la Ruina; `/
     "hidden": { "type": "boolean" },
     "locale": {
       "anyOf": [{ "type": "string", "enum": ["en", "es", "fr", "de"] }, { "type": "null" }]
-    }
+    },
+    "felt": {
+      "type": "string",
+      "enum": ["classic", "memory_blue", "montecarlo97", "dark_mode", "vaporwave"]
+    },
+    "chipSkin": { "type": "string", "enum": ["classic", "floppy", "cinco_duros", "bottle_cap"] }
   },
   "required": ["v"],
   "additionalProperties": false
@@ -1655,6 +1668,205 @@ Quién invita con un código, para la página pública `/r/<código>`. El `code`
 
 <!-- END GENERATED route:referralLookup -->
 
+### shop
+
+La [TIENDA](#objetos-y-tienda): el catálogo con precios, compras de la temporada y la letra pequeña en números (`finePrint`: lo que cuesta cada carga, lo máximo que devuelve de media con el boleto más favorable y lo que la casa gana como mínimo), tu bolsillo y tu armario (`inventory`), el Placebómetro y si el banco te prestaría ahora (`canBorrow`). Lo usa `/vibe-shop`; la ventana pide lo mismo con [`shop.request`](#shoprequest).
+
+<!-- BEGIN GENERATED route:shop -->
+
+`GET /api/shop` · autenticación: Bearer del mod **o** cookie de la web
+
+**Respuesta 200** (`shopResponseSchema`)
+
+| Campo  | Tipo          | Obligatorio |
+| ------ | ------------- | ----------- |
+| `v`    | `1`           | sí          |
+| `shop` | [Shop](#shop) | sí          |
+
+<details><summary>JSON Schema</summary>
+
+```json
+{
+  "type": "object",
+  "properties": { "v": { "type": "number", "const": 1 }, "shop": { "$ref": "#/$defs/Shop" } },
+  "required": ["v", "shop"],
+  "additionalProperties": false
+}
+```
+
+</details>
+
+<!-- END GENERATED route:shop -->
+
+### shopBuy
+
+Compra un objeto. Con `itemId: "revert"` es `git revert HEAD~1`: se paga y se cobra en el momento (`refund`). Un reintento con el mismo `requestId` devuelve la misma compra con `fresh: false` y no cobra dos veces. Errores: `insufficient_funds`, `conflict` (tope de la temporada, cosmético que ya tienes o nada que revertir), `not_found` (tienda cerrada) y `rate_limited` (otra compra hace menos de `items.purchaseCooldownMs`). Las ventanas del usuario reciben [`inventory`](#inventory) con `bought`.
+
+<!-- example: shopBuyRequestSchema -->
+
+```json
+{ "v": 1, "itemId": "rabbit_foot", "requestId": "a1b2c3d4e5f6g7h8" }
+```
+
+<!-- BEGIN GENERATED route:shopBuy -->
+
+`POST /api/shop/buy` · autenticación: Bearer del mod **o** cookie de la web
+
+**Cuerpo de la petición (JSON)** (`shopBuyRequestSchema`)
+
+| Campo       | Tipo                                                                                                                                                                                                                                                             | Obligatorio |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| `v`         | `1`                                                                                                                                                                                                                                                              | sí          |
+| `itemId`    | `"rabbit_foot"` \| `"oracle"` \| `"insurance"` \| `"turbo"` \| `"streak_helmet"` \| `"revert"` \| `"felt_memory_blue"` \| `"felt_montecarlo97"` \| `"felt_dark_mode"` \| `"felt_vaporwave"` \| `"chips_floppy"` \| `"chips_cinco_duros"` \| `"chips_bottle_cap"` | sí          |
+| `requestId` | `string` (`/^[A-Za-z0-9_-]{8,64}$/`)                                                                                                                                                                                                                             | sí          |
+
+<details><summary>JSON Schema</summary>
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "v": { "type": "number", "const": 1 },
+    "itemId": {
+      "type": "string",
+      "enum": [
+        "rabbit_foot",
+        "oracle",
+        "insurance",
+        "turbo",
+        "streak_helmet",
+        "revert",
+        "felt_memory_blue",
+        "felt_montecarlo97",
+        "felt_dark_mode",
+        "felt_vaporwave",
+        "chips_floppy",
+        "chips_cinco_duros",
+        "chips_bottle_cap"
+      ]
+    },
+    "requestId": { "type": "string", "pattern": "^[A-Za-z0-9_-]{8,64}$" }
+  },
+  "required": ["v", "itemId", "requestId"],
+  "additionalProperties": false
+}
+```
+
+</details>
+
+**Respuesta 200** (`shopBuyResponseSchema`)
+
+| Campo       | Tipo                                                                                                                                                                                                                                                             | Obligatorio |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| `v`         | `1`                                                                                                                                                                                                                                                              | sí          |
+| `itemId`    | `"rabbit_foot"` \| `"oracle"` \| `"insurance"` \| `"turbo"` \| `"streak_helmet"` \| `"revert"` \| `"felt_memory_blue"` \| `"felt_montecarlo97"` \| `"felt_dark_mode"` \| `"felt_vaporwave"` \| `"chips_floppy"` \| `"chips_cinco_duros"` \| `"chips_bottle_cap"` | sí          |
+| `price`     | `integer` > 0                                                                                                                                                                                                                                                    | sí          |
+| `refund`    | `integer` ≥ 0                                                                                                                                                                                                                                                    | sí          |
+| `fresh`     | `boolean`                                                                                                                                                                                                                                                        | sí          |
+| `wallet`    | [Wallet](#wallet)                                                                                                                                                                                                                                                | sí          |
+| `inventory` | [Inventory](#inventory)                                                                                                                                                                                                                                          | sí          |
+
+<details><summary>JSON Schema</summary>
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "v": { "type": "number", "const": 1 },
+    "itemId": {
+      "type": "string",
+      "enum": [
+        "rabbit_foot",
+        "oracle",
+        "insurance",
+        "turbo",
+        "streak_helmet",
+        "revert",
+        "felt_memory_blue",
+        "felt_montecarlo97",
+        "felt_dark_mode",
+        "felt_vaporwave",
+        "chips_floppy",
+        "chips_cinco_duros",
+        "chips_bottle_cap"
+      ]
+    },
+    "price": { "type": "integer", "exclusiveMinimum": 0, "maximum": 9007199254740991 },
+    "refund": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+    "fresh": { "type": "boolean" },
+    "wallet": { "$ref": "#/$defs/Wallet" },
+    "inventory": { "$ref": "#/$defs/Inventory" }
+  },
+  "required": ["v", "itemId", "price", "refund", "fresh", "wallet", "inventory"],
+  "additionalProperties": false
+}
+```
+
+</details>
+
+<!-- END GENERATED route:shopBuy -->
+
+### itemArm
+
+Arma o desarma un consumible del bolsillo: vale para la próxima ronda que se resuelva (en directo o una pendiente). Armar falla con `conflict` si no le quedan cargas o si ya hay `items.maxArmed` armados; desarmar siempre se puede.
+
+<!-- BEGIN GENERATED route:itemArm -->
+
+`POST /api/items/arm` · autenticación: Bearer del mod **o** cookie de la web
+
+**Cuerpo de la petición (JSON)** (`itemArmRequestSchema`)
+
+| Campo    | Tipo                                                                             | Obligatorio |
+| -------- | -------------------------------------------------------------------------------- | ----------- |
+| `v`      | `1`                                                                              | sí          |
+| `itemId` | `"rabbit_foot"` \| `"oracle"` \| `"insurance"` \| `"turbo"` \| `"streak_helmet"` | sí          |
+| `armed`  | `boolean`                                                                        | sí          |
+
+<details><summary>JSON Schema</summary>
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "v": { "type": "number", "const": 1 },
+    "itemId": {
+      "type": "string",
+      "enum": ["rabbit_foot", "oracle", "insurance", "turbo", "streak_helmet"]
+    },
+    "armed": { "type": "boolean" }
+  },
+  "required": ["v", "itemId", "armed"],
+  "additionalProperties": false
+}
+```
+
+</details>
+
+**Respuesta 200** (`itemArmResponseSchema`)
+
+| Campo       | Tipo                    | Obligatorio |
+| ----------- | ----------------------- | ----------- |
+| `v`         | `1`                     | sí          |
+| `inventory` | [Inventory](#inventory) | sí          |
+
+<details><summary>JSON Schema</summary>
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "v": { "type": "number", "const": 1 },
+    "inventory": { "$ref": "#/$defs/Inventory" }
+  },
+  "required": ["v", "inventory"],
+  "additionalProperties": false
+}
+```
+
+</details>
+
+<!-- END GENERATED route:itemArm -->
+
 ## Idempotencia de los turnos
 
 El mod genera un `turnId` propio (`crypto.randomUUID()`; nunca el id interno de Claude Code) y lo manda en `turn/start` y `turn/end`. El servidor guarda cada turno en la tabla `turns` con la clave `(user_id, turn_id)`:
@@ -1733,6 +1945,19 @@ Programa de Afiliados Piramidal (legalmente distinto). Monedas de mentira; regla
 - **Activación.** El invitado se activa cuando ha jugado `activationSpins` tiradas **desde el canje** y su cuenta de GitHub tiene `leaderboard.minAccountAgeDays` días. El servidor lo mira después de cada tirada nueva del invitado y en cada login suyo, en una transacción aparte que bloquea la cartera de quien invitó y la fila del canje: se paga una sola vez (también con peticiones a la vez) a la temporada en curso.
 - **Comisión.** `commission` monedas para quien invitó, con tope de `maxCommissionsPerSeason` por temporada: pasado el tope, la activación cuenta pero paga 0 (`capped`). Quien invitó recibe [`referral.commission`](#referralcommission) en sus ventanas (y los logros Influencer y Jefe de la Pirámide con `achievement.unlocked`).
 - **Borrado de cuenta.** El lado de la cuenta borrada queda a `null` en sus canjes: siguen contando para el tope de temporada de quien queda (borrar y volver a crear al invitado no da comisiones sin fin) pero ya no dicen de quién eran. Si se quedan sin ninguno de los dos lados, se borran.
+
+## Objetos y tienda
+
+La TIENDA vende ventajas que no existen, con la letra pequeña honesta. Todos los números están en el bloque `items` de `config/game.json`; la lógica es pura y está en `shared` (`game/items.ts`), así que la demo del navegador la usa tal cual.
+
+- **La casa siempre gana.** El RNG no se toca: los objetos nunca cambian el número, ni `PAYOUTS`, ni `resolveBets`. Pagan aparte, en líneas propias (`ResolvedRound.items` e `itemNet`); `net` sigue siendo el neto oficial de la ruleta y lo que siente el jugador es `net + itemNet` (con eso se calculan el saldo, la racha y el espectáculo). Para cualquier boleto, lo que un objeto devuelve de media en una carga es ≤ lo que cuesta esa carga: el esquema de la configuración lo comprueba al arrancar.
+- **Consumibles** (`rabbit_foot`, `oracle`, `insurance`, `turbo`, `streak_helmet`): se compran por cargas (`bought` cuenta para el tope `maxPerSeason`), se arman (como mucho `maxArmed` a la vez) y actúan en la **próxima ronda que se resuelva** con fichas, gastando una carga cada uno. Qué actúa se decide **antes** del número. El seguro solo actúa con alguna apuesta exterior; el turbo, con exactamente un pleno y si el jackpot del `git push` no lo iguala ya. El casco se gasta después, solo si pierdes con una racha ganadora (la racha queda con asterisco: `Wallet.streakAsterisk`).
+- **Oráculo.** Su predicción es **otra tirada independiente**, hecha justo antes de la del resultado. Acierta 1 de cada 37 veces, como cualquiera.
+- **`git revert HEAD~1`** (`revert`): devuelve la pérdida neta (ruleta + objetos) de tu última ronda, hasta `revert.maxRefund`, solo cuando ya se ha enseñado (`revealAt`), antes de que se resuelva la siguiente y durante `revert.windowMs`. Una vez por temporada como mucho (`revert.maxPerSeason`). Cuesta más que su tope. `Inventory.revert` dice si hay algo que revertir y hasta cuándo.
+- **Cosméticos** (`felt_*`, `chips_*`): permanentes. Se equipan con `settings` / `settings.update` (`felt`, `chipSkin`); solo los que tienes (los clásicos, siempre). `SelfUser.felt` y `SelfUser.chipSkin` dicen cuáles llevas.
+- **Temporadas.** Los consumibles caducan con su temporada, sin devolución; las compras se quedan para las estadísticas y los cosméticos son para siempre.
+- **Orden de los mensajes.** Tras una ronda con objetos: `round.resolved`, luego [`inventory`](#inventory) con `consumed` y después los `achievement.unlocked`.
+- **Concurrencia.** Comprar, armar, tirar, pedir un préstamo y revertir bloquean primero la cartera de la temporada: el mismo orden en todas, sin interbloqueos.
 
 ## WebSocket `/ws`
 
@@ -1895,12 +2120,14 @@ Igual que `POST /api/me/settings`. Respuesta: `settings` (a todas las ventanas).
 
 Dirección: cliente → servidor.
 
-| Campo    | Tipo                                           | Obligatorio |
-| -------- | ---------------------------------------------- | ----------- |
-| `v`      | `1`                                            | sí          |
-| `type`   | `"settings.update"`                            | sí          |
-| `hidden` | `boolean`                                      | no          |
-| `locale` | `"en"` \| `"es"` \| `"fr"` \| `"de"` \| `null` | no          |
+| Campo      | Tipo                                                                                 | Obligatorio |
+| ---------- | ------------------------------------------------------------------------------------ | ----------- |
+| `v`        | `1`                                                                                  | sí          |
+| `type`     | `"settings.update"`                                                                  | sí          |
+| `hidden`   | `boolean`                                                                            | no          |
+| `locale`   | `"en"` \| `"es"` \| `"fr"` \| `"de"` \| `null`                                       | no          |
+| `felt`     | `"classic"` \| `"memory_blue"` \| `"montecarlo97"` \| `"dark_mode"` \| `"vaporwave"` | no          |
+| `chipSkin` | `"classic"` \| `"floppy"` \| `"cinco_duros"` \| `"bottle_cap"`                       | no          |
 
 <details><summary>JSON Schema</summary>
 
@@ -1913,7 +2140,12 @@ Dirección: cliente → servidor.
     "hidden": { "type": "boolean" },
     "locale": {
       "anyOf": [{ "type": "string", "enum": ["en", "es", "fr", "de"] }, { "type": "null" }]
-    }
+    },
+    "felt": {
+      "type": "string",
+      "enum": ["classic", "memory_blue", "montecarlo97", "dark_mode", "vaporwave"]
+    },
+    "chipSkin": { "type": "string", "enum": ["classic", "floppy", "cinco_duros", "bottle_cap"] }
   },
   "required": ["v", "type"],
   "additionalProperties": false
@@ -2124,6 +2356,127 @@ Dirección: cliente → servidor.
 
 <!-- END GENERATED ws-client:referral.request -->
 
+#### shop.request
+
+Pide la TIENDA. Responde [`shop`](#shop-1) solo a esta ventana.
+
+<!-- BEGIN GENERATED ws-client:shop.request -->
+
+Dirección: cliente → servidor.
+
+| Campo  | Tipo             | Obligatorio |
+| ------ | ---------------- | ----------- |
+| `v`    | `1`              | sí          |
+| `type` | `"shop.request"` | sí          |
+
+<details><summary>JSON Schema</summary>
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "v": { "type": "number", "const": 1 },
+    "type": { "type": "string", "const": "shop.request" }
+  },
+  "required": ["v", "type"],
+  "additionalProperties": false
+}
+```
+
+</details>
+
+<!-- END GENERATED ws-client:shop.request -->
+
+#### shop.buy
+
+Compra un objeto (o `git revert`), como [`POST /api/shop/buy`](#shopbuy). Si falla, `error` con `re: "shop.buy"`.
+
+<!-- BEGIN GENERATED ws-client:shop.buy -->
+
+Dirección: cliente → servidor.
+
+| Campo       | Tipo                                                                                                                                                                                                                                                             | Obligatorio |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| `v`         | `1`                                                                                                                                                                                                                                                              | sí          |
+| `type`      | `"shop.buy"`                                                                                                                                                                                                                                                     | sí          |
+| `itemId`    | `"rabbit_foot"` \| `"oracle"` \| `"insurance"` \| `"turbo"` \| `"streak_helmet"` \| `"revert"` \| `"felt_memory_blue"` \| `"felt_montecarlo97"` \| `"felt_dark_mode"` \| `"felt_vaporwave"` \| `"chips_floppy"` \| `"chips_cinco_duros"` \| `"chips_bottle_cap"` | sí          |
+| `requestId` | `string` (`/^[A-Za-z0-9_-]{8,64}$/`)                                                                                                                                                                                                                             | sí          |
+
+<details><summary>JSON Schema</summary>
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "v": { "type": "number", "const": 1 },
+    "type": { "type": "string", "const": "shop.buy" },
+    "itemId": {
+      "type": "string",
+      "enum": [
+        "rabbit_foot",
+        "oracle",
+        "insurance",
+        "turbo",
+        "streak_helmet",
+        "revert",
+        "felt_memory_blue",
+        "felt_montecarlo97",
+        "felt_dark_mode",
+        "felt_vaporwave",
+        "chips_floppy",
+        "chips_cinco_duros",
+        "chips_bottle_cap"
+      ]
+    },
+    "requestId": { "type": "string", "pattern": "^[A-Za-z0-9_-]{8,64}$" }
+  },
+  "required": ["v", "type", "itemId", "requestId"],
+  "additionalProperties": false
+}
+```
+
+</details>
+
+<!-- END GENERATED ws-client:shop.buy -->
+
+#### item.arm
+
+Arma o desarma un consumible, como [`POST /api/items/arm`](#itemarm). Si falla, `error` con `re: "item.arm"`.
+
+<!-- BEGIN GENERATED ws-client:item.arm -->
+
+Dirección: cliente → servidor.
+
+| Campo    | Tipo                                                                             | Obligatorio |
+| -------- | -------------------------------------------------------------------------------- | ----------- |
+| `v`      | `1`                                                                              | sí          |
+| `type`   | `"item.arm"`                                                                     | sí          |
+| `itemId` | `"rabbit_foot"` \| `"oracle"` \| `"insurance"` \| `"turbo"` \| `"streak_helmet"` | sí          |
+| `armed`  | `boolean`                                                                        | sí          |
+
+<details><summary>JSON Schema</summary>
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "v": { "type": "number", "const": 1 },
+    "type": { "type": "string", "const": "item.arm" },
+    "itemId": {
+      "type": "string",
+      "enum": ["rabbit_foot", "oracle", "insurance", "turbo", "streak_helmet"]
+    },
+    "armed": { "type": "boolean" }
+  },
+  "required": ["v", "type", "itemId", "armed"],
+  "additionalProperties": false
+}
+```
+
+</details>
+
+<!-- END GENERATED ws-client:item.arm -->
+
 #### sync
 
 Pide el estado completo otra vez (tras reconectar). Respuesta: `hello`.
@@ -2256,6 +2609,7 @@ Dirección: servidor → cliente.
 | `lastRound`    | [ResolvedRound](#resolvedround) \| `null`                                                                                                                                                                                                                                                                  | sí          |
 | `serverTime`   | `string` (date-time, `/^(?:(?:\d\d[2468][048]\|\d\d[13579][26]\|\d\d0[48]\|[02468][048]00\|[13579][26]00)-02-29\|\d{4}-(?:(?:0[13578]\|1[02])-(?:0[1-9]\|[12]\d\|3[01])\|(?:0[469]\|11)-(?:0[1-9]\|[12]\d\|30)\|(?:02)-(?:0[1-9]\|1\d\|2[0-8])))T(?:(?:[01]\d\|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$/`) | sí          |
 | `achievements` | [Achievement](#achievement)[]                                                                                                                                                                                                                                                                              | no          |
+| `inventory`    | [Inventory](#inventory)                                                                                                                                                                                                                                                                                    | no          |
 
 <details><summary>JSON Schema</summary>
 
@@ -2275,7 +2629,8 @@ Dirección: servidor → cliente.
       "format": "date-time",
       "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
     },
-    "achievements": { "type": "array", "items": { "$ref": "#/$defs/Achievement" } }
+    "achievements": { "type": "array", "items": { "$ref": "#/$defs/Achievement" } },
+    "inventory": { "$ref": "#/$defs/Inventory" }
   },
   "required": ["v", "type", "user", "wallet", "slip", "round", "lastRound", "serverTime"],
   "additionalProperties": false
@@ -2890,6 +3245,76 @@ Dirección: servidor → cliente.
 
 <!-- END GENERATED ws-server:bank -->
 
+#### shop
+
+Respuesta a `shop.request`: lo mismo que [`GET /api/shop`](#shop).
+
+<!-- BEGIN GENERATED ws-server:shop -->
+
+Dirección: servidor → cliente.
+
+| Campo  | Tipo          | Obligatorio |
+| ------ | ------------- | ----------- |
+| `v`    | `1`           | sí          |
+| `type` | `"shop"`      | sí          |
+| `shop` | [Shop](#shop) | sí          |
+
+<details><summary>JSON Schema</summary>
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "v": { "type": "number", "const": 1 },
+    "type": { "type": "string", "const": "shop" },
+    "shop": { "$ref": "#/$defs/Shop" }
+  },
+  "required": ["v", "type", "shop"],
+  "additionalProperties": false
+}
+```
+
+</details>
+
+<!-- END GENERATED ws-server:shop -->
+
+#### inventory
+
+El bolsillo ha cambiado, en todas las ventanas del usuario: `bought` (compra o `git revert`), `armed`, `consumed` (cargas gastadas en una ronda, justo después de su `round.resolved`) o `expired` (cambio de temporada).
+
+<!-- BEGIN GENERATED ws-server:inventory -->
+
+Dirección: servidor → cliente.
+
+| Campo       | Tipo                                                   | Obligatorio |
+| ----------- | ------------------------------------------------------ | ----------- |
+| `v`         | `1`                                                    | sí          |
+| `type`      | `"inventory"`                                          | sí          |
+| `inventory` | [Inventory](#inventory)                                | sí          |
+| `wallet`    | [Wallet](#wallet)                                      | sí          |
+| `event`     | `"bought"` \| `"armed"` \| `"consumed"` \| `"expired"` | sí          |
+
+<details><summary>JSON Schema</summary>
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "v": { "type": "number", "const": 1 },
+    "type": { "type": "string", "const": "inventory" },
+    "inventory": { "$ref": "#/$defs/Inventory" },
+    "wallet": { "$ref": "#/$defs/Wallet" },
+    "event": { "type": "string", "enum": ["bought", "armed", "consumed", "expired"] }
+  },
+  "required": ["v", "type", "inventory", "wallet", "event"],
+  "additionalProperties": false
+}
+```
+
+</details>
+
+<!-- END GENERATED ws-server:inventory -->
+
 #### referral
 
 Respuesta a `referral.request`: lo mismo que [`GET /api/referral`](#referral).
@@ -3111,7 +3536,7 @@ Dirección: servidor → cliente.
 | `type`    | `"error"`                                                                                                                                                                                                                                                                                                              | sí          |
 | `error`   | `"invalid_request"` \| `"unauthorized"` \| `"forbidden"` \| `"not_found"` \| `"conflict"` \| `"rate_limited"` \| `"payload_too_large"` \| `"insufficient_funds"` \| `"too_many_bets"` \| `"invalid_bet"` \| `"loan_not_allowed"` \| `"daily_limit"` \| `"protocol_mismatch"` \| `"github_unavailable"` \| `"internal"` | sí          |
 | `message` | `string` (0–500 car.)                                                                                                                                                                                                                                                                                                  | sí          |
-| `re`      | `"bet.place"` \| `"bet.clear"` \| `"loan.request"` \| `"settings.update"` \| `"sync"` \| `"ping"` \| `"presence"` \| `"spin.pending"` \| `"stats.request"` \| `"bank.request"` \| `"referral.request"`                                                                                                                 | no          |
+| `re`      | `"bet.place"` \| `"bet.clear"` \| `"loan.request"` \| `"settings.update"` \| `"sync"` \| `"ping"` \| `"presence"` \| `"spin.pending"` \| `"stats.request"` \| `"bank.request"` \| `"referral.request"` \| `"shop.request"` \| `"shop.buy"` \| `"item.arm"`                                                             | no          |
 
 <details><summary>JSON Schema</summary>
 
@@ -3155,7 +3580,10 @@ Dirección: servidor → cliente.
         "spin.pending",
         "stats.request",
         "bank.request",
-        "referral.request"
+        "referral.request",
+        "shop.request",
+        "shop.buy",
+        "item.arm"
       ]
     }
   },
@@ -3478,6 +3906,8 @@ Las tablas de arriba enlazan aquí cuando un campo es una de estas piezas.
 | `locale`     | `"en"` \| `"es"` \| `"fr"` \| `"de"` \| `null`                                                                                                                                                                                                                                                             | sí          |
 | `createdAt`  | `string` (date-time, `/^(?:(?:\d\d[2468][048]\|\d\d[13579][26]\|\d\d0[48]\|[02468][048]00\|[13579][26]00)-02-29\|\d{4}-(?:(?:0[13578]\|1[02])-(?:0[1-9]\|[12]\d\|3[01])\|(?:0[469]\|11)-(?:0[1-9]\|[12]\d\|30)\|(?:02)-(?:0[1-9]\|1\d\|2[0-8])))T(?:(?:[01]\d\|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$/`) | sí          |
 | `newAccount` | `object` (ver JSON Schema) \| `null`                                                                                                                                                                                                                                                                       | no          |
+| `felt`       | `"classic"` \| `"memory_blue"` \| `"montecarlo97"` \| `"dark_mode"` \| `"vaporwave"`                                                                                                                                                                                                                       | no          |
+| `chipSkin`   | `"classic"` \| `"floppy"` \| `"cinco_duros"` \| `"bottle_cap"`                                                                                                                                                                                                                                             | no          |
 
 <details><summary>JSON Schema</summary>
 
@@ -3514,7 +3944,12 @@ Las tablas de arriba enlazan aquí cuando un campo es una de estas piezas.
         },
         { "type": "null" }
       ]
-    }
+    },
+    "felt": {
+      "type": "string",
+      "enum": ["classic", "memory_blue", "montecarlo97", "dark_mode", "vaporwave"]
+    },
+    "chipSkin": { "type": "string", "enum": ["classic", "floppy", "cinco_duros", "bottle_cap"] }
   },
   "required": ["login", "avatarUrl", "profileUrl", "hidden", "locale", "createdAt"],
   "additionalProperties": false
@@ -3531,17 +3966,18 @@ Las tablas de arriba enlazan aquí cuando un campo es una de estas piezas.
 
 **Wallet** (`walletSchema`)
 
-| Campo           | Tipo                                    | Obligatorio |
-| --------------- | --------------------------------------- | ----------- |
-| `seasonId`      | `string` (`/^\d{4}-(0[1-9]\|1[0-2])$/`) | sí          |
-| `balance`       | `integer`                               | sí          |
-| `debt`          | `integer` ≥ 0                           | sí          |
-| `netWorth`      | `integer`                               | sí          |
-| `spins`         | `integer` ≥ 0                           | sí          |
-| `loans`         | `integer` ≥ 0                           | sí          |
-| `currentStreak` | `integer`                               | sí          |
-| `bestStreak`    | `integer` ≥ 0                           | sí          |
-| `pendingSpins`  | `integer` ≥ 0                           | sí          |
+| Campo            | Tipo                                    | Obligatorio |
+| ---------------- | --------------------------------------- | ----------- |
+| `seasonId`       | `string` (`/^\d{4}-(0[1-9]\|1[0-2])$/`) | sí          |
+| `balance`        | `integer`                               | sí          |
+| `debt`           | `integer` ≥ 0                           | sí          |
+| `netWorth`       | `integer`                               | sí          |
+| `spins`          | `integer` ≥ 0                           | sí          |
+| `loans`          | `integer` ≥ 0                           | sí          |
+| `currentStreak`  | `integer`                               | sí          |
+| `bestStreak`     | `integer` ≥ 0                           | sí          |
+| `pendingSpins`   | `integer` ≥ 0                           | sí          |
+| `streakAsterisk` | `boolean`                               | no          |
 
 <details><summary>JSON Schema</summary>
 
@@ -3561,7 +3997,8 @@ Las tablas de arriba enlazan aquí cuando un campo es una de estas piezas.
       "maximum": 9007199254740991
     },
     "bestStreak": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
-    "pendingSpins": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+    "pendingSpins": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+    "streakAsterisk": { "type": "boolean" }
   },
   "required": [
     "seasonId",
@@ -3928,6 +4365,61 @@ Racha de color al final de las últimas `streak.historySize` tiradas **del propi
 
 <!-- END GENERATED common:Spectacle -->
 
+<!-- BEGIN GENERATED common:RoundItemEffect -->
+
+### RoundItemEffect
+
+**RoundItemEffect** (`roundItemEffectSchema`)
+
+| Campo        | Tipo                                                                                                                                                                                                                                                             | Obligatorio |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| `itemId`     | `"rabbit_foot"` \| `"oracle"` \| `"insurance"` \| `"turbo"` \| `"streak_helmet"` \| `"revert"` \| `"felt_memory_blue"` \| `"felt_montecarlo97"` \| `"felt_dark_mode"` \| `"felt_vaporwave"` \| `"chips_floppy"` \| `"chips_cinco_duros"` \| `"chips_bottle_cap"` | sí          |
+| `kind`       | `"placebo"` \| `"prediction"` \| `"refund"` \| `"boost"` \| `"shield"` \| `"revert"`                                                                                                                                                                             | sí          |
+| `amount`     | `integer`                                                                                                                                                                                                                                                        | sí          |
+| `prediction` | `integer` 0–36                                                                                                                                                                                                                                                   | no          |
+| `hit`        | `boolean`                                                                                                                                                                                                                                                        | no          |
+
+<details><summary>JSON Schema</summary>
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "itemId": {
+      "type": "string",
+      "enum": [
+        "rabbit_foot",
+        "oracle",
+        "insurance",
+        "turbo",
+        "streak_helmet",
+        "revert",
+        "felt_memory_blue",
+        "felt_montecarlo97",
+        "felt_dark_mode",
+        "felt_vaporwave",
+        "chips_floppy",
+        "chips_cinco_duros",
+        "chips_bottle_cap"
+      ]
+    },
+    "kind": {
+      "type": "string",
+      "enum": ["placebo", "prediction", "refund", "boost", "shield", "revert"]
+    },
+    "amount": { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 },
+    "prediction": { "type": "integer", "minimum": 0, "maximum": 36 },
+    "hit": { "type": "boolean" }
+  },
+  "required": ["itemId", "kind", "amount"],
+  "additionalProperties": false
+}
+```
+
+</details>
+
+<!-- END GENERATED common:RoundItemEffect -->
+
 <!-- BEGIN GENERATED common:ResolvedRound -->
 
 ### ResolvedRound
@@ -3953,6 +4445,8 @@ Racha de color al final de las últimas `streak.historySize` tiradas **del propi
 | `colorStreak`     | [ColorStreak](#colorstreak) \| `null`                                                                                                                                                                                                                                                                      | sí          |
 | `revealAt`        | `string` (date-time, `/^(?:(?:\d\d[2468][048]\|\d\d[13579][26]\|\d\d0[48]\|[02468][048]00\|[13579][26]00)-02-29\|\d{4}-(?:(?:0[13578]\|1[02])-(?:0[1-9]\|[12]\d\|3[01])\|(?:0[469]\|11)-(?:0[1-9]\|[12]\d\|30)\|(?:02)-(?:0[1-9]\|1\d\|2[0-8])))T(?:(?:[01]\d\|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$/`) | sí          |
 | `spectacle`       | [Spectacle](#spectacle)                                                                                                                                                                                                                                                                                    | no          |
+| `itemNet`         | `integer`                                                                                                                                                                                                                                                                                                  | no          |
+| `items`           | [RoundItemEffect](#rounditemeffect)[]                                                                                                                                                                                                                                                                      | no          |
 
 <details><summary>JSON Schema</summary>
 
@@ -3992,7 +4486,9 @@ Racha de color al final de las últimas `streak.historySize` tiradas **del propi
       "format": "date-time",
       "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
     },
-    "spectacle": { "$ref": "#/$defs/Spectacle" }
+    "spectacle": { "$ref": "#/$defs/Spectacle" },
+    "itemNet": { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 },
+    "items": { "type": "array", "items": { "$ref": "#/$defs/RoundItemEffect" } }
   },
   "required": [
     "roundId",
@@ -4028,14 +4524,14 @@ Racha de color al final de las últimas `streak.historySize` tiradas **del propi
 
 **Achievement** (`achievementSchema`)
 
-| Campo        | Tipo                                                                                                                                                                                                                                                                                                                                                               | Obligatorio |
-| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------- |
-| `id`         | `"first_spin"` \| `"first_ruin"` \| `"pro_debtor"` \| `"all_on_zero"` \| `"friday_push"` \| `"queue_full"` \| `"on_fire"` \| `"fallacy_confirmed"` \| `"compound_interest"` \| `"comeback"` \| `"zero_collector"` \| `"big_win"` \| `"mega_win"` \| `"tests_also_bet"` \| `"addict"` \| `"night_owl"` \| `"too_big_to_fail"` \| `"influencer"` \| `"pyramid_boss"` | sí          |
-| `hidden`     | `boolean`                                                                                                                                                                                                                                                                                                                                                          | sí          |
-| `unlockedAt` | `string` (date-time, `/^(?:(?:\d\d[2468][048]\|\d\d[13579][26]\|\d\d0[48]\|[02468][048]00\|[13579][26]00)-02-29\|\d{4}-(?:(?:0[13578]\|1[02])-(?:0[1-9]\|[12]\d\|3[01])\|(?:0[469]\|11)-(?:0[1-9]\|[12]\d\|30)\|(?:02)-(?:0[1-9]\|1\d\|2[0-8])))T(?:(?:[01]\d\|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$/`) \| `null`                                               | sí          |
-| `seasonId`   | `string` (`/^\d{4}-(0[1-9]\|1[0-2])$/`) \| `null`                                                                                                                                                                                                                                                                                                                  | sí          |
-| `params`     | `object` (`string` (`/^[a-z][A-Za-z]{0,31}$/`) → `number`)                                                                                                                                                                                                                                                                                                         | sí          |
-| `progress`   | `object` (ver JSON Schema) \| `null`                                                                                                                                                                                                                                                                                                                               | sí          |
+| Campo        | Tipo                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Obligatorio |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------- |
+| `id`         | `"first_spin"` \| `"first_ruin"` \| `"pro_debtor"` \| `"all_on_zero"` \| `"friday_push"` \| `"queue_full"` \| `"on_fire"` \| `"fallacy_confirmed"` \| `"compound_interest"` \| `"comeback"` \| `"zero_collector"` \| `"big_win"` \| `"mega_win"` \| `"tests_also_bet"` \| `"addict"` \| `"night_owl"` \| `"too_big_to_fail"` \| `"influencer"` \| `"pyramid_boss"` \| `"first_purchase"` \| `"placebo_win"` \| `"oracle_hit"` \| `"asterisk_streak"` \| `"revert_regret"` \| `"bad_taste"` | sí          |
+| `hidden`     | `boolean`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | sí          |
+| `unlockedAt` | `string` (date-time, `/^(?:(?:\d\d[2468][048]\|\d\d[13579][26]\|\d\d0[48]\|[02468][048]00\|[13579][26]00)-02-29\|\d{4}-(?:(?:0[13578]\|1[02])-(?:0[1-9]\|[12]\d\|3[01])\|(?:0[469]\|11)-(?:0[1-9]\|[12]\d\|30)\|(?:02)-(?:0[1-9]\|1\d\|2[0-8])))T(?:(?:[01]\d\|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$/`) \| `null`                                                                                                                                                                       | sí          |
+| `seasonId`   | `string` (`/^\d{4}-(0[1-9]\|1[0-2])$/`) \| `null`                                                                                                                                                                                                                                                                                                                                                                                                                                          | sí          |
+| `params`     | `object` (`string` (`/^[a-z][A-Za-z]{0,31}$/`) → `number`)                                                                                                                                                                                                                                                                                                                                                                                                                                 | sí          |
+| `progress`   | `object` (ver JSON Schema) \| `null`                                                                                                                                                                                                                                                                                                                                                                                                                                                       | sí          |
 
 <details><summary>JSON Schema</summary>
 
@@ -4064,7 +4560,13 @@ Racha de color al final de las últimas `streak.historySize` tiradas **del propi
         "night_owl",
         "too_big_to_fail",
         "influencer",
-        "pyramid_boss"
+        "pyramid_boss",
+        "first_purchase",
+        "placebo_win",
+        "oracle_hit",
+        "asterisk_streak",
+        "revert_regret",
+        "bad_taste"
       ]
     },
     "hidden": { "type": "boolean" },
@@ -4405,18 +4907,19 @@ Una de estas variantes:
 
 **LeaderboardRow** (`leaderboardRowSchema`)
 
-| Campo           | Tipo                        | Obligatorio |
-| --------------- | --------------------------- | ----------- |
-| `login`         | `string` (1–39 car.)        | sí          |
-| `avatarUrl`     | `string` (`/^https?:\/\//`) | sí          |
-| `profileUrl`    | `string` (`/^https?:\/\//`) | sí          |
-| `rank`          | `integer` > 0               | sí          |
-| `netWorth`      | `integer`                   | sí          |
-| `balance`       | `integer`                   | sí          |
-| `debt`          | `integer`                   | sí          |
-| `spins`         | `integer` ≥ 0               | sí          |
-| `currentStreak` | `integer`                   | sí          |
-| `bestStreak`    | `integer` ≥ 0               | sí          |
+| Campo            | Tipo                        | Obligatorio |
+| ---------------- | --------------------------- | ----------- |
+| `login`          | `string` (1–39 car.)        | sí          |
+| `avatarUrl`      | `string` (`/^https?:\/\//`) | sí          |
+| `profileUrl`     | `string` (`/^https?:\/\//`) | sí          |
+| `rank`           | `integer` > 0               | sí          |
+| `netWorth`       | `integer`                   | sí          |
+| `balance`        | `integer`                   | sí          |
+| `debt`           | `integer`                   | sí          |
+| `spins`          | `integer` ≥ 0               | sí          |
+| `currentStreak`  | `integer`                   | sí          |
+| `bestStreak`     | `integer` ≥ 0               | sí          |
+| `streakAsterisk` | `boolean`                   | no          |
 
 <details><summary>JSON Schema</summary>
 
@@ -4437,7 +4940,8 @@ Una de estas variantes:
       "minimum": -9007199254740991,
       "maximum": 9007199254740991
     },
-    "bestStreak": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+    "bestStreak": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+    "streakAsterisk": { "type": "boolean" }
   },
   "required": [
     "login",
@@ -4619,6 +5123,282 @@ Una de estas variantes:
 
 <!-- END GENERATED common:ReferralStatus -->
 
+<!-- BEGIN GENERATED common:Inventory -->
+
+### Inventory
+
+**Inventory** (`inventorySchema`)
+
+| Campo       | Tipo                                    | Obligatorio |
+| ----------- | --------------------------------------- | ----------- |
+| `seasonId`  | `string` (`/^\d{4}-(0[1-9]\|1[0-2])$/`) | sí          |
+| `enabled`   | `boolean`                               | sí          |
+| `maxArmed`  | `integer` > 0                           | sí          |
+| `items`     | `object` (ver JSON Schema)[]            | sí          |
+| `cosmetics` | `object` (ver JSON Schema)              | sí          |
+| `revert`    | `object` (ver JSON Schema) \| `null`    | sí          |
+
+<details><summary>JSON Schema</summary>
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "seasonId": { "type": "string", "pattern": "^\\d{4}-(0[1-9]|1[0-2])$" },
+    "enabled": { "type": "boolean" },
+    "maxArmed": { "type": "integer", "exclusiveMinimum": 0, "maximum": 9007199254740991 },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "enum": ["rabbit_foot", "oracle", "insurance", "turbo", "streak_helmet"]
+          },
+          "charges": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+          "armed": { "type": "boolean" }
+        },
+        "required": ["id", "charges", "armed"],
+        "additionalProperties": false
+      }
+    },
+    "cosmetics": {
+      "type": "object",
+      "properties": {
+        "felts": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["classic", "memory_blue", "montecarlo97", "dark_mode", "vaporwave"]
+          }
+        },
+        "chips": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["classic", "floppy", "cinco_duros", "bottle_cap"] }
+        },
+        "felt": {
+          "type": "string",
+          "enum": ["classic", "memory_blue", "montecarlo97", "dark_mode", "vaporwave"]
+        },
+        "chipSkin": { "type": "string", "enum": ["classic", "floppy", "cinco_duros", "bottle_cap"] }
+      },
+      "required": ["felts", "chips", "felt", "chipSkin"],
+      "additionalProperties": false
+    },
+    "revert": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "roundId": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "refund": { "type": "integer", "exclusiveMinimum": 0, "maximum": 9007199254740991 },
+            "until": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+            }
+          },
+          "required": ["roundId", "refund", "until"],
+          "additionalProperties": false
+        },
+        { "type": "null" }
+      ]
+    }
+  },
+  "required": ["seasonId", "enabled", "maxArmed", "items", "cosmetics", "revert"],
+  "additionalProperties": false
+}
+```
+
+</details>
+
+<!-- END GENERATED common:Inventory -->
+
+<!-- BEGIN GENERATED common:ShopItem -->
+
+### ShopItem
+
+**ShopItem** (`shopItemSchema`)
+
+| Campo          | Tipo                                                                                                                                                                                                                                                             | Obligatorio |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| `id`           | `"rabbit_foot"` \| `"oracle"` \| `"insurance"` \| `"turbo"` \| `"streak_helmet"` \| `"revert"` \| `"felt_memory_blue"` \| `"felt_montecarlo97"` \| `"felt_dark_mode"` \| `"felt_vaporwave"` \| `"chips_floppy"` \| `"chips_cinco_duros"` \| `"chips_bottle_cap"` | sí          |
+| `kind`         | `"consumable"` \| `"service"` \| `"cosmetic"`                                                                                                                                                                                                                    | sí          |
+| `price`        | `integer` > 0                                                                                                                                                                                                                                                    | sí          |
+| `charges`      | `integer` ≥ 0                                                                                                                                                                                                                                                    | sí          |
+| `maxPerSeason` | `integer` > 0 \| `null`                                                                                                                                                                                                                                          | sí          |
+| `bought`       | `integer` ≥ 0                                                                                                                                                                                                                                                    | sí          |
+| `owned`        | `boolean`                                                                                                                                                                                                                                                        | sí          |
+| `finePrint`    | `object` (ver JSON Schema)                                                                                                                                                                                                                                       | sí          |
+
+<details><summary>JSON Schema</summary>
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "enum": [
+        "rabbit_foot",
+        "oracle",
+        "insurance",
+        "turbo",
+        "streak_helmet",
+        "revert",
+        "felt_memory_blue",
+        "felt_montecarlo97",
+        "felt_dark_mode",
+        "felt_vaporwave",
+        "chips_floppy",
+        "chips_cinco_duros",
+        "chips_bottle_cap"
+      ]
+    },
+    "kind": { "type": "string", "enum": ["consumable", "service", "cosmetic"] },
+    "price": { "type": "integer", "exclusiveMinimum": 0, "maximum": 9007199254740991 },
+    "charges": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+    "maxPerSeason": {
+      "anyOf": [
+        { "type": "integer", "exclusiveMinimum": 0, "maximum": 9007199254740991 },
+        { "type": "null" }
+      ]
+    },
+    "bought": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+    "owned": { "type": "boolean" },
+    "finePrint": {
+      "type": "object",
+      "properties": {
+        "perCharge": { "type": "number", "minimum": 0 },
+        "maxExpected": { "type": "number", "minimum": 0 },
+        "minEdge": { "type": "number", "minimum": 0 }
+      },
+      "required": ["perCharge", "maxExpected", "minEdge"],
+      "additionalProperties": false
+    }
+  },
+  "required": ["id", "kind", "price", "charges", "maxPerSeason", "bought", "owned", "finePrint"],
+  "additionalProperties": false
+}
+```
+
+</details>
+
+<!-- END GENERATED common:ShopItem -->
+
+<!-- BEGIN GENERATED common:Placebometer -->
+
+### Placebometer
+
+**Placebometer** (`placebometerSchema`)
+
+| Campo       | Tipo                       | Obligatorio |
+| ----------- | -------------------------- | ----------- |
+| `spent`     | `integer` ≥ 0              | sí          |
+| `recovered` | `integer` ≥ 0              | sí          |
+| `net`       | `integer`                  | sí          |
+| `rabbit`    | `object` (ver JSON Schema) | sí          |
+| `oracle`    | `object` (ver JSON Schema) | sí          |
+
+<details><summary>JSON Schema</summary>
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "spent": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+    "recovered": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+    "net": { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 },
+    "rabbit": {
+      "type": "object",
+      "properties": {
+        "with": {
+          "type": "object",
+          "properties": {
+            "rounds": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+            "won": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+          },
+          "required": ["rounds", "won"],
+          "additionalProperties": false
+        },
+        "without": {
+          "type": "object",
+          "properties": {
+            "rounds": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+            "won": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+          },
+          "required": ["rounds", "won"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["with", "without"],
+      "additionalProperties": false
+    },
+    "oracle": {
+      "type": "object",
+      "properties": {
+        "predictions": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+        "hits": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+      },
+      "required": ["predictions", "hits"],
+      "additionalProperties": false
+    }
+  },
+  "required": ["spent", "recovered", "net", "rabbit", "oracle"],
+  "additionalProperties": false
+}
+```
+
+</details>
+
+<!-- END GENERATED common:Placebometer -->
+
+<!-- BEGIN GENERATED common:Shop -->
+
+### Shop
+
+**Shop** (`shopSchema`)
+
+| Campo          | Tipo                                                                                                                                                                                                                                                                                                       | Obligatorio |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| `seasonId`     | `string` (`/^\d{4}-(0[1-9]\|1[0-2])$/`)                                                                                                                                                                                                                                                                    | sí          |
+| `seasonEndsAt` | `string` (date-time, `/^(?:(?:\d\d[2468][048]\|\d\d[13579][26]\|\d\d0[48]\|[02468][048]00\|[13579][26]00)-02-29\|\d{4}-(?:(?:0[13578]\|1[02])-(?:0[1-9]\|[12]\d\|3[01])\|(?:0[469]\|11)-(?:0[1-9]\|[12]\d\|30)\|(?:02)-(?:0[1-9]\|1\d\|2[0-8])))T(?:(?:[01]\d\|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$/`) | sí          |
+| `items`        | [ShopItem](#shopitem)[]                                                                                                                                                                                                                                                                                    | sí          |
+| `inventory`    | [Inventory](#inventory)                                                                                                                                                                                                                                                                                    | sí          |
+| `placebometer` | [Placebometer](#placebometer)                                                                                                                                                                                                                                                                              | sí          |
+| `canBorrow`    | `boolean`                                                                                                                                                                                                                                                                                                  | sí          |
+
+<details><summary>JSON Schema</summary>
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "seasonId": { "type": "string", "pattern": "^\\d{4}-(0[1-9]|1[0-2])$" },
+    "seasonEndsAt": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+    },
+    "items": { "type": "array", "items": { "$ref": "#/$defs/ShopItem" } },
+    "inventory": { "$ref": "#/$defs/Inventory" },
+    "placebometer": { "$ref": "#/$defs/Placebometer" },
+    "canBorrow": { "type": "boolean" }
+  },
+  "required": ["seasonId", "seasonEndsAt", "items", "inventory", "placebometer", "canBorrow"],
+  "additionalProperties": false
+}
+```
+
+</details>
+
+<!-- END GENERATED common:Shop -->
+
 <!-- BEGIN GENERATED common:PublicGameConfig -->
 
 ### PublicGameConfig
@@ -4643,6 +5423,7 @@ Una de estas variantes:
 | `onFireAt`          | `integer` ≥ 2              | sí          |
 | `minAccountAgeDays` | `integer` ≥ 0              | sí          |
 | `referral`          | `object` (ver JSON Schema) | sí          |
+| `items`             | `object` (ver JSON Schema) | no          |
 
 <details><summary>JSON Schema</summary>
 
@@ -4736,6 +5517,101 @@ Una de estas variantes:
         "redeemWindowDays",
         "redeemMaxSpins",
         "maxCommissionsPerSeason"
+      ],
+      "additionalProperties": false
+    },
+    "items": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "purchaseCooldownMs": { "type": "integer", "minimum": 0, "maximum": 600000 },
+        "maxArmed": { "type": "integer", "minimum": 1, "maximum": 16 },
+        "rabbitFoot": {
+          "type": "object",
+          "properties": {
+            "price": { "type": "integer", "exclusiveMinimum": 0, "maximum": 9007199254740991 },
+            "charges": { "type": "integer", "minimum": 1, "maximum": 10000 },
+            "maxPerSeason": { "type": "integer", "minimum": 1, "maximum": 10000 }
+          },
+          "required": ["price", "charges", "maxPerSeason"],
+          "additionalProperties": false
+        },
+        "oracle": {
+          "type": "object",
+          "properties": {
+            "price": { "type": "integer", "exclusiveMinimum": 0, "maximum": 9007199254740991 },
+            "charges": { "type": "integer", "minimum": 1, "maximum": 10000 },
+            "maxPerSeason": { "type": "integer", "minimum": 1, "maximum": 10000 }
+          },
+          "required": ["price", "charges", "maxPerSeason"],
+          "additionalProperties": false
+        },
+        "insurance": {
+          "type": "object",
+          "properties": {
+            "price": { "type": "integer", "exclusiveMinimum": 0, "maximum": 9007199254740991 },
+            "charges": { "type": "integer", "minimum": 1, "maximum": 10000 },
+            "refundRate": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 },
+            "coverCap": { "type": "integer", "exclusiveMinimum": 0, "maximum": 9007199254740991 },
+            "maxPerSeason": { "type": "integer", "minimum": 1, "maximum": 10000 }
+          },
+          "required": ["price", "charges", "refundRate", "coverCap", "maxPerSeason"],
+          "additionalProperties": false
+        },
+        "turbo": {
+          "type": "object",
+          "properties": {
+            "price": { "type": "integer", "exclusiveMinimum": 0, "maximum": 9007199254740991 },
+            "charges": { "type": "integer", "minimum": 1, "maximum": 10000 },
+            "multiplier": { "type": "number", "exclusiveMinimum": 1, "maximum": 100 },
+            "coverCap": { "type": "integer", "exclusiveMinimum": 0, "maximum": 9007199254740991 },
+            "maxPerSeason": { "type": "integer", "minimum": 1, "maximum": 10000 }
+          },
+          "required": ["price", "charges", "multiplier", "coverCap", "maxPerSeason"],
+          "additionalProperties": false
+        },
+        "streakHelmet": {
+          "type": "object",
+          "properties": {
+            "price": { "type": "integer", "exclusiveMinimum": 0, "maximum": 9007199254740991 },
+            "charges": { "type": "integer", "minimum": 1, "maximum": 10000 },
+            "maxPerSeason": { "type": "integer", "minimum": 1, "maximum": 10000 }
+          },
+          "required": ["price", "charges", "maxPerSeason"],
+          "additionalProperties": false
+        },
+        "revert": {
+          "type": "object",
+          "properties": {
+            "price": { "type": "integer", "exclusiveMinimum": 0, "maximum": 9007199254740991 },
+            "maxRefund": { "type": "integer", "exclusiveMinimum": 0, "maximum": 9007199254740991 },
+            "windowMs": { "type": "integer", "minimum": 1000, "maximum": 86400000 },
+            "maxPerSeason": { "type": "integer", "minimum": 1, "maximum": 10000 }
+          },
+          "required": ["price", "maxRefund", "windowMs", "maxPerSeason"],
+          "additionalProperties": false
+        },
+        "cosmetics": {
+          "type": "object",
+          "properties": {
+            "feltPrice": { "type": "integer", "exclusiveMinimum": 0, "maximum": 9007199254740991 },
+            "chipsPrice": { "type": "integer", "exclusiveMinimum": 0, "maximum": 9007199254740991 }
+          },
+          "required": ["feltPrice", "chipsPrice"],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "enabled",
+        "purchaseCooldownMs",
+        "maxArmed",
+        "rabbitFoot",
+        "oracle",
+        "insurance",
+        "turbo",
+        "streakHelmet",
+        "revert",
+        "cosmetics"
       ],
       "additionalProperties": false
     }
