@@ -171,6 +171,19 @@ describe('sesión que deja de valer con la ventana abierta', () => {
     expect((await client.closed).code).toBe(WS_CLOSE_CODES.unauthorized)
     expect(await walletRow(t, user.id, '2026-10')).toBeUndefined()
   })
+
+  it('una ventana sin sesión no decide con `presence` si el prompt se juega en directo', async () => {
+    const { user } = await createUser(t)
+    const token = await t.services.auth.createSession(user.id, 'web')
+    const client = connect(t, `test_session=${token}`)
+    await until(() => client.messages.some(m => m.type === 'hello'), 'hello')
+    client.send({ v: 1, type: 'presence', visible: false })
+    await until(() => !t.hub.isAttentive(user.id), 'oculta')
+    await t.db.db.delete(sessions).where(eq(sessions.userId, user.id))
+    client.send({ v: 1, type: 'presence', visible: true })
+    expect((await client.closed).code).toBe(WS_CLOSE_CODES.unauthorized)
+    expect(t.hub.isAttentive(user.id)).toBe(false)
+  })
 })
 
 describe('reloj', () => {

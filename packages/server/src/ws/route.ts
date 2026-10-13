@@ -131,9 +131,10 @@ export async function wsRoutes(app: FastifyInstance, options: WsOptions): Promis
       const parsed = parseMessage(data, isBinary)
       chain = chain
         .then(async () => {
-          // Un `ping` o un `presence` no tocan nada: no merecen una consulta.
-          const cheap =
-            typeof parsed === 'object' && (parsed?.type === 'ping' || parsed?.type === 'presence')
+          // Un `ping` no toca nada: no merece una consulta. `presence` sí se comprueba: decide si
+          // los prompts del usuario se juegan en directo, y eso no lo puede decidir una ventana
+          // cuya sesión ya no vale (cambia con la pestaña, así que es una consulta de vez en cuando).
+          const cheap = typeof parsed === 'object' && parsed?.type === 'ping'
           if (cheap || (await stillValid())) {
             await handle(services, hub, connection, parsed)
           }
