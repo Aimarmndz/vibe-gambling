@@ -45,7 +45,8 @@ function avatar(url: string): HTMLCanvasElement | null {
   }
   img.onerror = () => avatars.set(url, 'failed')
   const sized = new URL(safe)
-  sized.searchParams.set('s', '24')
+  // El doble del tamaño en el framebuffer: GitHub sirve el avatar ya reducido y nítido.
+  sized.searchParams.set('s', String(AVATAR * 2))
   img.src = sized.toString()
   return null
 }
