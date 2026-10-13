@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Volcado diario de Postgres del despliegue con Noust (deploy/backup.sh). Va en
+# /etc/systemd/system/ junto con su .timer; el script, en /usr/local/sbin/vibe-backup.
+[Unit]
+Description=vibe-gambling: copia de seguridad de Postgres
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+Environment=VIBE_APP_DIR=/var/www/apps/vibe-aimar-dev
+Environment=VIBE_COMPOSE_FILE=compose.noust.yml
+ExecStart=/usr/local/sbin/vibe-backup
+UMask=0077

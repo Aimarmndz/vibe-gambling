@@ -6,11 +6,14 @@
 #   ./backup.sh restore <file>  # restaura un volcado (¡sobrescribe la base de datos!)
 #
 # Lee POSTGRES_USER, POSTGRES_DB, BACKUP_DIR y BACKUP_KEEP_DAYS del .env de esta carpeta.
+# Con Noust (docs/DESPLIEGUE.md, sección 16) el compose y el .env están en la carpeta de la app:
+#   VIBE_APP_DIR=/var/www/apps/vibe-aimar-dev VIBE_COMPOSE_FILE=compose.noust.yml ./backup.sh
+# (es lo que hace deploy/systemd/vibe-backup.service cada día).
 # Cron sugerido (usuario de despliegue, en el grupo docker):
 #   15 4 * * * cd /srv/vibe-gambling && ./backup.sh >> /var/log/vibe-backup.log 2>&1
 set -euo pipefail
 
-cd "$(dirname "$0")"
+cd "${VIBE_APP_DIR:-$(dirname "$0")}"
 if [[ ! -f .env ]]; then
   echo "Falta .env en $(pwd)" >&2
   exit 1
@@ -28,7 +31,7 @@ PG_USER="$(read_env POSTGRES_USER)"
 PG_DB="$(read_env POSTGRES_DB)"
 DIR="$(read_env BACKUP_DIR)"
 KEEP="$(read_env BACKUP_KEEP_DAYS)"
-compose=(docker compose -f docker-compose.yml)
+compose=(docker compose -f "${VIBE_COMPOSE_FILE:-docker-compose.yml}")
 
 if [[ "${1:-}" == "restore" ]]; then
   file="${2:?Uso: ./backup.sh restore <archivo.dump>}"

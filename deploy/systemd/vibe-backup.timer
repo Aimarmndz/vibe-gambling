@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Cada día a las 04:15 UTC (y al arrancar si se perdió una).
+[Unit]
+Description=vibe-gambling: copia de seguridad diaria de Postgres
+
+[Timer]
+OnCalendar=*-*-* 04:15:00 UTC
+Persistent=true
+
+[Install]
+WantedBy=timers.target

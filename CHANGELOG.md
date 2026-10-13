@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- **Daily database backups for the Noust deployment**: `deploy/systemd/vibe-backup.{service,timer}` run `deploy/backup.sh`, which now takes the app folder and compose file from `VIBE_APP_DIR` and `VIBE_COMPOSE_FILE`.
+
 ## [0.3.1] - 2026-10-13
 
 ### Added

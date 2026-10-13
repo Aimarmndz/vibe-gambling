@@ -577,6 +577,6 @@ noust create … (lo mismo sin --dry-run)
 
 - **Actualizar:** `noust update vibe.aimar.dev` (o se hace solo al publicar una etiqueta, si el webhook de la GitHub App está expuesto).
 - **Variables:** `noust env show vibe.aimar.dev` para verlas y `noust env configure vibe.aimar.dev` para cambiarlas; después, `noust restart vibe.aimar.dev`.
-- **Copias:** `noust backup schedule create vibe.aimar.dev …` (incluye los volúmenes de Docker, o sea Postgres) además de `backup.sh` si quieres volcados de `pg_dump`.
+- **Copias:** `deploy/backup.sh` como `/usr/local/sbin/vibe-backup` con `deploy/systemd/vibe-backup.{service,timer}`: un `pg_dump` cada día a las 04:15 UTC en `BACKUP_DIR`, guardando `BACKUP_KEEP_DAYS` días (lo que dice `/privacy`). El servicio le pasa `VIBE_APP_DIR` y `VIBE_COMPOSE_FILE` para que use la carpeta y el compose de Noust. Pruébalo con `systemctl start vibe-backup` y restaurando un volcado como en la [sección 12](#12-copias-de-seguridad).
 - **Logs:** `noust logs vibe.aimar.dev`.
 - **Comprobación:** la de la [sección 11](#11-comprobación-final), y que `curl -sk --resolve vibe.aimar.dev:443:<IP de la VPS> https://vibe.aimar.dev/healthz` (saltándose Cloudflare) devuelve **403**.
