@@ -44,6 +44,8 @@ export interface DirectorDeps {
   loanOffered: () => void
   /** ¿Se ve la mesa (cámara quieta en su plano y sin pantallas encima)? */
   tableVisible: () => boolean
+  /** Enciende (o apaga) la casilla del 0 de la ruleta mientras dura ¡VERDE!. */
+  zeroGlow: (on: boolean) => void
 }
 
 /** Lo que pide game.ts para enseñar la pantalla de resultado de siempre. */
@@ -162,6 +164,7 @@ export class FxDirector {
     this.screen?.dispose()
     this.screen = null
     this.coins.clear()
+    this.deps.zeroGlow(false)
   }
 
   private next(): void {
@@ -186,7 +189,13 @@ export class FxDirector {
         this.open(new PushScreen(this.kit, step.multiplier, go))
         return
       case 'green':
-        this.open(new GreenScreen(this.kit, step.chain, go))
+        this.deps.zeroGlow(true)
+        this.open(
+          new GreenScreen(this.kit, step.chain, () => {
+            this.deps.zeroGlow(false)
+            go()
+          }),
+        )
         return
       case 'prize':
         this.open(
@@ -279,7 +288,7 @@ export class FxDirector {
         this.fire.base.extinguish()
         this.fire.strip.extinguish()
       }
-      if (this.fire.ms >= cfg.onFire.introMs + 600) this.fire = null
+      if (this.fire.ms >= cfg.onFire.introMs + cfg.onFire.outroMs) this.fire = null
     }
     // Crepitar suave mientras arde (2 por segundo).
     if (this.burning() && !this.deps.reduced) {

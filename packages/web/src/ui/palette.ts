@@ -17,6 +17,8 @@ export const PALETTE = Object.freeze({
   red: '#c1272d',
   black: '#1a1820',
   green: '#17a05d',
+  /** La casilla del 0 encendida en ¡VERDE! (docs/DISENO-V2.md, "Sale el verde"). */
+  greenGlow: '#7dffb0',
   gold: '#f2c14e',
   goldDark: '#a8761e',
   cream: '#f3ead6',

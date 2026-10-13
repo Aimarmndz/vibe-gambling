@@ -116,6 +116,11 @@ export interface WheelParts {
   /** Parte que gira (casillas, números, cono). */
   rotor: Group
   ball: Mesh
+  /**
+   * Ilumina la casilla `n` del color `hex` (el 0 en ¡VERDE!), o la deja como estaba con null.
+   * Cambia solo los colores por vértice de esa casilla (6 vértices).
+   */
+  glow(n: number | null, hex: string): void
 }
 
 export function buildWheel(
@@ -221,7 +226,24 @@ export function buildWheel(
     createPsxMaterial(u, { color: new Color(PALETTE.cream), specular: 0.9 }),
   )
   root.add(ball)
-  return { root, rotor, ball }
+  // Colores originales de las casillas, para apagar la que se ilumine.
+  const pocketColors = pockets.geometry.getAttribute('color') as Float32BufferAttribute
+  const original = Float32Array.from(pocketColors.array)
+  let lit: number | null = null
+  const glow = (n: number | null, hex: string) => {
+    if (lit !== null) {
+      const at0 = WHEEL_ORDER.indexOf(lit) * 6 * 3
+      pocketColors.array.set(original.subarray(at0, at0 + 18), at0)
+    }
+    lit = n
+    if (n !== null) {
+      const c = new Color(hex)
+      const i = WHEEL_ORDER.indexOf(n)
+      for (let v = 0; v < 6; v++) pocketColors.setXYZ(i * 6 + v, c.r, c.g, c.b)
+    }
+    pocketColors.needsUpdate = true
+  }
+  return { root, rotor, ball, glow }
 }
 
 /** Coloca la bola (ángulo de mundo, relativo al grupo de la ruleta). */

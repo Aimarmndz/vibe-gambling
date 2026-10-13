@@ -80,3 +80,26 @@ describe('recordatorios por navegador', () => {
     warn.mockRestore()
   })
 })
+
+describe('ruleta: la casilla del 0 se enciende en ¡VERDE!', () => {
+  it('cambia solo los 6 vértices de esa casilla y al apagarla vuelve al color de antes', async () => {
+    const { Texture, Mesh } = await import('three')
+    const { buildWheel } = await import('../src/render/wheel.ts')
+    const { createPsxUniforms } = await import('../src/render/psxMaterial.ts')
+    const { PALETTE } = await import('../src/ui/palette.ts')
+    const tex = new Texture()
+    const wheel = buildWheel(createPsxUniforms(320, 240), { wood: tex, brass: tex, numbers: tex })
+    const pockets = wheel.rotor.children.filter((c): c is InstanceType<typeof Mesh> => {
+      return c instanceof Mesh && c.geometry.getAttribute('color')?.count === 37 * 6
+    })
+    // El aro de números (con atlas, en blanco) y las casillas: las casillas son las de color.
+    const colors = pockets.map(m => m.geometry.getAttribute('color').array as Float32Array)
+    const before = colors.map(c => Float32Array.from(c))
+    wheel.glow(0, PALETTE.greenGlow)
+    const changed = colors.map((c, k) => c.filter((v, i) => v !== before[k]![i]).length)
+    expect(changed.reduce((a, b) => a + b, 0)).toBeGreaterThan(0)
+    expect(Math.max(...changed)).toBeLessThanOrEqual(18)
+    wheel.glow(null, PALETTE.greenGlow)
+    colors.forEach((c, k) => expect([...c]).toEqual([...before[k]!]))
+  })
+})
