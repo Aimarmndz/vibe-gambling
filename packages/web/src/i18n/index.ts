@@ -130,6 +130,11 @@ export interface Translator {
   n(value: number): string
   /** Número con signo explícito (+1.000 / -1.000). */
   signed(value: number): string
+  /**
+   * Día de un instante ISO en el formato medio del idioma ("Nov 12, 2026", "12 nov 2026"), en la
+   * zona horaria del navegador. Los espacios especiales de `Intl` pasan a espacios normales.
+   */
+  date(iso: string): string
 }
 
 /** Entero con separador de miles: como el tapete, siempre agrupado y sin decimales. */
@@ -144,6 +149,7 @@ export function createTranslator(locale: Locale, catalog: Catalog): Translator {
   const texts = catalog.texts
   const n = (value: number) => groupDigits(value, meta.groupSeparator)
   const rules = new Intl.PluralRules(meta.bcp47)
+  const day = new Intl.DateTimeFormat(meta.bcp47, { dateStyle: 'medium' })
   const t = (key: string, vars?: Vars) => {
     const text = texts[key] ?? key
     return vars ? fillTemplate(text, vars) : text
@@ -160,6 +166,7 @@ export function createTranslator(locale: Locale, catalog: Catalog): Translator {
     has: (key): key is MessageKey => key in texts,
     n,
     signed: value => (value > 0 ? `+${n(value)}` : n(value)),
+    date: iso => day.format(new Date(iso)).replace(/\s/g, ' '),
   }
 }
 

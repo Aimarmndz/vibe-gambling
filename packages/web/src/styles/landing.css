@@ -355,6 +355,12 @@ h2 {
   margin: 16px 0 0;
 }
 
+/* Regla antiabuso (cuentas de GitHub nuevas) bajo el ranking. */
+.note {
+  max-width: 72ch;
+  margin: 8px 0 0;
+}
+
 /* ------------------------------------------------------------ salón de la ruina */
 .hall-seasons {
   display: grid;

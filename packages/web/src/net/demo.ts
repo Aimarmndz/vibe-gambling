@@ -76,8 +76,12 @@ export function demoGameConfig(pub: PublicGameConfig): GameConfig {
     jackpot: { ...pub.jackpot },
     season: { timeZone: pub.seasonTimeZone, startDay: pub.seasonStartDay },
     hallOfRuinSize: 10,
+    leaderboard: { minAccountAgeDays: pub.minAccountAgeDays },
     spin: { minSpinMs: pub.minSpinMs, landingMs: pub.landingMs },
     round: { staleAfterMs: 30 * 60 * 1000 },
+    // En la demo no hay turnos de Claude que medir: solo para el tipo.
+    turn: { minDurationMs: 0 },
+    dailySpinLimit: Number.MAX_SAFE_INTEGER,
     streak: { colorWarningAt: pub.colorWarningAt, historySize: 50, onFireAt: pub.onFireAt },
     pendingSpins: { ...pub.pendingSpins },
     bigWin: { ...pub.bigWin },

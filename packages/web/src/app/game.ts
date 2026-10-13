@@ -15,6 +15,7 @@ import { Sfx } from '../audio/sfx.ts'
 import type { WebClientConfig } from '../config.ts'
 import { drawText, printable, wrap } from '../font/bitmap.ts'
 import { betReadyHint } from '../game/hints.ts'
+import { newAccountNotice } from '../game/newAccount.ts'
 import { PhraseMemory, describeOutcome } from '../game/outcome.ts'
 import type { OutcomeView } from '../game/outcome.ts'
 import { pocketAtLocalAngle } from '../game/spin.ts'
@@ -55,6 +56,8 @@ import { MessageScreen } from '../ui/screens/message.ts'
 import { SpinAllHud } from '../ui/menu/spinAllHud.ts'
 import { MenuScreen } from '../ui/screens/menu.ts'
 import { PendingNoticeScreen } from '../ui/screens/pending.ts'
+import { DailyLimitScreen } from '../ui/screens/dailyLimit.ts'
+import { dailyLimitNotice } from '../game/dailyLimit.ts'
 import { ResultScreen } from '../ui/screens/result.ts'
 import { TableScreen } from '../ui/screens/table.ts'
 import { TipScreen } from '../ui/screens/tip.ts'
@@ -160,6 +163,13 @@ export class Game implements AppContext {
    * alguna; sale cuando la mesa queda libre (tras el arranque y "cómo se juega").
    */
   private pendingNotice: { due: boolean; readyAt: number | null } = { due: false, readyAt: null }
+  /**
+   * Aviso de cuenta de GitHub nueva (aún fuera del ranking) al abrir la ventana: como el de
+   * pendientes, espera a que la mesa quede libre para que el arranque no lo tape.
+   */
+  private newAccountDue = false
+  /** Última frase del aviso de mesa cerrada (para no repetirla en el siguiente). */
+  private lastDailyLimitPhrase: string | null = null
 
   constructor(opts: GameOptions) {
     this.web = opts.web
@@ -506,12 +516,26 @@ export class Game implements AppContext {
     this.link.send(withVersion({ type: 'presence', visible }))
   }
 
+  /** ¿Está la mesa libre para un aviso? (sin arranque ni pantallas encima, ni bola en juego). */
+  private tableFree(): boolean {
+    return (
+      !this.boot && this.top() === this.table && this.game.phase === 'idle' && !this.spinLoop.active
+    )
+  }
+
+  /** El aviso de cuenta de GitHub nueva (juegas, y sales en el ranking a partir de una fecha). */
+  private checkNewAccountNotice(): void {
+    if (!this.newAccountDue || !this.tableFree()) return
+    this.newAccountDue = false
+    const text = newAccountNotice(this.game.user, this.tr)
+    if (text) this.toast(text)
+  }
+
   /** El aviso "tienes N tiradas pendientes" al abrir, cuando la mesa queda libre. */
   private checkPendingNotice(): void {
     const notice = this.pendingNotice
     if (!notice.due) return
-    const free =
-      !this.boot && this.top() === this.table && this.game.phase === 'idle' && !this.spinLoop.active
+    const free = this.tableFree()
     if (!free) {
       notice.readyAt = null
       return
@@ -595,6 +619,7 @@ export class Game implements AppContext {
           }
           if (user?.locale && !this.prefs.locale) this.setPrefs({ locale: user.locale })
           if (!this.demo && pendingSpins(this.game) > 0) this.pendingNotice.due = true
+          if (!this.demo && user?.newAccount) this.newAccountDue = true
         }
         if (this.game.phase === 'spinning') this.motion.orbit()
         return
@@ -632,6 +657,27 @@ export class Game implements AppContext {
           effect.event === 'queued' ? 'money' : 'error',
         )
         return
+      case 'dailyLimit': {
+        // GIRAR TODAS se para (la mesa está cerrada hasta mañana) y sale el aviso, uno solo:
+        // si ya está en pantalla, se actualiza con otra frase.
+        this.spinLoop.stop('error')
+        const notice = dailyLimitNotice(
+          tr,
+          this.web.site.helpLinks,
+          effect,
+          this.lastDailyLimitPhrase,
+        )
+        this.lastDailyLimitPhrase = notice.template
+        const open = this.screens.find(s => s instanceof DailyLimitScreen)
+        if (open) {
+          open.replace(notice)
+        } else {
+          this.sfx.play('error')
+          this.push(new DailyLimitScreen(this, notice))
+        }
+        this.announce([notice.title, notice.count, notice.phrase, notice.reopens].join(' '))
+        return
+      }
       case 'expired': {
         const rel = this.motion.ballAngle - this.motion.wheelAngle
         this.motion.restOn(pocketAtLocalAngle(rel))
@@ -653,6 +699,8 @@ export class Game implements AppContext {
       case 'error': {
         if (this.loanScreen && !this.loanScreen.granting) this.pop(this.loanScreen)
         const forSpin = effect.type === 'error' && (effect.re ?? 'spin.pending') === 'spin.pending'
+        // El aviso de mesa cerrada ya lo pinta el mensaje `daily_limit`, que llega antes.
+        if (forSpin && effect.error === 'daily_limit') return
         if (forSpin && this.spinLoop.active) {
           // Un `rate_limited` en GIRAR TODAS solo retrasa la siguiente: no merece un aviso.
           const end = this.spinLoop.failed(effect.error, Date.now(), effect.re)
@@ -925,6 +973,7 @@ export class Game implements AppContext {
     if (spunText) this.announce(spunText)
     this.checkLoanOffer()
     this.checkPendingNotice()
+    this.checkNewAccountNotice()
     const top = this.top()
     this.world.felt.update(
       {

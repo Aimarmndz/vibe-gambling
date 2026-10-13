@@ -2,11 +2,14 @@
 // CLASIFICACIÓN (`menu-ranking.png`): pestañas ARRUINADOS · RICOS · ADICTOS · SALÓN DE LA RUINA,
 // filas con el avatar de GitHub reducido a 12×12 con vecino más cercano (luego lo pasa por el
 // dithering el compuesto) y tu fila con banda y esquinas. ✕ abre el perfil de la fila elegida.
+// Con una cuenta de GitHub aún demasiado nueva para el ranking, la última fila dice desde cuándo
+// sales (nunca un puesto que no se ve en la lista).
 import { LEADERBOARD_BOARDS } from '@vibe-gambling/shared'
 import type { HallOfRuinResponse, LeaderboardResponse } from '@vibe-gambling/shared'
 
 import type { ActionEvent } from '../../../app/input.ts'
 import { drawText, measure } from '../../../font/bitmap.ts'
+import { newAccountRankLine } from '../../../game/newAccount.ts'
 import { webUrl } from '../../../net/urls.ts'
 import { drawWindow } from '../../draw.ts'
 import { PALETTE } from '../../palette.ts'
@@ -178,13 +181,24 @@ export class RankingPage implements MenuPage {
     return Math.min(FIT_ROWS, this.ctx.client.leaderboard.inGameLimit)
   }
 
+  /** "Cuenta de GitHub nueva: sales el …", si tu cuenta aún no tiene edad para el ranking. */
+  private newAccountLine(): string | null {
+    return newAccountRankLine(this.ctx.state().user, this.ctx.tr)
+  }
+
+  /** Filas de jugadores: con el aviso de cuenta nueva, la última queda para él. */
+  private get playerRows(): number {
+    return this.newAccountLine() === null ? this.maxRows : this.maxRows - 1
+  }
+
   private rows(): Row[] {
     if (this.tab === 'hall') {
       const season = this.hall?.seasons[0]
-      return (season?.rows ?? []).map(r => ({ ...r, streak: null }))
+      return (season?.rows ?? []).slice(0, this.playerRows).map(r => ({ ...r, streak: null }))
     }
+    const limit = this.playerRows
     const rows: Row[] = (this.board?.rows ?? [])
-      .slice(0, this.maxRows)
+      .slice(0, limit)
       .map(r => ({ ...r, streak: r.currentStreak }))
     // En ARRUINADOS, si no sales entre los primeros, tu fila sustituye a la última.
     const user = this.ctx.state().user
@@ -194,10 +208,10 @@ export class RankingPage implements MenuPage {
       this.rank !== null &&
       user &&
       w &&
-      rows.length === this.maxRows &&
+      rows.length === limit &&
       !rows.some(r => r.login === user.login)
     ) {
-      rows[this.maxRows - 1] = {
+      rows[limit - 1] = {
         rank: this.rank,
         login: user.login,
         avatarUrl: user.avatarUrl,
@@ -218,7 +232,11 @@ export class RankingPage implements MenuPage {
     const { tr } = this.ctx
     const top = this.rows()[0]
     const tab = tr.t(`lb.board.${this.tab}`)
-    return top ? tr.t('lb.a11y', { board: tab, login: top.login, net: tr.n(top.netWorth) }) : tab
+    const text = top
+      ? tr.t('lb.a11y', { board: tab, login: top.login, net: tr.n(top.netWorth) })
+      : tab
+    const wait = this.newAccountLine()
+    return wait === null ? text : `${text} ${wait}`
   }
 
   private switchTab(dir: number): void {
@@ -305,6 +323,19 @@ export class RankingPage implements MenuPage {
     if (!hall) drawText(g, tr.t('lb.streak'), 304, y0, { color: SECONDARY, align: 'right' })
     g.fillStyle = PALETTE.frameInner
     g.fillRect(14, y0 + 8, 292, 1)
+
+    // Cuenta nueva: en el hueco de la última fila, desde cuándo sales (también cargando).
+    const wait = this.newAccountLine()
+    if (wait !== null) {
+      const y = y0 + 15 + (this.maxRows - 1) * ROW_H
+      g.fillStyle = PALETTE.frameInner
+      g.fillRect(14, y - 6, 292, 1)
+      drawText(g, fit(wait, 292), 160, y, {
+        color: PALETTE.gold,
+        align: 'center',
+        shadow: PALETTE.ink,
+      })
+    }
 
     const rows = this.rows().slice(0, this.maxRows)
     if (this.error) {

@@ -14,6 +14,7 @@ import type {
 
 import { clientConfig, loadWebConfig } from './config.ts'
 import type { Translator } from './i18n/index.ts'
+import { newAccountsRule } from './game/newAccount.ts'
 import { fetchHallOfRuin, fetchLeaderboard } from './net/api.ts'
 import { applyI18n, el, externalLink, renderFooter, withLanguage } from './pages/common.ts'
 import { webUrl } from './net/urls.ts'
@@ -103,6 +104,14 @@ function renderBoard(state: BoardState, tr: Translator): void {
     )
     tbody.append(tr_)
   }
+}
+
+/** Regla antiabuso junto al ranking: las cuentas de GitHub nuevas salen al cumplir N días. */
+function renderNewAccountsNote(web: WebConfig, tr: Translator): void {
+  const note = $('board-note')
+  const text = newAccountsRule(web.game.minAccountAgeDays, tr)
+  note.hidden = text === null
+  note.textContent = text ?? ''
 }
 
 function renderHall(hall: HallOfRuinResponse | null, failed: boolean, tr: Translator): void {
@@ -220,6 +229,7 @@ async function main(): Promise<void> {
     document.title = next.t('landing.title')
     $('install-command').textContent = web.site.installCommand
     $('how-3').textContent = next.t('landing.how.3', { apr: next.n(web.game.loan.displayApr) })
+    renderNewAccountsNote(web, next)
     renderBoard(board, next)
     renderHall(hall, hallFailed, next)
     renderFooter($('footer'), web, next)

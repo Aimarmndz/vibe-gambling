@@ -227,6 +227,20 @@ describe('el texto cabe donde se pinta', () => {
         new PendingNoticeScreen(ctx as unknown as AppContext).draw(fakeCanvas2d(), 1)
         check('pendingNotice', problems)
       }
+      {
+        // Cuenta de GitHub nueva: la línea "sales el …" con el mes más largo del idioma.
+        const ctx = fakeContext({ locale })
+        const newAccount = { minAgeDays: 30, rankedFrom: '2026-09-28T12:00:00.000Z' }
+        setState(ctx, { user: { ...ctx.state().user!, newAccount } })
+        const page = new RankingPage(fakeHost(ctx))
+        await settle()
+        frame.windows.length = 0
+        frame.texts.length = 0
+        page.draw(fakeCanvas2d(), 1)
+        // La fecha entera, sin recortar.
+        expect(frame.texts.some(t => t.text.endsWith('2026'))).toBe(true)
+        check('ranking:newAccount', problems)
+      }
       for (const reduced of [false, true]) {
         const ctx = fakeContext({ locale, reducedMotion: reduced })
         setState(ctx, {

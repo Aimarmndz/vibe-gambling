@@ -118,6 +118,19 @@ describe('página de privacidad', () => {
     expect(section(testWebConfig, 'stored', es)).toMatch(/turnos \(cuándo empezó y terminó/)
   })
 
+  it('cuenta que se guarda la fecha de creación de la cuenta de GitHub, para qué y hasta cuándo', () => {
+    expect(section(testWebConfig, 'stored')).toContain('the date the account was created')
+    expect(section(testWebConfig, 'stored', es)).toContain('la fecha de creación de la cuenta')
+    const board = section(testWebConfig, 'leaderboard')
+    expect(board).toContain('GitHub accounts younger than 30 days play as usual')
+    expect(board).toContain('deleted with your account')
+    expect(section(testWebConfig, 'leaderboard', es)).toContain('menos de 30 días juegan')
+    // Sin la regla (0 días) o sin configuración, no se cuenta una regla que no se aplica.
+    const off = { ...testWebConfig, game: { ...testWebConfig.game, minAccountAgeDays: 0 } }
+    expect(section(off, 'leaderboard')).not.toContain('younger than')
+    expect(section(null, 'leaderboard')).not.toContain('younger than')
+  })
+
   it('cuenta el SO "other" y que no se guarda la IP', () => {
     expect(section(testWebConfig, 'sent')).toContain('win32 or other')
     expect(section(testWebConfig, 'sent', es)).toContain('win32 u other')

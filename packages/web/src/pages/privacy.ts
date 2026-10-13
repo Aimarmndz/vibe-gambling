@@ -142,8 +142,13 @@ export function sectionParagraphs(
     }
     case 'cookies':
       return [text('privacy.cookies.body')]
-    case 'leaderboard':
-      return [text('privacy.leaderboard.body')]
+    case 'leaderboard': {
+      const out = [text('privacy.leaderboard.body')]
+      // Regla antiabuso: solo si la instancia la tiene activada (y se sabe con cuántos días).
+      const days = web?.game.minAccountAgeDays ?? 0
+      if (days > 0) out.push(text('privacy.leaderboard.newAccounts', { days: tr.n(days) }))
+      return out
+    }
     case 'delete':
       return [text('privacy.delete.body'), text('privacy.delete.rights')]
     case 'contact':

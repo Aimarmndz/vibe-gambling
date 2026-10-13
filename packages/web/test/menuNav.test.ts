@@ -21,6 +21,7 @@ import { RankingPage } from '../src/ui/menu/pages/ranking.ts'
 import { SETTING_IDS, SettingsPage } from '../src/ui/menu/pages/settings.ts'
 import { StatsPage } from '../src/ui/menu/pages/stats.ts'
 import { SpinAllHud } from '../src/ui/menu/spinAllHud.ts'
+import { PALETTE } from '../src/ui/palette.ts'
 import { MenuScreen } from '../src/ui/screens/menu.ts'
 import { PendingNoticeScreen } from '../src/ui/screens/pending.ts'
 import { msg, resolved, wallet } from './fixtures.ts'
@@ -488,6 +489,81 @@ describe('las demás pantallas', () => {
     expect(painted.map(p => p.text)).toContain(ctx.tr.t('lb.hallEmpty'))
     expect(press(page, 'accept')).toBe(true)
     expect(ctx.links).toEqual([])
+  })
+
+  describe('CLASIFICACIÓN con una cuenta de GitHub nueva', () => {
+    const others = (n: number): LeaderboardResponse => ({
+      v: 1,
+      board: 'broke',
+      season: '2026-10',
+      seasons: ['2026-10'],
+      players: n,
+      rows: Array.from({ length: n }, (_, i) => ({
+        login: `player${i + 1}`,
+        avatarUrl: `https://example.invalid/${i}.png`,
+        profileUrl: `https://example.invalid/player${i + 1}`,
+        rank: i + 1,
+        netWorth: -1000 + i,
+        balance: 0,
+        debt: 1000 - i,
+        spins: 10,
+        currentStreak: 0,
+        bestStreak: 0,
+      })),
+    })
+    const newAccount = { minAgeDays: 30, rankedFrom: '2026-11-12T12:00:00.000Z' }
+
+    async function open(ctx: FakeContext, rank: number | null) {
+      ctx.leaderboard = () => Promise.resolve(others(10))
+      ctx.brokeRank = () => Promise.resolve(rank)
+      const page = new RankingPage(fakeHost(ctx))
+      await new Promise(r => setTimeout(r, 0))
+      painted.length = 0
+      page.draw(fakeCanvas2d(), 0)
+      return page
+    }
+    const logins = () => painted.map(p => p.text).filter(t => /^player\d+$|\(TÚ\)/.test(t))
+
+    it('la última fila dice desde cuándo sales, sin inventarse un puesto', async () => {
+      const ctx = fakeContext()
+      setState(ctx, { user: { ...ctx.state().user!, newAccount } })
+      await open(ctx, null)
+      const line = painted.find(p => p.text.startsWith('Cuenta de GitHub nueva'))
+      expect(line?.text).toBe('Cuenta de GitHub nueva: sales el 12 nov 2026')
+      expect(line?.color).toBe(PALETTE.gold)
+      // Nueve jugadores y el aviso: ni tu fila ni un puesto falso.
+      expect(logins()).toEqual(Array.from({ length: 9 }, (_, i) => `player${i + 1}`))
+      expect(ctx.announced.join(' ')).toContain('sales el 12 nov 2026')
+    })
+
+    it('también en el Salón de la Ruina y mientras carga', async () => {
+      const ctx = fakeContext({ locale: 'en' })
+      setState(ctx, { user: { ...ctx.state().user!, newAccount } })
+      ctx.leaderboard = () => new Promise(() => undefined)
+      const page = new RankingPage(fakeHost(ctx))
+      page.draw(fakeCanvas2d(), 0)
+      expect(painted.map(p => p.text)).toContain('New GitHub account: listed from Nov 12, 2026')
+      press(page, 'left')
+      await Promise.resolve()
+      painted.length = 0
+      page.draw(fakeCanvas2d(), 0)
+      expect(painted.map(p => p.text)).toContain('New GitHub account: listed from Nov 12, 2026')
+    })
+
+    it('oculto no se le promete nada; con la cuenta antigua vuelve tu fila con su puesto', async () => {
+      const hidden = fakeContext()
+      setState(hidden, { user: { ...hidden.state().user!, hidden: true, newAccount } })
+      await open(hidden, null)
+      expect(painted.some(p => p.text.startsWith('Cuenta de GitHub nueva'))).toBe(false)
+      expect(logins()).toHaveLength(10)
+
+      const old = fakeContext()
+      setState(old, { user: { ...old.state().user!, newAccount: null } })
+      await open(old, 42)
+      expect(painted.some(p => p.text.startsWith('Cuenta de GitHub nueva'))).toBe(false)
+      expect(logins().at(-1)).toBe('tester (TÚ)')
+      expect(painted.map(p => p.text)).toContain('42')
+    })
   })
 
   it('aviso de pendientes al abrir: ✕ va a las tiradas y ○ lo deja para luego', () => {

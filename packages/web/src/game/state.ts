@@ -60,6 +60,8 @@ export type Effect =
   | { type: 'bye'; reason: 'logout' | 'account_deleted' | 'shutdown' | 'replaced' }
   /** Un prompt sin ventana visible: tirada guardada (o descartada por el tope). */
   | { type: 'pending'; event: 'queued' | 'dropped'; count: number }
+  /** Tope diario: el prompt o el GIRAR no ha tirado; la mesa reabre en `reopensAt`. */
+  | { type: 'dailyLimit'; limit: number; reopensAt: string }
 
 export interface Step {
   state: GameState
@@ -189,6 +191,14 @@ export function reduce(state: GameState, msg: ServerMessage, nowMs: number): Ste
       }
     case 'wallet':
       return { state: withWallet(state, msg.wallet), effects: [] }
+    case 'daily_limit': {
+      // Como `pending`: la ronda que se viera girar ya no se tira. Si la bola cae, se deja caer.
+      const phase: Phase = state.phase === 'spinning' ? 'idle' : state.phase
+      return {
+        state: { ...withWallet(state, msg.wallet), round: null, phase },
+        effects: [{ type: 'dailyLimit', limit: msg.limit, reopensAt: msg.reopensAt }],
+      }
+    }
     case 'pending': {
       // El turno terminó sin tirar: la ronda que se viera girar ya no existe (solo hay una
       // abierta por usuario y es la de ese turno). Si la bola está cayendo, se deja caer.
