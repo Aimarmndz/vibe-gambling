@@ -221,12 +221,12 @@ async function main(): Promise<void> {
     for (let pass = 1; ((await hooks(page)).state.wallet?.pendingSpins ?? 0) > 0; pass++) {
       if (pass > 50) throw new Error('GIRAR TODAS no termina')
       // Menú → TIRADAS PENDIENTES → GIRAR TODAS.
+      // Menú → TIRADAS (segunda casilla de la rejilla) → □ TODAS.
       await page.keyboard.press('p')
-      await page.keyboard.press('ArrowDown')
+      await page.keyboard.press('ArrowRight')
       await page.keyboard.press('x')
       await waitFor(async () => (await hooks(page)).screens.includes('pending'), 5000, 'pantalla')
-      await page.keyboard.press('ArrowDown')
-      await page.keyboard.press('x')
+      await page.keyboard.press('z')
       await waitFor(async () => (await hooks(page)).spinAll.running, 5000, 'GIRAR TODAS')
       await waitFor(async () => !(await hooks(page)).spinAll.running, 180_000, 'que se pare')
       const h = await hooks(page)
