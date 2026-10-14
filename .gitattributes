@@ -1,0 +1,6 @@
+# Las capturas y los GIF de la documentación se ven en GitHub, pero no van en las descargas del
+# repositorio (zip/tar.gz de GitHub y git archive): pesan más de 50 MB y el directorio de plugins
+# de Claude rechaza repositorios cuyo archivo comprimido supere ese tamaño.
+docs/screenshots/** export-ignore
+docs/*.gif export-ignore
+docs/launch/** export-ignore
