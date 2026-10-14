@@ -438,14 +438,25 @@ export const register: Register = (on, options) => {
     run(ioOf($), 'show', ctx => commands.setHidden(ctx, false)),
   )
   // La única escritura de configuración del mod: la URL del servidor, con la clave escrita tal cual
-  // en el hook para que el directorio de plugins vea exactamente qué ajuste cambia.
-  on('command.run', { command: 'vibe-server' }, ($, e) =>
-    run(ioOf($), 'server', ctx =>
-      commands.server(ctx, argsOf(e), value =>
-        $.config.set({ key: 'vibe-gambling.serverUrl', value }),
-      ),
-    ),
-  )
+  // en el propio hook para que el directorio de plugins vea exactamente qué ajuste cambia.
+  on('command.run', { command: 'vibe-server' }, async ($, e) => {
+    const pending: { change?: commands.ServerChange } = {}
+    const reply = await run(ioOf($), 'server', async ctx => {
+      const outcome = await commands.server(ctx, argsOf(e))
+      if (typeof outcome === 'string') return outcome
+      pending.change = outcome
+      return ''
+    })
+    const change = pending.change
+    if (change === undefined) return reply
+    try {
+      const saved = await $.config.set({ key: 'vibe-gambling.serverUrl', value: change.url })
+      return { text: change.reply(saved.deny) }
+    } catch (error) {
+      debug(ioOf($), `/server: ${String(error)}`)
+      return { text: runtime.messages.offline }
+    }
+  })
   on('command.run', { command: 'vibe-delete-account' }, ($, e) =>
     run(ioOf($), 'deleteAccount', ctx => commands.deleteAccount(ctx, argsOf(e))),
   )
