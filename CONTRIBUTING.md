@@ -8,7 +8,7 @@ By participating you agree to follow the [Code of Conduct](CODE_OF_CONDUCT.md). 
 
 ## Ground rules
 
-- **Fake coins only.** No real money, no purchases, no links to betting sites. Ever. PRs that blur this line are closed.
+- **Fake coins only.** No real money, no purchases, no links to betting sites. Ever. The shop sells placebos for fake coins and the referral programme is a pyramid of nothing; PRs that make any of it real are closed.
 - **Privacy first.** The mod only sends `turnId`, the turn duration, two booleans (`gitPushOk`, `testFailed`), the plugin version and the generic OS. Never prompts, code, commands, paths or repo names. Any change that touches what leaves the user's machine needs a test that proves it.
 - **Nothing hardcoded.** URLs, ports, timeouts, limits, brand texts… come from environment variables (validated with zod in each package's config module) or from `config/*.json`. The only constants in code are the rules of European roulette.
 - **The server is the only authority.** The browser and the mod never decide results or balances.

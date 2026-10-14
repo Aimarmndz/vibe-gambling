@@ -1,6 +1,6 @@
 # vibe-gambling — Claude Code mod
 
-The Claude Code side of vibe-gambling: every prompt is a spin. It opens the PS1-style roulette window when you send a prompt, closes the round when Claude finishes, and shows the result in a toast and your balance in the status line. Fake coins only.
+The Claude Code side of vibe-gambling: every prompt is a spin. It opens the PS1-style roulette window when you send a prompt, closes the round when Claude finishes, and shows the result in a toast and your balance in the status line. You can lose 100 % of your coins, but you can also win infinity (statistically, you won't). The coins are fake; the dopamine is the only thing that's real.
 
 With no game window open and visible when the turn ends, the server keeps the spin as a **pending spin** instead of rolling it: the mod says so in a toast (`🎰 Spin saved for later · 20 pending`), adds the count to the status line (`🎰 750 🪙 · 20 pending`) and `/balance` reminds you. You spend them in the window with SPIN / SPIN ALL. Past the cap (`pendingSpins.max`, 100 by default) the prompt is dropped with a joke. Nothing new is sent for this: the server decides from the window's visibility.
 

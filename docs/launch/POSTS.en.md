@@ -14,7 +14,7 @@ Drafts. **Nothing is published.** Links: repo `https://github.com/Aimarmndz/vibe
 
 > I kept staring at the spinner while Claude Code worked, refreshing nothing, hoping for a good outcome. That's a slot machine. So I made it one.
 >
-> vibe-gambling is a Claude Code plugin: when you send a prompt, a window opens with a low-poly roulette wheel in PS1 style (320×240, wobbly vertices, affine texture warping, dithering, CRT filter, a fake console boot screen and a memory card). The wheel spins while Claude thinks and the ball drops when the turn ends. Bet with the mouse or with `/bet 200 red`. If a `git push` succeeded during the turn, winnings pay double. When you're broke, a loan shark offers 1,000 coins at 4,200 % APR. There's a monthly leaderboard of the most broke devs and a Hall of Ruin.
+> vibe-gambling is a Claude Code plugin: when you send a prompt, a window opens with a low-poly roulette wheel in PS1 style (320×240, wobbly vertices, affine texture warping, dithering, CRT filter, a fake console boot screen and a memory card). The wheel spins while Claude thinks and the ball drops when the turn ends. Bet with the mouse or with `/bet 200 red`. If a `git push` succeeded during the turn, winnings pay double. When you're broke, a loan shark offers 1,000 coins at 4,200 % APR. There's a monthly leaderboard of the most broke devs, a Hall of Ruin, a shop that sells a Rabbit's Foot™ (+∞ % luck, measured effect: zero) and a referral programme that is openly a pyramid. You can lose 100 %, but you can also win infinity.
 >
 > Fake coins only. No purchases, no real money, no links to betting sites. It's a parody.
 >
@@ -90,6 +90,8 @@ Alternative titles:
 > git push during the turn? ×2.
 > Broke? The Ludo-Credit Express lends you 1,000 coins at 4,200 % APR. Read the fine print.
 > Monthly leaderboard of the most broke devs.
+> Shop: a Rabbit's Foot™ with +∞ % luck (measured effect: 0). Insurance where the house still wins.
+> /vibe-invite: refer a friend, earn coins. Yes, it's a pyramid. It says so on the icon.
 
 > 3/ Fake coins only. Nothing real is gambled, nothing can be bought. It's a parody.
 >

@@ -10,7 +10,7 @@ Hacker News, r/ClaudeAI y r/ProgrammerHumor son en inglés: usa [POSTS.en.md](PO
 
 > Me pasaba el rato mirando el spinner mientras Claude Code trabajaba, esperando que saliera bien. Eso es una tragaperras. Así que lo he convertido en una.
 >
-> vibe-gambling es un plugin de Claude Code: al mandar un prompt se abre una ventana con una ruleta low-poly estilo PlayStation 1 (320×240, vértices que tiemblan, texturas afines, dithering, filtro CRT, un arranque de consola inventada y memory card). La ruleta gira mientras Claude piensa y la bola cae cuando termina. Apuestas con el ratón o con `/apostar 200 rojo`. Si en el turno hubo un `git push` con éxito, las ganancias pagan doble. Cuando te arruinas, el Ludo-Crédito Express te presta 1.000 monedas a una TAE del 4.200 %. Hay ranking mensual de los devs más arruinados y un Salón de la Ruina.
+> vibe-gambling es un plugin de Claude Code: al mandar un prompt se abre una ventana con una ruleta low-poly estilo PlayStation 1 (320×240, vértices que tiemblan, texturas afines, dithering, filtro CRT, un arranque de consola inventada y memory card). La ruleta gira mientras Claude piensa y la bola cae cuando termina. Apuestas con el ratón o con `/apostar 200 rojo`. Si en el turno hubo un `git push` con éxito, las ganancias pagan doble. Cuando te arruinas, el Ludo-Crédito Express te presta 1.000 monedas a una TAE del 4.200 %. Hay ranking mensual de los devs más arruinados, un Salón de la Ruina, una tienda que vende la Pata de Conejo™ (+∞ % de suerte, efecto medido: cero) y un programa de afiliados que es una pirámide sin disimulo. Puedes perder el 100 %, pero también puedes ganar infinito.
 >
 > **Solo monedas falsas.** No se compra nada, no hay dinero real ni enlaces a casas de apuestas. Es una parodia.
 >
@@ -40,6 +40,8 @@ Hacker News, r/ClaudeAI y r/ProgrammerHumor son en inglés: usa [POSTS.en.md](PO
 > ¿git push en el turno? ×2.
 > ¿Sin blanca? El Ludo-Crédito Express te presta 1.000 monedas al 4.200 % TAE. Lee la letra pequeña.
 > Ranking mensual de los devs más arruinados.
+> Tienda: Pata de Conejo™ con +∞ % de suerte (efecto medido: 0). Un seguro con el que la casa sigue ganando.
+> /vibe-invitar: invita a un amigo y gana monedas. Sí, es una pirámide. Lo pone en el icono.
 
 > 3/ Solo monedas falsas. No se apuesta nada real ni se puede comprar nada. Es una parodia.
 >
