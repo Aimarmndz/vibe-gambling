@@ -3,5 +3,5 @@
 useDefault = true
 
 [allowlist]
-description = "Token de ejemplo inventado de docs/PROTOCOLO.md (usuario falso octo-gambler; nunca ha sido válido)"
-regexes = ['''crV3b3vf6xWJIR5Tmek_aEaimhOxbsdcnSRmIkriyUQ''']
+description = "Falsos positivos revisados: el token de ejemplo inventado de docs/PROTOCOLO.md (usuario falso octo-gambler; nunca ha sido válido) y una clave de texto de los tapetes (item.felt_*)"
+regexes = ['''crV3b3vf6xWJIR5Tmek_aEaimhOxbsdcnSRmIkriyUQ''', '''^item\.felt_[a-z0-9_]+$''']
