@@ -1,6 +1,6 @@
 {
   "name": "@vibe-gambling/web",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "private": true,
   "description": "La ventana PSX de vibe-gambling: ruleta 3D con Three.js, landing y ranking.",
   "license": "AGPL-3.0-or-later",

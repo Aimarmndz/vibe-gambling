@@ -2,7 +2,7 @@
   "name": "vibe-gambling",
   "owner": { "name": "Aimar", "url": "https://github.com/Aimarmndz" },
   "metadata": {
-    "version": "0.3.2",
+    "version": "0.4.0",
     "description": "🎰 Every prompt is a spin. A PS1-style roulette for Claude Code. Risk: 100%. Upside: infinite. Real money: zero, ever."
   },
   "plugins": [

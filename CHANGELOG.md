@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-14
+
 ### Changed
 
 - **Every other text is satirical too**, in all four languages and adapted rather than translated: the game window (loan shark fine print, bankruptcy, achievements, menus, settings, how to play, credits, empty states), the plugin's replies and slash command descriptions, the READMEs, the plugin and marketplace descriptions and the page metadata now parody casino, crypto, MLM and growth-hacking marketing ("Risk: 100%. Upside: infinite."). Error messages still say what happened and what to do, with the joke as a short extra. There are new gambler phrases in every category. The privacy policy only changes its intro; its content is the same. The gambling-help notice and links stay as they were, without jokes, and every text still makes it clear that no real money is ever involved.
@@ -100,7 +102,8 @@ First public version: every Claude Code prompt is a spin of a PS1-style European
 - Logs never contain IPs, headers, tokens, query strings or database details; GitHub tokens are discarded right after login and only session-token hashes are stored.
 - The plugin only talks to `https` servers (plain `http` only to localhost), never puts server text in a shell command, and only accepts `http(s)` URLs anywhere in the protocol.
 
-[Unreleased]: https://github.com/Aimarmndz/vibe-gambling/compare/v0.3.2...HEAD
+[Unreleased]: https://github.com/Aimarmndz/vibe-gambling/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/Aimarmndz/vibe-gambling/compare/v0.3.2...v0.4.0
 [0.3.2]: https://github.com/Aimarmndz/vibe-gambling/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/Aimarmndz/vibe-gambling/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/Aimarmndz/vibe-gambling/compare/v0.2.0...v0.3.0

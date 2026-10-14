@@ -2,7 +2,7 @@
 // GENERADO por scripts/sync-mod-shared.ts a partir de packages/mod/.claude-plugin/plugin.json. No lo edites a mano.
 // Versión del plugin (la que manda en cada turno) y valores por defecto de sus opciones.
 
-export const PLUGIN_VERSION = '0.3.2'
+export const PLUGIN_VERSION = '0.4.0'
 export const USER_CONFIG_DEFAULTS = {
   serverUrl: 'https://vibe.aimar.dev',
   autoOpen: true,
