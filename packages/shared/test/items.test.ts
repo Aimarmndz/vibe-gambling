@@ -123,30 +123,35 @@ describe('la casa siempre gana (EV ≤ precio por carga)', () => {
     ['configuración de test', items],
   ]
 
-  it.each(configs)('%s: enumeración exacta sobre 10⁴ boletos con semilla', (_name, cfg) => {
-    const rand = seeded(0x5eed)
-    const worst: Record<string, number> = {}
-    for (let i = 0; i < SLIPS; i++) {
-      const bets = randomSlip(rand)
-      for (const jackpot of [1, game.jackpot.gitPushMultiplier]) {
-        for (const id of CONSUMABLE_IDS) {
-          // Solo cuenta si el objeto actuaría con ese boleto (si no, ni gasta ni paga).
-          const plan = planItems([{ itemId: id, charges: 1, armed: true }], bets, jackpot, cfg)
-          if (!plan.acting.includes(id)) continue
-          const ev = expectedBenefit(id, bets, jackpot, cfg)
-          const { perCharge, maxExpected } = finePrint(id, cfg)
-          expect(ev).toBeLessThanOrEqual(maxExpected + 1e-9)
-          expect(ev).toBeLessThanOrEqual(perCharge)
-          worst[id] = Math.max(worst[id] ?? 0, ev)
+  it.each(configs)(
+    '%s: enumeración exacta sobre 10⁴ boletos con semilla',
+    (_name, cfg) => {
+      const rand = seeded(0x5eed)
+      const worst: Record<string, number> = {}
+      for (let i = 0; i < SLIPS; i++) {
+        const bets = randomSlip(rand)
+        for (const jackpot of [1, game.jackpot.gitPushMultiplier]) {
+          for (const id of CONSUMABLE_IDS) {
+            // Solo cuenta si el objeto actuaría con ese boleto (si no, ni gasta ni paga).
+            const plan = planItems([{ itemId: id, charges: 1, armed: true }], bets, jackpot, cfg)
+            if (!plan.acting.includes(id)) continue
+            const ev = expectedBenefit(id, bets, jackpot, cfg)
+            const { perCharge, maxExpected } = finePrint(id, cfg)
+            expect(ev).toBeLessThanOrEqual(maxExpected + 1e-9)
+            expect(ev).toBeLessThanOrEqual(perCharge)
+            worst[id] = Math.max(worst[id] ?? 0, ev)
+          }
         }
       }
-    }
-    // Los placebos no pagan nunca; el seguro y el turbo, menos que su carga.
-    expect(worst.rabbit_foot).toBe(0)
-    expect(worst.oracle).toBe(0)
-    expect(worst.insurance).toBeGreaterThan(0)
-    expect(worst.turbo).toBeGreaterThan(0)
-  })
+      // Los placebos no pagan nunca; el seguro y el turbo, menos que su carga.
+      expect(worst.rabbit_foot).toBe(0)
+      expect(worst.oracle).toBe(0)
+      expect(worst.insurance).toBeGreaterThan(0)
+      expect(worst.turbo).toBeGreaterThan(0)
+      // Enumera 37 casillas × 10⁴ boletos × objetos: en los runners del CI tarda más de los 5 s por defecto.
+    },
+    60_000,
+  )
 
   it('las cotas son ajustadas: el peor boleto para la casa las alcanza y aun así pierde', () => {
     // Todo a una docena con el tope de cobertura: 0,5·200·25/37 = 67,57 ≤ 70.
