@@ -146,6 +146,36 @@ sequenceDiagram
 - **Ranking**: la tirada cuenta (en `spins`, en el patrimonio y en el ranking) cuando se gasta, no cuando se guarda.
 - **Caducidad**: al cerrar la temporada, sus pendientes caducan antes de guardar el Salón de la Ruina.
 
+## Una tirada con objetos
+
+La TIENDA no toca la ruleta: el número sale de `rng.pocket()` (37 casillas uniformes) y `PAYOUTS`/`resolveBets` no cambian. Los objetos pagan aparte, en líneas propias. Todo es lógica pura de `shared` (`game/items.ts`), dentro de la transacción de la tirada y con la cartera ya bloqueada:
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant S as Servidor (#resolve)
+  participant DB as Postgres
+  participant W as Ventana
+
+  S->>DB: BEGIN · FOR UPDATE cartera · boleto final (chooseRoundBets)
+  S->>DB: FOR UPDATE bolsillo (inventory) de la temporada
+  S->>S: planItems(bolsillo, boleto, jackpot): qué actúa y gasta carga (antes del número)
+  opt oráculo armado
+    S->>S: predicción = rng.pocket() (otra tirada independiente)
+  end
+  S->>S: resultado = rng.pocket() · resolveBets (intacto)
+  S->>S: settleItems: seguro, turbo, casco (racha con asterisco)
+  S->>DB: rounds (net oficial, item_net) · round_item_effects · cargas − 1 · cartera (saldo con item_net) · COMMIT
+  S-->>W: round.resolved {items, itemNet, spectacle con net + itemNet}
+  S-->>W: inventory {event: consumed}
+  S-->>W: achievement.unlocked (si los hay)
+```
+
+- **La casa siempre gana**: para cualquier boleto, lo que un objeto devuelve de media en una carga es ≤ lo que cuesta esa carga. `gameConfigSchema` lo comprueba con un `refine` por objeto (una configuración "generosa" no arranca) y `packages/shared/test/items.test.ts` lo enumera de forma exacta sobre las 37 casillas con 10⁴ boletos con semilla. Las cotas: seguro `r·C·25/37` (la peor exterior es la docena), turbo `35·(m − 1)·C/37`, revert `maxRefund < price` (determinista).
+- **Neto oficial y neto sentido**: `rounds.net` y `ResolvedRound.net` son siempre el neto de la ruleta; `item_net` es lo de los objetos. El saldo, `net_worth_after`, la racha y el espectáculo usan `net + item_net`.
+- **`git revert HEAD~1`** es una compra, no una tirada: devuelve la pérdida neta de la última ronda (con su tope) solo con la ronda ya enseñada y dentro de `items.revert.windowMs`, y queda como una línea más de esa ronda.
+- **Tiradas pendientes y GIRAR TODAS**: los objetos se aplican tirada a tirada al gastar cada pendiente, con el bolsillo de ese momento.
+
 ## Login: Device Flow mediado por el servidor
 
 El mod nunca habla con GitHub ni ve nada de GitHub: solo un `pollId` opaco.
@@ -230,6 +260,12 @@ erDiagram
   users |o--o{ referrals : "invita (referrer)"
   users |o--o| referrals : "canjea (invitee)"
   seasons ||--o{ referrals : ""
+  users ||--o{ item_purchases : "compra"
+  seasons ||--o{ item_purchases : ""
+  users ||--o{ inventory : "bolsillo"
+  seasons ||--o{ inventory : "caduca con ella"
+  users ||--o{ cosmetics_owned : "para siempre"
+  rounds ||--o{ round_item_effects : "objetos que actuaron"
 
   users {
     uuid id PK
@@ -240,6 +276,8 @@ erDiagram
     text locale "idioma de locales/ o null"
     jsonb last_bets "apuesta a repetir"
     text referral_code UK "código de afiliado o null"
+    text felt "tapete equipado o null (clásico)"
+    text chip_skin "fichas equipadas o null (clásicas)"
     timestamptz created_at
   }
   sessions {
@@ -282,6 +320,7 @@ erDiagram
     int best_streak
     jsonb slip "boleto: fichas ya descontadas"
     timestamptz broke_at "primera BANCARROTA de la temporada"
+    boolean streak_asterisk "racha salvada por el Casco de Racha"
   }
   rounds {
     uuid id PK
@@ -305,6 +344,7 @@ erDiagram
     int streak_after "racha tras la tirada (ON FIRE)"
     bigint net_worth_after "patrimonio tras la tirada"
     boolean went_broke "BANCARROTA en esta tirada"
+    bigint item_net "lo que pagaron los objetos (aparte de net)"
   }
   turns {
     uuid user_id PK, FK
@@ -347,6 +387,38 @@ erDiagram
     bigint commission "0 si ya estaba el tope"
     text paid_season_id FK "temporada de la comisión"
   }
+  item_purchases {
+    uuid id PK
+    uuid user_id FK
+    text season_id FK
+    text item_id "id del catálogo de shared"
+    bigint price
+    text paid_with "balance (debt: fase B)"
+    bigint refund "solo git revert"
+    uuid round_id FK "solo git revert: la ronda revertida"
+    text request_id "UK con user_id (idempotencia)"
+    timestamptz created_at
+  }
+  inventory {
+    uuid user_id PK, FK
+    text season_id PK, FK
+    text item_id PK "consumible"
+    int charges "≥ 0"
+    boolean armed
+    jsonb state "fase B (martingala, refinanciación)"
+  }
+  cosmetics_owned {
+    uuid user_id PK, FK
+    text item_id PK "felt_* o chips_*"
+    timestamptz acquired_at
+  }
+  round_item_effects {
+    uuid round_id PK, FK
+    text item_id PK
+    text kind "placebo | prediction | refund | boost | shield | revert"
+    bigint amount "monedas (con signo)"
+    jsonb detail "predicción del oráculo y si acertó"
+  }
   hall_of_ruin {
     text season_id PK, FK
     smallint rank PK
@@ -366,6 +438,7 @@ Reglas que garantiza la base de datos además del código:
 - **Borrado de cuenta**: todo lo que cuelga de `users` es `ON DELETE CASCADE`, salvo los canjes de afiliado (`referrals`): cada lado es `ON DELETE SET NULL`, para que la fila siga contando para el tope de comisiones de quien queda, y el borrado elimina las filas que se quedan sin ninguno de los dos.
 - **Afiliados**: un canje por cuenta para siempre (índice único de `referrals.invitee_id`), un código por usuario (índice único de `users.referral_code`, con `CHECK` del formato), sin autoinvitarse (`CHECK`), y la comisión se paga una sola vez (`activated_at IS NULL` con la fila bloqueada, en una transacción aparte de la tirada del invitado: nunca dos carteras bloqueadas a la vez). Detalle en [PROTOCOLO.md](PROTOCOLO.md#programa-de-afiliados).
 - **Cuentas de GitHub nuevas fuera del ranking**: `users.github_created_at` (el `created_at` del perfil público de GitHub, reescrito en cada login) decide quién sale en los rankings, en el puesto propio de `/api/me` y en el Salón de la Ruina: solo las cuentas con al menos `leaderboard.minAccountAgeDays` días (de 24 h, contra el reloj inyectado) o sin el dato (las de antes de la regla, hasta su próximo login). Se borra con la cuenta.
+- **TIENDA**: compras idempotentes por `(user_id, request_id)` (índice único); cargas `≥ 0` con `CHECK`; una línea por objeto y tirada (`round_item_effects` con clave `(round_id, item_id)`, así tampoco se revierte dos veces la misma ronda). Comprar, armar, tirar y revertir bloquean primero la cartera y después las filas del bolsillo: el mismo orden que el resto. Las compras, el bolsillo, los cosméticos y los efectos caen en cascada con la cuenta.
 - **Tokens**: solo hashes SHA-256 (`sessions`, `link_codes`, `device_auths`). El token de GitHub no se guarda nunca.
 
 ## Temporadas
@@ -375,8 +448,8 @@ Una temporada es un mes natural que empieza el día `season.startDay` a las 00:0
 Cada `SEASON_CHECK_INTERVAL_MS`, un job del servidor:
 
 1. toma `pg_try_advisory_xact_lock` (si hubiera dos instancias, solo una trabaja);
-2. cierra las temporadas vencidas: caduca sus rondas abiertas y sus tiradas pendientes, devuelve al saldo las fichas de los boletos, guarda el top `hallOfRuinSize` de arruinados no ocultos y con cuenta de GitHub de al menos `leaderboard.minAccountAgeDays` días en `hall_of_ruin` y marca `closed_at`;
-3. crea la fila de la temporada nueva y avisa a las ventanas con `season.changed`;
+2. cierra las temporadas vencidas: caduca sus rondas abiertas y sus tiradas pendientes, vacía el bolsillo de la TIENDA (los consumibles caducan con la temporada; las compras y los cosméticos se quedan), devuelve al saldo las fichas de los boletos, guarda el top `hallOfRuinSize` de arruinados no ocultos y con cuenta de GitHub de al menos `leaderboard.minAccountAgeDays` días en `hall_of_ruin` y marca `closed_at`;
+3. crea la fila de la temporada nueva y avisa a las ventanas con `season.changed` (y con `inventory` `expired` a quien tenía consumibles);
 4. purga códigos de enlace usados o caducados, logins de GitHub a medias y sesiones caducadas o revocadas.
 
 Las carteras de la temporada nueva se crean de forma perezosa con la primera operación de dinero; hasta entonces `/api/me` y `hello` enseñan una cartera "virtual" con el saldo inicial.
@@ -401,12 +474,12 @@ Las carteras de la temporada nueva se crean de forma perezosa con la primera ope
 
 Nada configurable está escrito en el código:
 
-| Dónde                                                     | Qué                                                                                                                                | Lo valida                                  |
-| --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
-| Variables de entorno (`deploy/.env.example`)              | URLs, puertos, base de datos, GitHub, sesiones, rate limits, WebSocket, cachés, proxy                                              | `packages/server/src/config.ts` (zod)      |
-| `config/game.json`                                        | Saldo inicial, fichas, préstamo y TAE, jackpot, temporada, giro mínimo, rachas, edad mínima para el ranking, programa de afiliados | `gameConfigSchema` (shared)                |
-| `config/site.json`                                        | Autor, repo, comando de instalación, enlaces de ayuda, otros proyectos, datos de la instancia para `/privacy`                      | `siteConfigSchema` (server)                |
-| `config/web.json`                                         | Ping y reconexión del WebSocket, tiempos de la interfaz, ranking, demo                                                             | `webClientConfigSchema` (web, en la build) |
-| `userConfig` de `packages/mod/.claude-plugin/plugin.json` | URL del servidor, apertura automática, idioma, timeouts del mod                                                                    | el engine (rangos `min`/`max`) y el mod    |
+| Dónde                                                     | Qué                                                                                                                                                                                                                                                | Lo valida                                  |
+| --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| Variables de entorno (`deploy/.env.example`)              | URLs, puertos, base de datos, GitHub, sesiones, rate limits, WebSocket, cachés, proxy                                                                                                                                                              | `packages/server/src/config.ts` (zod)      |
+| `config/game.json`                                        | Saldo inicial, fichas, préstamo y TAE, jackpot, temporada, giro mínimo, rachas, edad mínima para el ranking, programa de afiliados, TIENDA (`items`: precios, cargas, tasas, topes, ventana del revert; la regla de la casa se valida al arrancar) | `gameConfigSchema` (shared)                |
+| `config/site.json`                                        | Autor, repo, comando de instalación, enlaces de ayuda, otros proyectos, datos de la instancia para `/privacy`                                                                                                                                      | `siteConfigSchema` (server)                |
+| `config/web.json`                                         | Ping y reconexión del WebSocket, tiempos de la interfaz, ranking, demo                                                                                                                                                                             | `webClientConfigSchema` (web, en la build) |
+| `userConfig` de `packages/mod/.claude-plugin/plugin.json` | URL del servidor, apertura automática, idioma, timeouts del mod                                                                                                                                                                                    | el engine (rangos `min`/`max`) y el mod    |
 
 Si falta algo o no cuadra, el proceso no arranca y dice qué. Las únicas constantes del código son las reglas de la ruleta europea (casillas, colores, orden del cilindro, pagos).

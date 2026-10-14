@@ -123,6 +123,20 @@ Invite 3 friends and stop having them. `/vibe-invite` gives you your affiliate l
 - Screenshots: [the invite page](docs/screenshots/invite-en.png) and [the AFFILIATES screen](docs/screenshots/menu-referral-en.png).
 - Fake coins, real rules: the server checks everything (and only counts, it never tells you who your invitees are). Defaults in [`config/game.json`](config/game.json) (`referral`).
 
+### The SHOP (pay to lose)
+
+Advantages that don't exist, sold with honest fine print. Every item states its real expected value, and the server won't even start if one of them could pay back more than it costs: the house always wins, and here it is a unit test.
+
+- **Lucky Rabbit's Foot™** (77 for 37 spins): does nothing. Shows "+∞% LUCK". The Placebometer compares your win rate with and without it.
+- **AI Tipster** (37 for 10): "THE AI PREDICTS: 17 (97 % confidence)". It is another independent spin. Right 1 in 37 times, like anyone.
+- **Full Coverage Insurance** (350 for 5): refunds half of your lost outside bets, on up to 200 per round. Pays back at most 67.57 per 70-coin charge.
+- **Straight-Up Turbo ×2** (100): doubles the win of your _only_ straight-up bet, up to 100 of it. Pays back at most 94.59.
+- **Streak Helmet** (150 for 3): one loss doesn't break your winning streak. It gets an asterisk: `7*`.
+- **`git revert HEAD~1`** (550): refunds up to 500 of your last round's loss, after the fact. Once a season. The insurance you buy after the crash.
+- **Felts and chip sets** (500 / 300): forever. The only thing that survives the season is your taste.
+
+The wheel is untouched (37 uniform pockets, same payouts): items pay on their own lines. Consumables expire with the season. `/vibe-shop` lists everything, `/vibe-shop buy pata` buys, `/vibe-use rabbit` arms; in the window, the SHOP screen has SHOP, POCKET and WARDROBE tabs. Screenshots: [the SHOP](docs/screenshots/menu-shop-en.png) and [the POCKET with the Placebometer](docs/screenshots/menu-pocket-en.png). Defaults in [`config/game.json`](config/game.json) (`items`).
+
 ### Four languages
 
 🇬🇧 English · 🇪🇸 Español · 🇫🇷 Français · 🇩🇪 Deutsch. All of it: the game, the landing page, the privacy policy, the plugin messages and 60+ gambler phrases per language, adapted rather than translated. The flags are hand-drawn pixel art. The window starts in your browser's language, the plugin in your system's, and you can switch from the in-game settings. [Adding a language](locales/README.md) is copying a folder. Global expansion: four markets, zero revenue, flawless execution.
@@ -143,6 +157,8 @@ The whole API surface. There is no premium tier: every command is free, and so i
 | `/vibe-delete-account <login>` |                 | Delete your account and all its data (type your login to confirm it) |
 | `/vibe-invite`                 | `/vibe-invitar` | Your affiliate link, your code and your pyramid stats                |
 | `/vibe-redeem <code>`          | `/vibe-canjear` | Redeem the code of whoever invited you (welcome bonus)               |
+| `/vibe-shop [buy <item>]`      | `/vibe-tienda`  | The SHOP: prices, fine print, your pocket · buy an item              |
+| `/vibe-use <item> [off]`       | `/vibe-usar`    | Arm or disarm an item for the next spin                              |
 
 Plugin options (server, auto-open, language, timeouts, window size) are in `/config`; see [packages/mod](packages/mod/README.md#options).
 

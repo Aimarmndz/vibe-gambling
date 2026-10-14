@@ -123,6 +123,20 @@ Invita a 3 amigos y deja de tenerlos. `/vibe-invite` te da tu enlace de afiliado
 - Capturas: [la página de invitación](docs/screenshots/invite.png) y [la pantalla AFILIADOS](docs/screenshots/menu-referral.png).
 - Monedas de mentira, reglas de verdad: lo comprueba todo el servidor (y solo cuenta: nunca te dice quiénes son tus invitados). Los valores están en [`config/game.json`](config/game.json) (`referral`).
 
+### La TIENDA (paga por perder)
+
+Ventajas que no existen, con la letra pequeña honesta. Cada objeto dice su valor esperado de verdad, y el servidor ni arranca si alguno pudiera devolver más de lo que cuesta: la casa siempre gana, y aquí es un test.
+
+- **Pata de Conejo™** (77 por 37 tiradas): no hace nada. Enseña "+∞% SUERTE". El Placebómetro compara cuánto ganas con ella y sin ella.
+- **VibeOracle** (37 por 10): "LA IA PREDICE: 17 (confianza 97 %)". Es otra tirada independiente. Acierta 1 de cada 37, como cualquiera.
+- **Seguro a Todo Riesgo** (350 por 5): devuelve la mitad de lo perdido en apuestas exteriores, sobre 200 como mucho por ronda. Devuelve de media 67,57 como mucho por cada carga de 70.
+- **Turbo Pleno ×2** (100): duplica la ganancia de tu _único_ pleno, sobre 100 como mucho. Devuelve de media 94,59 como mucho.
+- **Casco de Racha** (150 por 3): una derrota no rompe tu racha ganadora. Le pone un asterisco: `7*`.
+- **`git revert HEAD~1`** (550): te devuelve hasta 500 de la pérdida de tu última ronda, a toro pasado. Una vez por temporada. El seguro que se contrata después del accidente.
+- **Tapetes y fichas** (500 / 300): para siempre. Lo único que sobrevive a la temporada es tu mal gusto.
+
+La ruleta no se toca (37 casillas uniformes, los pagos de siempre): los objetos pagan aparte, en su propia línea. Los consumibles caducan con la temporada. `/vibe-shop` lo enseña todo, `/vibe-shop buy pata` compra y `/vibe-use pata` la arma; en la ventana, la pantalla TIENDA tiene las pestañas TIENDA, BOLSILLO y ARMARIO. Capturas: [la TIENDA](docs/screenshots/menu-shop.png) y [el BOLSILLO con el Placebómetro](docs/screenshots/menu-pocket.png). Los valores están en [`config/game.json`](config/game.json) (`items`).
+
 ### Cuatro idiomas
 
 🇬🇧 English · 🇪🇸 Español · 🇫🇷 Français · 🇩🇪 Deutsch. Entero: el juego, la landing, la política de privacidad, los mensajes del plugin y más de 60 frases de ludópata por idioma, adaptadas y no traducidas a pelo. Las banderas son pixel art dibujado a mano. La ventana arranca en el idioma de tu navegador, el plugin en el de tu sistema, y lo cambias cuando quieras en los ajustes del juego. [Añadir un idioma](locales/README.md#resumen-en-español) es copiar una carpeta. Expansión internacional: cuatro mercados, cero ingresos, ejecución impecable.
@@ -143,6 +157,8 @@ Toda la superficie de la API. No hay plan premium: todos los comandos son gratis
 | `/vibe-delete-account <login>` |                 | Borra tu cuenta y todos tus datos (escribe tu login para confirmarlo) |
 | `/vibe-invite`                 | `/vibe-invitar` | Tu enlace de afiliado, tu código y las cuentas de tu pirámide         |
 | `/vibe-redeem <código>`        | `/vibe-canjear` | Canjea el código de quien te invitó (bono de bienvenida)              |
+| `/vibe-shop [buy <objeto>]`    | `/vibe-tienda`  | La TIENDA: precios, letra pequeña y tu bolsillo · compra un objeto    |
+| `/vibe-use <objeto> [off]`     | `/vibe-usar`    | Arma o desarma un objeto para la próxima tirada                       |
 
 Las opciones del plugin (servidor, apertura automática, idioma, tiempos de espera, tamaño de la ventana) están en `/config`; detalles en [packages/mod](packages/mod/README.md#options).
 
