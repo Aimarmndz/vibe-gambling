@@ -14,9 +14,12 @@ import { INITIAL_CURSOR, hitTest, moveCursor } from '../../game/layout.ts'
 import { pendingSpins } from '../../game/state.ts'
 import { Odometer } from '../../render/fx/odometer.ts'
 import type { Point } from '../../game/layout.ts'
-import { drawDemoPanel } from '../demoPanel.ts'
+import { DEMO_PANEL, drawDemoPanel } from '../demoPanel.ts'
+import { drawPocketPanel } from '../pocketPanel.ts'
+import { streakText } from '../../game/shopView.ts'
 import { drawChipIcon, drawWindow } from '../draw.ts'
-import { CHIP_COLORS, PALETTE } from '../palette.ts'
+import { PALETTE } from '../palette.ts'
+import { chipColor, chipSkin } from '../../render/skins.ts'
 import { STATUS_BOX, STATUS_LOOKS, statusColor } from '../status.ts'
 import type { StatusKind } from '../status.ts'
 import { MenuScreen } from './menu.ts'
@@ -254,10 +257,11 @@ export class TableScreen implements Screen {
     this.ctx.hudFlames?.(g)
     if (w) {
       const streak = w.currentStreak
-      const streakText = streak > 0 ? `▲${streak}` : streak < 0 ? `▼${-streak}` : '–'
+      // Con el Casco de Racha, la racha salvada lleva asterisco ("▲7*").
+      const streakLabel = streakText(streak, w.streakAsterisk)
       const streakColor = streak > 0 ? PALETTE.win : streak < 0 ? PALETTE.loss : PALETTE.cream
       drawText(g, tr.t('hud.streak'), 228, 10, { color: muted, shadow: PALETTE.ink })
-      drawText(g, streakText, 310, 10, { color: streakColor, align: 'right', shadow: PALETTE.ink })
+      drawText(g, streakLabel, 310, 10, { color: streakColor, align: 'right', shadow: PALETTE.ink })
       drawText(g, tr.t('hud.spins'), 228, 21, { color: muted, shadow: PALETTE.ink })
       drawText(g, tr.n(w.spins), 310, 21, {
         color: PALETTE.cream,
@@ -270,9 +274,13 @@ export class TableScreen implements Screen {
 
     // Demo: AUTO/PAUSA y GIRAR, bajo el panel de la racha.
     const demoAuto = this.ctx.demoAuto()
+    let panelY = 4 + (pending > 0 ? 40 : 29) + 3
     if (demoAuto !== null) {
-      drawDemoPanel(g, this.ctx, 4 + (pending > 0 ? 40 : 29) + 3, demoAuto)
+      drawDemoPanel(g, this.ctx, panelY, demoAuto)
+      panelY += DEMO_PANEL.h + 3
     }
+    // BOLSILLO: lo armado para la próxima ronda, en la misma columna.
+    drawPocketPanel(g, this.ctx, panelY, t)
 
     // Estado: centrado bajo la ruleta.
     const status = this.statusText()
@@ -307,11 +315,12 @@ export class TableScreen implements Screen {
       drawText(g, truncate(parts.join(' · '), 300 - totalW - 12), 6, 208, { color: PALETTE.cream })
     }
     const chips = this.chips()
+    const skin = chipSkin(state.user?.chipSkin)
     let x = 12
     chips.forEach((chip, i) => {
       const selected = i === this.chipIndex
       const label = chip === 'all-in' ? tr.t('hud.allIn') : chipLabel(chip)
-      const color = chip === 'all-in' ? PALETTE.gold : CHIP_COLORS[i % CHIP_COLORS.length]!
+      const color = chip === 'all-in' ? PALETTE.gold : chipColor(skin, i)
       drawChipIcon(g, x, 222, color, selected)
       const lw = measure(label)
       drawText(g, label, x + 9, 219, {

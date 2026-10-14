@@ -8,6 +8,7 @@ import { fillTemplate, pickPhrase } from '@vibe-gambling/shared/i18n'
 import type { PhraseCategory } from '@vibe-gambling/shared/i18n'
 
 import type { Translator } from '../i18n/index.ts'
+import { itemLines } from './shopView.ts'
 
 export type Verdict = 'win' | 'lose' | 'even' | 'noBet'
 
@@ -15,7 +16,10 @@ export interface OutcomeView {
   number: number
   color: PocketColor
   verdict: Verdict
+  /** Lo que siente el jugador: el neto de la ruleta más lo que pagan los objetos. */
   net: number
+  /** Líneas de los objetos de la TIENDA que han actuado ("SEGURO +100", "LA IA DIJO 17…"). */
+  items: string[]
   /** Frase principal. */
   phrase: string
   /** Líneas extra (racha de color, tests fallidos, apuesta automática, ruina…). */
@@ -89,9 +93,12 @@ export function describeOutcome(args: {
     color: one,
     apr: tr.n(game.loan.displayApr),
   }
+  // Con objetos, cuenta lo que siente el jugador (ruleta + objetos), como el saldo.
+  const net = round.net + (round.itemNet ?? 0)
+  const felt = net === round.net ? round : { ...round, net }
   const verdict: Verdict =
-    round.source === 'none' ? 'noBet' : round.net > 0 ? 'win' : round.net < 0 ? 'lose' : 'even'
-  const phrase = memory.pick(tr, mainCategory(round, wallet, minChip), vars, random)
+    round.source === 'none' ? 'noBet' : net > 0 ? 'win' : net < 0 ? 'lose' : 'even'
+  const phrase = memory.pick(tr, mainCategory(felt, wallet, minChip), vars, random)
 
   const extras: string[] = []
   if (round.jackpot) extras.push(memory.pick(tr, 'jackpot', vars, random))
@@ -121,7 +128,8 @@ export function describeOutcome(args: {
     number: round.result,
     color,
     verdict,
-    net: round.net,
+    net,
+    items: itemLines(round.items, game, wallet.currentStreak, tr),
     phrase,
     extras: extras.slice(0, 3),
     jackpot: round.jackpot,

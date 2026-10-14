@@ -24,6 +24,7 @@ import { MemoryCardPage } from '../src/ui/menu/pages/memoryCard.ts'
 import { PendingPage } from '../src/ui/menu/pages/pending.ts'
 import { RankingPage } from '../src/ui/menu/pages/ranking.ts'
 import { SettingsPage } from '../src/ui/menu/pages/settings.ts'
+import { ShopPage } from '../src/ui/menu/pages/shop.ts'
 import { StatsPage } from '../src/ui/menu/pages/stats.ts'
 import { BankruptScreen } from '../src/ui/screens/bankrupt.ts'
 import { FallacyScreen } from '../src/ui/screens/fallacy.ts'
@@ -34,7 +35,15 @@ import { PrizeScreen } from '../src/ui/screens/prize.ts'
 import { PushScreen } from '../src/ui/screens/pushToProd.ts'
 import type { FxScreen } from '../src/render/fx/fxScreen.ts'
 import { wallet } from './fixtures.ts'
-import { STATS, achievementsFixture, fakeCanvas2d, fakeContext, setState } from './menuFixtures.ts'
+import {
+  INVENTORY,
+  STATS,
+  achievementsFixture,
+  fakeCanvas2d,
+  fakeContext,
+  setState,
+  shopFixture,
+} from './menuFixtures.ts'
 import type { FakeContext } from './menuFixtures.ts'
 import { fakeHost } from './menuHost.ts'
 
@@ -191,6 +200,8 @@ const PAGES: [string, new (host: ReturnType<typeof fakeHost>) => MenuPage, strin
   ['settings', SettingsPage, 'down'],
   ['howTo', HowToPage, 'right'],
   ['credits', CreditsPage, 'down'],
+  ['shop', ShopPage, 'right'],
+  ['shop:filas', ShopPage, 'down'],
 ]
 
 describe('el texto cabe donde se pinta', () => {
@@ -220,6 +231,54 @@ describe('el texto cabe donde se pinta', () => {
           page.draw(fakeCanvas2d(), 1 + moves)
           // Los créditos suben por la pantalla a propósito (recortados a su zona).
           check(`${name}#${moves}`, problems, name === 'credits' ? [''] : [])
+        }
+      }
+      {
+        // TIENDA: cada pestaña con cada fila elegida (también `git revert`, sin saldo y con el
+        // aviso de caducidad y la financiación), con cifras grandes.
+        const inventory = {
+          ...INVENTORY,
+          items: INVENTORY.items.map(i => ({ ...i, charges: 1234, armed: true })),
+          revert: {
+            roundId: STATS.recent[0]!.roundId,
+            refund: 12_345,
+            until: '2026-10-12T23:59:00.000Z',
+          },
+        }
+        const shop = shopFixture({
+          inventory,
+          seasonEndsAt: new Date(Date.now() + 86_400_000).toISOString(),
+          canBorrow: true,
+          placebometer: {
+            spent: 123_456,
+            recovered: 98_765,
+            net: -24_691,
+            rabbit: { with: { rounds: 1234, won: 617 }, without: { rounds: 9876, won: 4321 } },
+            oracle: { predictions: 1234, hits: 33 },
+          },
+        })
+        for (const tab of ['shop', 'pocket', 'wardrobe'] as const) {
+          const ctx = fakeContext({
+            locale,
+            state: {
+              wallet: wallet(big),
+              shown: wallet(big),
+              inventory,
+              shownInventory: inventory,
+            },
+          })
+          ctx.progressReply.shop = Promise.resolve(shop)
+          const page = new ShopPage(fakeHost(ctx))
+          page.enter()
+          await settle()
+          while (page.tab !== tab) page.action({ action: 'right', fine: false })
+          for (let row = 0; row < 12; row++) {
+            frame.windows.length = 0
+            frame.texts.length = 0
+            page.draw(fakeCanvas2d(), 1)
+            check(`shop:${tab}#${row}`, problems)
+            page.action({ action: 'down', fine: false })
+          }
         }
       }
       {

@@ -1,26 +1,32 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Peticiones de las pantallas ESTADÍSTICAS, BANCO y AFILIADOS (`stats.request` → `stats`,
-// `bank.request` → `bank`, `referral.request` → `referral`). El servidor responde solo a la ventana que pregunta y sin id de petición, así que aquí
+// Peticiones de las pantallas ESTADÍSTICAS, BANCO, AFILIADOS y TIENDA (`stats.request` → `stats`,
+// `bank.request` → `bank`, `referral.request` → `referral`, `shop.request` → `shop`). El servidor
+// responde solo a la ventana que pregunta y sin id de petición, así que aquí
 // se empareja cada respuesta con la petición más antigua de su tipo que siga esperando.
 import type {
   BankStatement,
   ReferralStatus,
   SeasonStats,
   ServerMessage,
+  Shop,
 } from '@vibe-gambling/shared'
 
-export type ProgressKind = 'stats' | 'bank' | 'referral'
+export type ProgressKind = 'stats' | 'bank' | 'referral' | 'shop'
 export interface ProgressData {
   stats: SeasonStats
   bank: BankStatement
   referral: ReferralStatus
+  shop: Shop
 }
 
 const REQUEST_TYPE = {
   stats: 'stats.request',
   bank: 'bank.request',
   referral: 'referral.request',
+  shop: 'shop.request',
 } as const
+
+const KINDS = ['stats', 'bank', 'referral', 'shop'] as const
 
 /** La petición no tuvo respuesta a tiempo o no se pudo mandar. */
 export class ProgressError extends Error {
@@ -50,6 +56,7 @@ export class ProgressRequests {
     stats: [],
     bank: [],
     referral: [],
+    shop: [],
   }
   private readonly send: ProgressSend
   private readonly timeoutMs: number
@@ -84,7 +91,7 @@ export class ProgressRequests {
 
   /** ¿Hay alguna petición esperando? (un `error` del servidor puede ser su respuesta). */
   get busy(): boolean {
-    return this.waiting.stats.length + this.waiting.bank.length + this.waiting.referral.length > 0
+    return KINDS.some(kind => this.waiting[kind].length > 0)
   }
 
   /** Mensaje del servidor. Devuelve true si era la respuesta de una petición. */
@@ -92,6 +99,7 @@ export class ProgressRequests {
     if (msg.type === 'stats') return this.settle('stats', msg.stats)
     if (msg.type === 'bank') return this.settle('bank', msg.bank)
     if (msg.type === 'referral') return this.settle('referral', msg.referral)
+    if (msg.type === 'shop') return this.settle('shop', msg.shop)
     // Una temporada en la que no jugó responde `not_found`; solo puede ser de una petición con
     // temporada explícita (la en curso siempre existe). El servidor dice a qué mensaje responde
     // (`re`): un `not_found` de `spin.pending` (GIRAR TODAS) no es de estas pantallas.
@@ -134,7 +142,7 @@ export class ProgressRequests {
 
   /** Se cae la conexión: lo que esperaba ya no llegará. */
   failAll(): void {
-    for (const kind of ['stats', 'bank', 'referral'] as const) {
+    for (const kind of KINDS) {
       for (const entry of this.waiting[kind].splice(0)) {
         clearTimeout(entry.timer)
         entry.reject(new ProgressError('offline'))

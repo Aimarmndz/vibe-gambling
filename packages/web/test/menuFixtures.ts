@@ -1,14 +1,26 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Contexto y canvas de mentira para probar el menú v2 sin navegador: lo que pintan las páginas se
 // apunta (texto y color) y lo que mandan al servidor también.
-import { ACHIEVEMENTS, achievementParams } from '@vibe-gambling/shared'
+import {
+  ACHIEVEMENTS,
+  ITEM_IDS,
+  achievementParams,
+  finePrint,
+  isCosmetic,
+  itemCharges,
+  itemKind,
+  itemMaxPerSeason,
+  itemPrice,
+} from '@vibe-gambling/shared'
 import type {
   Achievement,
   AchievementId,
   BankStatement,
+  Inventory,
   Locale,
   ReferralStatus,
   SeasonStats,
+  Shop,
 } from '@vibe-gambling/shared'
 import { vi } from 'vitest'
 
@@ -120,6 +132,55 @@ export const BANK: BankStatement = {
   truncated: true,
 }
 
+/** Bolsillo de ejemplo: la pata armada, el seguro y el turbo sin armar, y un tapete comprado. */
+export const INVENTORY: Inventory = {
+  seasonId: '2026-10',
+  enabled: true,
+  maxArmed: testGame.items.maxArmed,
+  items: [
+    { id: 'rabbit_foot', charges: 29, armed: true },
+    { id: 'insurance', charges: 4, armed: false },
+    { id: 'turbo', charges: 1, armed: false },
+  ],
+  cosmetics: {
+    felts: ['classic', 'vaporwave'],
+    chips: ['classic'],
+    felt: 'vaporwave',
+    chipSkin: 'classic',
+  },
+  revert: null,
+}
+
+/** TIENDA de ejemplo con los números de la configuración de test. */
+export function shopFixture(over: Partial<Shop> = {}): Shop {
+  const cfg = testGame.items
+  const inventory = over.inventory ?? INVENTORY
+  return {
+    seasonId: '2026-10',
+    seasonEndsAt: '2026-10-31T23:00:00.000Z',
+    items: ITEM_IDS.map(id => ({
+      id,
+      kind: itemKind(id),
+      price: itemPrice(id, cfg),
+      charges: itemCharges(id, cfg),
+      maxPerSeason: itemMaxPerSeason(id, cfg),
+      bought: id === 'rabbit_foot' ? 1 : id === 'insurance' ? 1 : 0,
+      owned: isCosmetic(id) && id === 'felt_vaporwave',
+      finePrint: finePrint(id, cfg),
+    })),
+    inventory,
+    placebometer: {
+      spent: 470,
+      recovered: 75,
+      net: -395,
+      rabbit: { with: { rounds: 8, won: 3 }, without: { rounds: 30, won: 13 } },
+      oracle: { predictions: 10, hits: 0 },
+    },
+    canBorrow: false,
+    ...over,
+  }
+}
+
 export interface FakeContextOptions {
   locale?: Locale
   state?: Partial<GameState>
@@ -147,6 +208,7 @@ export type FakeContext = AppContext & {
     stats: Promise<SeasonStats>
     bank: Promise<BankStatement>
     referral: Promise<ReferralStatus>
+    shop: Promise<Shop>
   }
   /** Demo: AUTO (true) o PAUSA (false). */
   demoAutoOn: boolean
@@ -201,6 +263,7 @@ export function fakeContext(opts: FakeContextOptions = {}): FakeContext {
       stats: Promise.resolve(STATS),
       bank: Promise.resolve(BANK),
       referral: Promise.resolve(REFERRAL),
+      shop: Promise.resolve(shopFixture()),
     },
     spinOne: vi.fn<() => boolean>(() => true),
     spinEvery: vi.fn<() => boolean>(() => true),

@@ -3,6 +3,7 @@
 // Regla de oro: el saldo que se enseña (`shown`) se congela mientras cae la bola, para que el
 // HUD no destripe el resultado antes de tiempo. El servidor manda; la web solo pinta.
 import type {
+  Inventory,
   OpenRound,
   ResolvedRound,
   SelfUser,
@@ -29,6 +30,13 @@ export interface GameState {
   readonly phase: Phase
   /** Desfase reloj del servidor − reloj local (ms), para respetar `revealAt`. */
   readonly clockOffsetMs: number
+  /** Último bolsillo de la TIENDA que mandó el servidor (null si no lo manda). */
+  readonly inventory: Inventory | null
+  /**
+   * Bolsillo que se enseña: congelado mientras cae la bola, como el saldo (el casco gastado o el
+   * `git revert` disponible dirían que has perdido antes de verlo). Armar y comprar sí se ven.
+   */
+  readonly shownInventory: Inventory | null
 }
 
 export const EMPTY_SLIP: Slip = Object.freeze({ bets: [], total: 0 }) as Slip
@@ -43,6 +51,8 @@ export const INITIAL_STATE: GameState = Object.freeze({
   lastRound: null,
   phase: 'idle',
   clockOffsetMs: 0,
+  inventory: null,
+  shownInventory: null,
 })
 
 /** Efectos que la ventana tiene que ejecutar (animaciones, sonidos, avisos). */
@@ -64,6 +74,8 @@ export type Effect =
   | { type: 'pending'; event: 'queued' | 'dropped'; count: number }
   /** Tope diario: el prompt o el GIRAR no ha tirado; la mesa reabre en `reopensAt`. */
   | { type: 'dailyLimit'; limit: number; reopensAt: string }
+  /** El bolsillo de la TIENDA ha cambiado (compra, armado, cargas gastadas, fin de temporada). */
+  | { type: 'inventory'; event: 'bought' | 'armed' | 'consumed' | 'expired' }
 
 export interface Step {
   state: GameState
@@ -73,6 +85,30 @@ export interface Step {
 function withWallet(state: GameState, wallet: Wallet): GameState {
   const frozen = state.phase === 'landing'
   return { ...state, wallet, shown: frozen ? state.shown : wallet }
+}
+
+/**
+ * Bolsillo que se enseña con la bola cayendo tras una compra o un armado: se aplica solo lo que
+ * cambia ese mensaje (cargas compradas y lo armado), no lo que ya trajo la ronda que aún no se ha
+ * visto (cargas gastadas, casco, `git revert`).
+ */
+export function inventoryWhileLanding(
+  shown: Inventory | null,
+  before: Inventory | null,
+  next: Inventory,
+): Inventory {
+  if (!shown) return next
+  const prev = new Map((before?.items ?? []).map(i => [i.id, i.charges]))
+  const items = next.items.map(item => {
+    const old = shown.items.find(i => i.id === item.id)
+    const delta = item.charges - (prev.get(item.id) ?? 0)
+    return { id: item.id, charges: Math.max(0, (old?.charges ?? 0) + delta), armed: item.armed }
+  })
+  // Lo que aún se enseña y ya no está (gastado en la ronda que cae): se queda como estaba.
+  for (const old of shown.items) {
+    if (!items.some(i => i.id === old.id)) items.push(old)
+  }
+  return { ...next, items, revert: shown.revert }
 }
 
 /** Aplica un mensaje del servidor. `nowMs` es el reloj local (inyectable para los tests). */
@@ -95,6 +131,7 @@ export function reduce(state: GameState, msg: ServerMessage, nowMs: number): Ste
             slip: msg.slip,
             round: msg.round,
             clockOffsetMs: offset,
+            inventory: msg.inventory ?? state.inventory,
           },
           effects: [{ type: 'connected', first }],
         }
@@ -123,6 +160,7 @@ export function reduce(state: GameState, msg: ServerMessage, nowMs: number): Ste
             pending,
             phase: 'landing',
             clockOffsetMs: offset,
+            inventory: msg.inventory ?? state.inventory,
           },
           effects: [
             { type: 'connected', first },
@@ -145,6 +183,8 @@ export function reduce(state: GameState, msg: ServerMessage, nowMs: number): Ste
           lastRound: msg.lastRound ?? state.lastRound,
           phase,
           clockOffsetMs: offset,
+          inventory: msg.inventory ?? state.inventory,
+          shownInventory: msg.inventory ?? state.shownInventory,
         },
         effects,
       }
@@ -250,8 +290,19 @@ export function reduce(state: GameState, msg: ServerMessage, nowMs: number): Ste
     case 'bank':
     case 'referral':
     case 'shop':
-    case 'inventory':
       return { state, effects: [] }
+    case 'inventory': {
+      const landing = state.phase === 'landing'
+      const shownInventory = !landing
+        ? msg.inventory
+        : msg.event === 'armed' || msg.event === 'bought'
+          ? inventoryWhileLanding(state.shownInventory, state.inventory, msg.inventory)
+          : state.shownInventory
+      return {
+        state: { ...withWallet(state, msg.wallet), inventory: msg.inventory, shownInventory },
+        effects: [{ type: 'inventory', event: msg.event }],
+      }
+    }
     case 'bye':
       return { state, effects: [{ type: 'bye', reason: msg.reason }] }
   }
@@ -265,6 +316,7 @@ export function reveal(state: GameState): GameState {
     lastRound: state.pending,
     pending: null,
     shown: state.wallet,
+    shownInventory: state.inventory,
     phase: 'result',
   }
 }

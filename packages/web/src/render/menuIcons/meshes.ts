@@ -22,6 +22,7 @@ export const ICON_KINDS = [
   'gem',
   'chipDim',
   'pyramid',
+  'bag',
 ] as const
 export type IconKind = (typeof ICON_KINDS)[number]
 
@@ -364,6 +365,35 @@ function pyramidMesh(): BufferGeometry {
   return b.build()
 }
 
+/**
+ * Bolsa de la TIENDA: cuerpo de papel granate con solapa crema, dos asas oro y una ficha en el
+ * frente (lo que compras es aire, pero la bolsa es bonita).
+ */
+function bagMesh(): BufferGeometry {
+  const b = new MeshBuilder()
+  const paper = C(PALETTE.red)
+  const paperSide = C(PALETTE.redLo)
+  b.box([0, -0.25, 0], [1.4, 1.35, 0.7], {
+    side: paperSide,
+    front: paper,
+    top: shade(PALETTE.red, 0.7),
+  })
+  // Solapa crema arriba, por delante.
+  b.box([0, 0.32, 0.36], [1.4, 0.2, 0.02], C(PALETTE.cream))
+  // Asas: dos arcos de tres tramos, en oro.
+  const gold = C(PALETTE.gold)
+  const goldSide = C(PALETTE.goldDark)
+  for (const z of [0.2, -0.2]) {
+    b.box([-0.35, 0.62, z], [0.08, 0.5, 0.08], { side: goldSide, front: gold })
+    b.box([0.35, 0.62, z], [0.08, 0.5, 0.08], { side: goldSide, front: gold })
+    b.box([0, 0.86, z], [0.78, 0.08, 0.08], { side: goldSide, front: gold, top: gold })
+  }
+  // Ficha en el frente: un disco oro con centro crema.
+  b.box([0, -0.3, 0.37], [0.6, 0.6, 0.02], gold)
+  b.box([0, -0.3, 0.39], [0.32, 0.32, 0.02], C(PALETTE.cream))
+  return b.build()
+}
+
 /** Construye la malla de un icono. */
 export function buildIcon(kind: IconKind): BufferGeometry {
   switch (kind) {
@@ -393,5 +423,7 @@ export function buildIcon(kind: IconKind): BufferGeometry {
       return gemMesh()
     case 'pyramid':
       return pyramidMesh()
+    case 'bag':
+      return bagMesh()
   }
 }

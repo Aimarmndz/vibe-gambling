@@ -20,11 +20,11 @@ import {
   Vector2,
   Vector3,
 } from 'three'
-import type { ShaderMaterial } from 'three'
+import type { ShaderMaterial, Texture } from 'three'
 
 import type { Point } from '../game/layout.ts'
 import { anchorOf, cellCenter } from '../game/layout.ts'
-import { CHIP_COLORS, PALETTE } from '../ui/palette.ts'
+import { PALETTE } from '../ui/palette.ts'
 import { FeltLayout, feltGrid } from './feltLayout.ts'
 import { createPsxMaterial, createPsxUniforms } from './psxMaterial.ts'
 import type { PsxUniforms } from './psxMaterial.ts'
@@ -38,6 +38,8 @@ import {
   seeded,
   woodTexture,
 } from './textures.ts'
+import { CHIP_SKINS, FELT_SKINS, chipColor } from './skins.ts'
+import type { ChipSkin, ChipStyle, FeltSkin } from './skins.ts'
 import { buildWheel, placeBall } from './wheel.ts'
 import type { WheelParts } from './wheel.ts'
 
@@ -98,11 +100,17 @@ export class World {
   private readonly dolly: Mesh
   private readonly chipSide: Map<string, ShaderMaterial> = new Map()
   private readonly chipFaces: Map<string, ShaderMaterial> = new Map()
+  private readonly chipTex: Map<ChipStyle, { edge: Texture; face: Texture }> = new Map()
   private readonly chipGeo = new CylinderGeometry(0.16, 0.16, 0.045, 10)
   private readonly raycaster = new Raycaster()
   private readonly feltPlane = new Plane(new Vector3(0, 1, 0), -FELT_Y)
   private readonly signs: Mesh[] = []
   private chipKey = ''
+  private chipStyle: ChipSkin = CHIP_SKINS.classic
+  private clothSkin: FeltSkin = FELT_SKINS.classic
+  private readonly cloth: Mesh
+  /** Tapete de la TIENDA en uso (lo pinta `felt.update`). */
+  feltSkin: FeltSkin = FELT_SKINS.classic
   private readonly tex = {
     wood: woodTexture(),
     brass: brassTexture(),
@@ -131,10 +139,10 @@ export class World {
     )
     body.position.set(0, FELT_Y - 0.72, -1.6)
     // Paño liso y tapete con el diseño europeo encima.
-    const cloth = new Mesh(
+    const cloth = (this.cloth = new Mesh(
       tiled(new PlaneGeometry(10.2, 10.4, 20, 20), 5),
       createPsxMaterial(u, { map: this.tex.felt }),
-    )
+    ))
     cloth.rotation.x = -Math.PI / 2
     // El paño va debajo del tapete: se pinta antes y sin escribir profundidad (sin z-fighting).
     cloth.renderOrder = 1
@@ -242,26 +250,64 @@ export class World {
     this.dolly.position.set(v.x, FELT_Y + 0.11, v.z)
   }
 
+  /**
+   * Cosméticos de la TIENDA: tapete (paño y tiza del diseño) y juego de fichas. Solo rehace lo que
+   * cambia; las texturas de cada estilo de ficha se crean la primera vez que hacen falta.
+   */
+  setSkins(felt: FeltSkin, chips: ChipSkin): void {
+    this.feltSkin = felt
+    if (felt !== this.clothSkin) {
+      this.clothSkin = felt
+      const material = this.cloth.material as ShaderMaterial
+      const old = material.uniforms.map?.value as Texture | undefined
+      const next = feltTexture(felt)
+      if (material.uniforms.map) material.uniforms.map.value = next
+      old?.dispose()
+    }
+    if (chips !== this.chipStyle) {
+      this.chipStyle = chips
+      this.chipKey = ''
+    }
+  }
+
+  private chipTextures(style: ChipStyle): { edge: Texture; face: Texture } {
+    let found = this.chipTex.get(style)
+    if (!found) {
+      found =
+        style === 'classic'
+          ? { edge: this.tex.chipEdge, face: this.tex.chipFace }
+          : { edge: chipEdgeTexture(style), face: chipFaceTexture(style) }
+      this.chipTex.set(style, found)
+    }
+    return found
+  }
+
   private chipMaterials(index: number): ShaderMaterial[] {
-    const color = CHIP_COLORS[index % CHIP_COLORS.length]!
-    let side = this.chipSide.get(color)
-    let face = this.chipFaces.get(color)
+    const skin = this.chipStyle
+    const color = chipColor(skin, index)
+    const key = `${skin.style}:${color}`
+    let side = this.chipSide.get(key)
+    let face = this.chipFaces.get(key)
     if (!side || !face) {
-      side = createPsxMaterial(this.uniforms, { map: this.tex.chipEdge, color: new Color(color) })
+      const tex = this.chipTextures(skin.style)
+      side = createPsxMaterial(this.uniforms, { map: tex.edge, color: new Color(color) })
       face = createPsxMaterial(this.uniforms, {
-        map: this.tex.chipFace,
+        map: tex.face,
         color: new Color(color),
-        specular: 0.25,
+        specular: skin.style === 'coin' ? 0.6 : 0.25,
       })
-      this.chipSide.set(color, side)
-      this.chipFaces.set(color, face)
+      this.chipSide.set(key, side)
+      this.chipFaces.set(key, face)
     }
     return [side, face, face]
   }
 
-  /** Reconstruye las pilas de fichas del boleto (solo si cambió). */
+  /** Reconstruye las pilas de fichas del boleto (solo si cambió, también el juego de fichas). */
   setChips(bets: readonly Bet[], chipValues: readonly number[]): void {
-    const key = JSON.stringify(bets.map(b => [selectionKey(b.selection), b.amount]))
+    const key = JSON.stringify([
+      this.chipStyle.style,
+      bets.map(b => [selectionKey(b.selection), b.amount]),
+    ])
     if (key === this.chipKey) return
     this.chipKey = key
     this.chipsGroup.clear()

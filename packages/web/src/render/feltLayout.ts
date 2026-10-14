@@ -14,6 +14,8 @@ import { drawText, inkBounds, measure } from '../font/bitmap.ts'
 import type { Translator } from '../i18n/index.ts'
 import { LAYOUT_BOUNDS, OUTSIDE_ORDER, numberAt } from '../game/layout.ts'
 import { PALETTE, pocketHex } from '../ui/palette.ts'
+import { FELT_SKINS } from './skins.ts'
+import type { FeltSkin } from './skins.ts'
 import { makeCanvas, seeded, toTexture } from './textures.ts'
 
 /** Texels por unidad de casilla (ancho y fondo). */
@@ -110,34 +112,41 @@ export class FeltLayout {
   readonly texture: CanvasTexture
   private readonly ctx: CanvasRenderingContext2D
   private readonly base: HTMLCanvasElement
+  private baseSkin: FeltSkin | null = null
   private key = ''
 
   constructor() {
     const [canvas, ctx] = makeCanvas(TEX_W, TEX_H)
     this.ctx = ctx
     this.texture = toTexture(canvas)
-    // Fondo de paño con grano, que no cambia nunca.
-    const [base, bctx] = makeCanvas(TEX_W, TEX_H)
+    this.base = makeCanvas(TEX_W, TEX_H)[0]
+  }
+
+  /** Fondo de paño con grano (solo cambia con el tapete). */
+  private paintBase(skin: FeltSkin): void {
+    if (this.baseSkin === skin) return
+    this.baseSkin = skin
+    const bctx = this.base.getContext('2d')!
     const rnd = seeded(5)
     for (let y = 0; y < TEX_H; y++) {
       for (let x = 0; x < TEX_W; x++) {
-        bctx.fillStyle = rnd() < 0.18 ? PALETTE.feltDark : PALETTE.felt
+        bctx.fillStyle = rnd() < 0.18 ? skin.feltDark : skin.felt
         bctx.fillRect(x, y, 1, 1)
       }
     }
-    this.base = base
   }
 
-  /** Redibuja solo si algo cambió. */
-  update(view: FeltView, tr: Translator): void {
-    const key = `${tr.locale}|${JSON.stringify(view.hover)}|${view.winner}`
+  /** Redibuja solo si algo cambió (también el tapete de la TIENDA, `skin`). */
+  update(view: FeltView, tr: Translator, skin: FeltSkin = FELT_SKINS.classic): void {
+    const key = `${tr.locale}|${JSON.stringify(view.hover)}|${view.winner}|${skin.felt}`
     if (key === this.key) return
     this.key = key
-    this.draw(view, tr)
+    this.paintBase(skin)
+    this.draw(view, tr, skin)
     this.texture.needsUpdate = true
   }
 
-  private draw(view: FeltView, tr: Translator): void {
+  private draw(view: FeltView, tr: Translator, skin: FeltSkin): void {
     const ctx = this.ctx
     ctx.drawImage(this.base, 0, 0)
     const lit = new Set(view.hover ? coveredNumbers(view.hover) : [])
@@ -149,7 +158,7 @@ export class FeltLayout {
         ctx.fillStyle = fill
         ctx.fillRect(px, py, w * SX, h * SY)
       }
-      ctx.fillStyle = PALETTE.chalk
+      ctx.fillStyle = skin.chalk
       ctx.fillRect(px, py, w * SX + 1, 1)
       ctx.fillRect(px, py + h * SY, w * SX + 1, 1)
       ctx.fillRect(px, py, 1, h * SY + 1)

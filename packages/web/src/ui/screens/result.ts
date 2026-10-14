@@ -137,7 +137,18 @@ export class ResultScreen implements Screen {
     const lines = wrap(`“${printable(v.phrase)}”`, 268)
     const extras = v.extras.flatMap(e => wrap(printable(e), 268))
     if (v.interest > 0) extras.push(tr.t('result.interest', { amount: tr.n(v.interest) }))
-    const h = 12 + lines.length * 11 + (extras.length ? 4 + extras.length * 10 : 0)
+    // Objetos de la TIENDA: una línea cada uno, en otro color (pagan aparte de la ruleta).
+    const items = v.items.flatMap(e => wrap(printable(e), 268))
+    // Todo tiene que caber sobre la barra de ayuda: primero los objetos, luego los avisos.
+    let room = HELP_BAR_TOP - 3 - 138 - 12 - lines.length * 11
+    items.splice(Math.max(0, Math.floor((room - 4) / 10)))
+    if (items.length) room -= 4 + items.length * 10
+    extras.splice(Math.max(0, Math.floor((room - 4) / 10)))
+    const h =
+      12 +
+      lines.length * 11 +
+      (extras.length ? 4 + extras.length * 10 : 0) +
+      (items.length ? 4 + items.length * 10 : 0)
     const y0 = 138
     drawWindow(g, 18, y0, 284, h)
     this.panelBottom = y0 + h
@@ -149,6 +160,11 @@ export class ResultScreen implements Screen {
     if (extras.length) y += 4
     for (const line of extras) {
       drawText(g, line, 160, y, { color: PALETTE.gold, align: 'center', shadow: PALETTE.ink })
+      y += 10
+    }
+    if (items.length) y += 4
+    for (const line of items) {
+      drawText(g, line, 160, y, { color: PALETTE.win, align: 'center', shadow: PALETTE.ink })
       y += 10
     }
     if (this.age >= 0.5) {

@@ -14,16 +14,17 @@ import {
   colorOf,
   colorStreak,
   netWorth,
-  nextStreak,
   resolveBets,
   makeReferralCode,
   seasonAt,
+  seasonBounds,
   spectacleOf,
   totalStake,
 } from '@vibe-gambling/shared'
 import type {
   Bet,
   ClientMessageInput,
+  ErrorCode,
   GameConfig,
   OpenRound,
   PublicGameConfig,
@@ -38,6 +39,7 @@ import type { WebClientConfig } from '../config.ts'
 import { demoScenario } from './demoFx.ts'
 import type { DemoFx } from './demoFx.ts'
 import { DemoProgress, seededRandom, showcaseSeason } from './demoProgress.ts'
+import { DemoShop } from './demoShop.ts'
 import type { Link, LinkStatus } from './link.ts'
 
 export interface DemoTurnOptions {
@@ -175,6 +177,8 @@ export class DemoLink implements Link, DemoAutoControl {
     n => crypto.getRandomValues(new Uint32Array(1))[0]! % n,
   )
   private readonly origin: string
+  /** TIENDA de la demo: la misma lógica pura que el servidor, en memoria. */
+  private readonly shop: DemoShop
 
   /**
    * `auto`: si empieza en AUTO. `origin`: el de la página (de ahí salen el avatar y el "perfil" del
@@ -190,6 +194,7 @@ export class DemoLink implements Link, DemoAutoControl {
     // Los umbrales de los logros no son públicos: la demo usa los suyos (config/web.json).
     this.cfg = { ...demoGameConfig(pub), achievements: client.achievements }
     this.progress = new DemoProgress(this.cfg, client.stats)
+    this.shop = new DemoShop(this.cfg.items)
     this.client = client
     this.startFx = startFx
     this.origin = origin
@@ -204,6 +209,8 @@ export class DemoLink implements Link, DemoAutoControl {
       hidden: true,
       locale: null,
       createdAt: now.toISOString(),
+      felt: this.shop.felt,
+      chipSkin: this.shop.chipSkin,
     }
     const season = seasonAt(now, this.cfg.season.timeZone, this.cfg.season.startDay)
     this.wallet = {
@@ -313,7 +320,44 @@ export class DemoLink implements Link, DemoAutoControl {
       lastRound: this.lastRound,
       serverTime: new Date().toISOString(),
       achievements: this.progress.achievements(this.wallet),
+      inventory: this.shop.view(this.wallet.seasonId),
     }
+  }
+
+  private inventoryMessage(event: 'bought' | 'armed' | 'consumed'): ServerMessage {
+    return {
+      v: PROTOCOL_VERSION,
+      type: 'inventory',
+      inventory: this.shop.view(this.wallet.seasonId),
+      wallet: this.wallet,
+      event,
+    }
+  }
+
+  private shopError(
+    re: 'shop.buy' | 'item.arm' | 'settings.update',
+    error: ErrorCode,
+    message: string,
+  ): void {
+    this.emit({ v: PROTOCOL_VERSION, type: 'error', error, message, re })
+  }
+
+  /** TIENDA de la demo: lo mismo que `GET /api/shop`. */
+  private shopView() {
+    const ends = seasonBounds(
+      this.wallet.seasonId,
+      this.cfg.season.timeZone,
+      this.cfg.season.startDay,
+    ).endsAt
+    return this.shop.shop({
+      seasonId: this.wallet.seasonId,
+      seasonEndsAt: ends,
+      canBorrow: canRequestLoan(
+        this.wallet.balance + totalStake(this.slip),
+        this.cfg,
+        this.wallet.debt,
+      ),
+    })
   }
 
   private slipView() {
@@ -372,13 +416,47 @@ export class DemoLink implements Link, DemoAutoControl {
         return
       }
       case 'settings.update':
+        // Solo lo que tienes (como el servidor): el tapete o las fichas que no has comprado, no.
+        if (
+          (msg.felt !== undefined && !this.shop.owns('felt', msg.felt)) ||
+          (msg.chipSkin !== undefined && !this.shop.owns('chips', msg.chipSkin))
+        ) {
+          this.shopError('settings.update', 'conflict', 'not yours')
+          return
+        }
+        if (msg.felt !== undefined) this.shop.felt = msg.felt
+        if (msg.chipSkin !== undefined) this.shop.chipSkin = msg.chipSkin
         this.user = {
           ...this.user,
           ...(msg.hidden !== undefined ? { hidden: msg.hidden } : {}),
           ...(msg.locale !== undefined ? { locale: msg.locale } : {}),
+          felt: this.shop.felt,
+          chipSkin: this.shop.chipSkin,
         }
         this.emit({ v: PROTOCOL_VERSION, type: 'settings', user: this.user })
         return
+      case 'shop.request':
+        this.emit({ v: PROTOCOL_VERSION, type: 'shop', shop: this.shopView() })
+        return
+      case 'shop.buy': {
+        const bought = this.shop.buy(msg.itemId, this.wallet.balance)
+        if (!bought.ok) {
+          this.shopError('shop.buy', bought.error, bought.message)
+          return
+        }
+        this.setBalance(this.wallet.balance - bought.price + bought.refund)
+        this.emit(this.inventoryMessage('bought'))
+        return
+      }
+      case 'item.arm': {
+        const failed = this.shop.arm(msg.itemId, msg.armed)
+        if (failed) {
+          this.shopError('item.arm', failed.error, failed.message)
+          return
+        }
+        this.emit(this.inventoryMessage('armed'))
+        return
+      }
       case 'sync':
         this.emit(this.hello())
         return
@@ -580,7 +658,6 @@ export class DemoLink implements Link, DemoAutoControl {
   private resolve(openedAt: Date, options: DemoTurnOptions): void {
     const round = this.round
     if (!round) return
-    const result = options.result ?? this.pocket()
     const choice = chooseRoundBets({
       slip: this.slip,
       lastBets: this.lastBets,
@@ -588,12 +665,24 @@ export class DemoLink implements Link, DemoAutoControl {
       cfg: this.cfg,
     })
     const jackpot = options.gitPushOk ? this.cfg.jackpot.gitPushMultiplier : 1
+    // Objetos: se decide antes del número; el oráculo tira su "predicción" (otra tirada
+    // independiente) justo antes que la del resultado, como en el servidor.
+    const plan = this.shop.plan(choice.bets, jackpot)
+    const prediction = plan.oracle ? this.pocket() : null
+    const result = options.result ?? this.pocket()
     const outcome = resolveBets(choice.bets, result, jackpot)
+    const settled = this.shop.settle({
+      plan,
+      outcome,
+      jackpotMultiplier: jackpot,
+      prediction,
+      current: this.wallet.currentStreak,
+      asterisk: this.wallet.streakAsterisk ?? false,
+    })
     const debtBefore = this.wallet.debt
     const debt = accrueInterest(debtBefore, this.cfg)
-    const balance = this.wallet.balance - choice.charge + outcome.returned
-    const net = choice.bets.length > 0 ? outcome.net : null
-    const current = nextStreak(this.wallet.currentStreak, net)
+    const balance = this.wallet.balance - choice.charge + outcome.returned + settled.itemNet
+    const current = settled.streak
     this.history.push(result)
     if (choice.bets.length > 0) this.lastBets = choice.bets
     this.slip = []
@@ -606,6 +695,7 @@ export class DemoLink implements Link, DemoAutoControl {
       spins: this.wallet.spins + 1,
       currentStreak: current,
       bestStreak: bestStreak(this.wallet.bestStreak, current),
+      streakAsterisk: settled.streakAsterisk,
     }
     const now = Date.now()
     // BANCARROTA: el patrimonio cae a 0 o menos por primera vez (en la demo, por sesión).
@@ -639,10 +729,13 @@ export class DemoLink implements Link, DemoAutoControl {
           openedAt.getTime() + (options.minSpinMs ?? this.cfg.spin.minSpinMs),
         ),
       ).toISOString(),
+      itemNet: settled.itemNet,
+      items: settled.effects.map(e => ({ ...e })),
     }
     // El espectáculo con las mismas reglas que el servidor (shared).
+    // Con lo que siente el jugador: el neto de la ruleta más lo que pagan los objetos.
     resolved.spectacle = spectacleOf(
-      resolved,
+      { ...resolved, net: resolved.net + settled.itemNet },
       { streak: current, bankrupt },
       {
         bigWin: this.cfg.bigWin,
@@ -658,6 +751,13 @@ export class DemoLink implements Link, DemoAutoControl {
       wallet: this.wallet,
       ...(options.requestId ? { requestId: options.requestId } : {}),
     })
+    this.shop.resolved(
+      resolved.roundId,
+      resolved.net + settled.itemNet,
+      new Date(resolved.revealAt),
+    )
+    // Cargas gastadas: justo después de la ronda, como el servidor.
+    if (settled.spent.length > 0) this.emit(this.inventoryMessage('consumed'))
     this.progress.recordRound(resolved, this.wallet)
     // El primer logro también en la demo (el resto solo los da el servidor de verdad).
     if (this.progress.unlock('first_spin', resolved.resolvedAt, this.wallet.seasonId)) {

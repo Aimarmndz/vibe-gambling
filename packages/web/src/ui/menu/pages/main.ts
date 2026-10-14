@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Menú principal (`menu-main.png`): rejilla de iconos 3D low-poly (solo gira el elegido) en dos
-// filas, 6 arriba y 5 abajo centradas (una pirámide invertida, muy a juego con AFILIADOS),
+// filas de 6 (la TIENDA completó la segunda, que antes era una pirámide invertida de 5),
 // esquinas oro que respiran, ventana de información debajo y cabecera con la temporada y lo que
 // le queda. ←→↑↓ mueven sin saltar de fila; ratón: pasar = elegir, clic = abrir.
 import type { ActionEvent } from '../../../app/input.ts'
@@ -24,11 +24,12 @@ import { PendingPage } from './pending.ts'
 import { RankingPage } from './ranking.ts'
 import { ReferralPage } from './referral.ts'
 import { SettingsPage } from './settings.ts'
+import { ShopPage } from './shop.ts'
 import { StatsPage } from './stats.ts'
 
 export const GRID = Object.freeze({
   /** Casillas de cada fila, de arriba abajo (cada fila va centrada en la pantalla). */
-  rows: [6, 5] as readonly number[],
+  rows: [6, 6] as readonly number[],
   y: 30,
   w: 46,
   h: 52,
@@ -50,6 +51,7 @@ export type MainItemId =
   | 'settings'
   | 'howTo'
   | 'credits'
+  | 'shop'
 
 interface MainItem {
   id: MainItemId
@@ -69,6 +71,7 @@ export const MAIN_ITEMS: readonly MainItem[] = Object.freeze([
   { id: 'settings', icon: 'gear' },
   { id: 'howTo', icon: 'book' },
   { id: 'credits', icon: 'gem' },
+  { id: 'shop', icon: 'bag' },
 ])
 
 /** Fila y columna de la casilla i (y el índice de la primera casilla de su fila). */
@@ -262,6 +265,9 @@ export class MainMenuPage implements MenuPage {
         return
       case 'credits':
         host.open(new CreditsPage(host))
+        return
+      case 'shop':
+        host.open(new ShopPage(host))
         return
     }
   }

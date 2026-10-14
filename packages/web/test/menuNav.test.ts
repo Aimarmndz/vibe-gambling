@@ -66,20 +66,21 @@ beforeEach(() => {
 
 describe('rejilla del menú principal', () => {
   it('←→ dan la vuelta en la fila y ↑↓ cambian de fila sin saltar de columna', () => {
-    // 6 arriba y 5 abajo, cada fila centrada: ↑↓ van a la casilla de centro más cercano.
+    // 6 arriba y 6 abajo (la TIENDA cerró la segunda fila): ↑↓ van a la casilla de debajo.
     expect(gridMove(0, 'left')).toBe(5)
     expect(gridMove(5, 'right')).toBe(0)
-    expect(gridMove(6, 'left')).toBe(10)
-    expect(gridMove(10, 'right')).toBe(6)
+    expect(gridMove(6, 'left')).toBe(11)
+    expect(gridMove(11, 'right')).toBe(6)
     expect(gridMove(2, 'down')).toBe(8)
     expect(gridMove(8, 'down')).toBe(2)
     expect(gridMove(6, 'up')).toBe(0)
-    expect(gridMove(5, 'down')).toBe(10)
-    expect(gridMove(10, 'up')).toBe(4)
+    expect(gridMove(5, 'down')).toBe(11)
+    expect(gridMove(11, 'up')).toBe(5)
     expect(gridMove(3, 'accept')).toBe(3)
     expect(tileRect(0)).toEqual({ x: 10, y: 30, w: 46, h: 52 })
-    expect(tileRect(10)).toEqual({ x: 239, y: 87, w: 46, h: 52 })
-    expect(MAIN_ITEMS).toHaveLength(11)
+    expect(tileRect(11)).toEqual({ x: 265, y: 87, w: 46, h: 52 })
+    expect(MAIN_ITEMS).toHaveLength(12)
+    expect(MAIN_ITEMS.at(-1)).toEqual({ id: 'shop', icon: 'bag' })
     // Ninguna casilla se sale de la pantalla ni pisa la ventana de información (y = 150).
     MAIN_ITEMS.forEach((_, i) => {
       const r = tileRect(i)
@@ -121,6 +122,7 @@ describe('rejilla del menú principal', () => {
       'settings',
       'howTo',
       'credits',
+      'shop',
     ]
     MAIN_ITEMS.forEach((item, i) => {
       const ctx = fakeContext()

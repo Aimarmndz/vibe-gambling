@@ -7,6 +7,8 @@ import { colorOf } from '@vibe-gambling/shared'
 
 import { drawText } from '../font/bitmap.ts'
 import { PALETTE, pocketHex } from '../ui/palette.ts'
+import { FELT_SKINS } from './skins.ts'
+import type { ChipStyle, FeltSkin } from './skins.ts'
 
 /** PRNG determinista (mulberry32): las texturas salen siempre iguales. */
 export function seeded(seed: number): () => number {
@@ -75,13 +77,13 @@ export function brassTexture(): CanvasTexture {
   return toTexture(c, true)
 }
 
-/** Paño verde liso (se repite debajo de la ruleta). */
-export function feltTexture(): CanvasTexture {
+/** Paño liso (se repite debajo de la ruleta), verde salvo con otro tapete de la TIENDA. */
+export function feltTexture(skin: FeltSkin = FELT_SKINS.classic): CanvasTexture {
   const [c, ctx] = makeCanvas(64, 64)
   const rnd = seeded(3)
   for (let y = 0; y < 64; y++) {
     for (let x = 0; x < 64; x++) {
-      ctx.fillStyle = shade(PALETTE.felt, 0.9 + (rnd() - 0.5) * 0.16)
+      ctx.fillStyle = shade(skin.felt, 0.9 + (rnd() - 0.5) * 0.16)
       ctx.fillRect(x, y, 1, 1)
     }
   }
@@ -110,18 +112,41 @@ export function carpetTexture(): CanvasTexture {
   return toTexture(c, true)
 }
 
-/** Canto de una ficha: franjas blancas sobre el color (se tiñe con el color del material). */
-export function chipEdgeTexture(): CanvasTexture {
+/**
+ * Canto de una ficha (se tiñe con el color del material): franjas para las clásicas, plástico liso
+ * con la ranura del disquete, estrías de moneda o los dientes de una chapa.
+ */
+export function chipEdgeTexture(style: ChipStyle = 'classic'): CanvasTexture {
   const [c, ctx] = makeCanvas(32, 8)
   ctx.fillStyle = '#ffffff'
   ctx.fillRect(0, 0, 32, 8)
   ctx.fillStyle = '#5a5a5a'
-  for (let x = 0; x < 32; x += 8) ctx.fillRect(x, 0, 4, 8)
+  switch (style) {
+    case 'classic':
+      for (let x = 0; x < 32; x += 8) ctx.fillRect(x, 0, 4, 8)
+      break
+    case 'floppy':
+      ctx.fillStyle = '#9a9a9a'
+      ctx.fillRect(0, 3, 32, 2)
+      break
+    case 'coin':
+      ctx.fillStyle = '#8a8a8a'
+      for (let x = 0; x < 32; x += 2) ctx.fillRect(x, 0, 1, 8)
+      break
+    case 'cap':
+      for (let x = 0; x < 32; x += 4) {
+        ctx.fillRect(x, 0, 2, 8 - ((x / 4) % 2) * 3)
+      }
+      break
+  }
   return toTexture(c, true)
 }
 
-/** Cara de una ficha: aro exterior a franjas e interior liso. */
-export function chipFaceTexture(): CanvasTexture {
+/**
+ * Cara de una ficha (gris que tiñe el material): aro a franjas para las clásicas, chapa metálica y
+ * etiqueta para los disquetes, un 5 grabado para los duros y el borde rizado de las chapas.
+ */
+export function chipFaceTexture(style: ChipStyle = 'classic'): CanvasTexture {
   const [c, ctx] = makeCanvas(32, 32)
   for (let y = 0; y < 32; y++) {
     for (let x = 0; x < 32; x++) {
@@ -129,13 +154,38 @@ export function chipFaceTexture(): CanvasTexture {
       const dy = y - 15.5
       const r = Math.hypot(dx, dy)
       const a = Math.atan2(dy, dx)
+      const sector = Math.floor(((a + Math.PI) / (Math.PI * 2)) * 8)
       let v = 255
-      if (r > 11 && Math.floor(((a + Math.PI) / (Math.PI * 2)) * 8) % 2 === 0) v = 110
-      if (r > 8 && r < 9.2) v = 200
+      switch (style) {
+        case 'classic':
+          if (r > 11 && sector % 2 === 0) v = 110
+          if (r > 8 && r < 9.2) v = 200
+          break
+        case 'floppy':
+          // Chapa metálica arriba (gris claro con su ventanita) y etiqueta abajo.
+          if (y >= 6 && y < 15 && x >= 9 && x < 23) v = x >= 17 && x < 20 ? 90 : 205
+          if (y >= 18 && y < 27 && x >= 8 && x < 24) v = 240
+          if (y >= 20 && y < 21 && x >= 10 && x < 22) v = 150
+          if (y >= 23 && y < 24 && x >= 10 && x < 19) v = 150
+          if (r > 14) v = 170
+          break
+        case 'coin':
+          if (r > 12.5) v = 150
+          else if (r > 11.5) v = 210
+          break
+        case 'cap': {
+          const teeth = Math.floor(((a + Math.PI) / (Math.PI * 2)) * 21) % 2
+          if (r > 12.5 + teeth) v = 120
+          else if (r > 10 && r < 11) v = 190
+          break
+        }
+      }
       ctx.fillStyle = `rgb(${v},${v},${v})`
       ctx.fillRect(x, y, 1, 1)
     }
   }
+  // El 5 de los duros, grabado (más oscuro que la moneda).
+  if (style === 'coin') drawText(ctx, '5', 16, 9, { color: '#7a7a7a', scale: 2, align: 'center' })
   return toTexture(c)
 }
 

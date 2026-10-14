@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // La ventana del juego: une red, estado, animación de la ruleta, pantallas, sonido y render PSX.
 // El servidor manda: aquí solo se pinta lo que llega y se envían las intenciones del jugador.
-import { PROTOCOL_VERSION } from '@vibe-gambling/shared'
+import { PROTOCOL_VERSION, itemPrice } from '@vibe-gambling/shared'
 import type {
   HallOfRuinResponse,
   LeaderboardBoard,
   LeaderboardResponse,
+  ItemId,
   Locale,
   ServerMessage,
   WebConfig,
@@ -47,6 +48,8 @@ import type { Link, LinkStatus, Outgoing } from '../net/link.ts'
 import { FxDirector } from '../render/fx/director.ts'
 import { planRound } from '../render/fx/plan.ts'
 import { PSX_HEIGHT, PSX_WIDTH, PsxPipeline } from '../render/pipeline.ts'
+import { chipSkin, feltSkin } from '../render/skins.ts'
+import { itemName } from '../game/shopView.ts'
 import { SHOTS, World, layoutToWorld } from '../render/world.ts'
 import type { Shot } from '../render/world.ts'
 import { Hits, drawMemoryCardIcon, drawWindow } from '../ui/draw.ts'
@@ -177,6 +180,8 @@ export class Game implements AppContext {
   private newAccountDue = false
   /** Última frase del aviso de mesa cerrada (para no repetirla en el siguiente). */
   private lastDailyLimitPhrase: string | null = null
+  /** Última compra mandada a la TIENDA (para el aviso cuando llegue su `inventory`). */
+  private lastPurchase: { itemId: ItemId; balance: number } | null = null
 
   constructor(opts: GameOptions) {
     this.web = opts.web
@@ -358,6 +363,10 @@ export class Game implements AppContext {
   send(msg: Outgoing): boolean {
     const ok = this.link.send(withVersion(msg))
     if (!ok) this.toast(this.tr.t('status.offline'), 'error')
+    // Compra en la TIENDA: se recuerda qué y con qué saldo, para el aviso cuando llegue.
+    if (ok && msg.type === 'shop.buy') {
+      this.lastPurchase = { itemId: msg.itemId, balance: this.game.wallet?.balance ?? 0 }
+    }
     return ok
   }
 
@@ -705,6 +714,14 @@ export class Game implements AppContext {
         this.screens.filter(s => s instanceof ResultScreen).forEach(s => this.pop(s))
         this.moveCamera(SHOTS.wheel, quick ? 0.4 : 0.9)
         this.announce(tr.t('status.landing'))
+        // VibeOracle: su "predicción" sale antes de que caiga la bola. Es otra tirada
+        // independiente, así que no destripa nada (y casi nunca acierta).
+        const oracle = effect.round.items?.find(i => i.kind === 'prediction')
+        if (oracle && !quick) {
+          const text = tr.t('toast.oracle', { n: oracle.prediction ?? 0 })
+          this.toast(text)
+          this.announce(text)
+        }
         return
       }
       case 'pending':
@@ -768,11 +785,21 @@ export class Game implements AppContext {
             return
           }
         }
-        const text = this.errorText(effect.error, effect.message)
+        if (effect.type === 'error' && effect.re === 'shop.buy') this.lastPurchase = null
+        const shopKey = `shop.error.${effect.error}`
+        const text =
+          effect.type === 'error' &&
+          (effect.re === 'shop.buy' || effect.re === 'item.arm') &&
+          tr.has(shopKey)
+            ? tr.t(shopKey)
+            : this.errorText(effect.error, effect.message)
         this.sfx.play('error')
         this.toast(text, 'error')
         return
       }
+      case 'inventory':
+        this.onInventory(effect.event)
+        return
       case 'commission':
         this.fx.commission({
           amount: effect.amount,
@@ -798,6 +825,26 @@ export class Game implements AppContext {
         }
         return
     }
+  }
+
+  /** El bolsillo ha cambiado: el aviso de la compra (con lo devuelto por `git revert`) o de la caducidad. */
+  private onInventory(event: 'bought' | 'armed' | 'consumed' | 'expired'): void {
+    const { tr } = this
+    if (event === 'expired') {
+      this.toast(tr.t('shop.expired'), 'error')
+      return
+    }
+    if (event !== 'bought' || !this.lastPurchase) return
+    const { itemId, balance } = this.lastPurchase
+    this.lastPurchase = null
+    const price = this.web.game.items ? itemPrice(itemId, this.web.game.items) : 0
+    if (itemId === 'revert') {
+      const refund = Math.max(0, (this.game.wallet?.balance ?? balance) - balance + price)
+      this.toast(tr.t('shop.reverted', { refund: tr.n(refund), price: tr.n(price) }), 'money')
+    } else {
+      this.toast(tr.t('shop.bought', { item: itemName(itemId, tr) }), 'money')
+    }
+    this.sfx.play('save')
   }
 
   /** Texto del error en el idioma de la ventana (o el mensaje del servidor si no lo conocemos). */
@@ -865,12 +912,16 @@ export class Game implements AppContext {
         this.toast(`${this.tr.t('mc.saving')}\n${this.tr.t('mc.noPowerOff')}`, 'save')
         this.sfx.play('save')
       }
+      // Con objetos, lo que siente el jugador y sus líneas ("SEGURO: +50"…).
       this.announce(
-        this.tr.t('a11y.result', {
-          number: round.result,
-          color: this.tr.t(`color.${round.color}`),
-          net: this.tr.signed(round.net),
-        }),
+        [
+          this.tr.t('a11y.result', {
+            number: round.result,
+            color: this.tr.t(`color.${round.color}`),
+            net: this.tr.signed(view.net),
+          }),
+          ...view.items,
+        ].join(' '),
       )
     })
   }
@@ -1046,6 +1097,8 @@ export class Game implements AppContext {
     this.checkPendingNotice()
     this.checkNewAccountNotice()
     const top = this.top()
+    // Cosméticos de la TIENDA: los del usuario (los clásicos si no ha elegido otros).
+    this.world.setSkins(feltSkin(this.game.user?.felt), chipSkin(this.game.user?.chipSkin))
     this.world.felt.update(
       {
         hover: top === this.table ? this.table.hover() : null,
@@ -1055,6 +1108,7 @@ export class Game implements AppContext {
             : null,
       },
       this.tr,
+      this.world.feltSkin,
     )
     this.world.setChips(this.game.slip.bets, this.web.game.chips)
     this.world.setCursor(
