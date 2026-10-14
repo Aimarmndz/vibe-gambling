@@ -278,12 +278,19 @@ export async function setHidden(ctx: CommandContext, hidden: boolean): Promise<s
 
 // ------------------------------------------------------------------ /vibe-server
 
+/** Guarda la URL del servidor en la configuración del plugin (`vibe-gambling.serverUrl`). */
+export type SaveServerUrl = (url: string) => Promise<{ readonly deny?: string | undefined }>
+
 /**
  * `/vibe-server [url|default]`. Sin argumento enseña el actual; con una URL comprueba
  * `/api/meta` (protocolo compatible) y la guarda en la opción `serverUrl` con `$.config.set`,
  * que recarga el mod con la nueva configuración. Las sesiones van por servidor.
  */
-export async function server(ctx: CommandContext, raw: string): Promise<string> {
+export async function server(
+  ctx: CommandContext,
+  raw: string,
+  saveServerUrl: SaveServerUrl,
+): Promise<string> {
   const { io, runtime, config } = ctx
   const m = runtime.messages
   const [arg] = argsOf(raw)
@@ -311,7 +318,7 @@ export async function server(ctx: CommandContext, raw: string): Promise<string> 
     return m.serverIncompatible(url, meta.data.protocol, PROTOCOL_VERSION)
   }
   cancelLogin(ctx.auth)
-  const saved = await io.configSet(`${io.pluginName}.serverUrl`, url)
+  const saved = await saveServerUrl(url)
   if (saved.deny !== undefined) return m.serverChangeDenied(saved.deny)
   return m.serverChanged(url, nameOf(meta.data.name), meta.data.isOfficial)
 }

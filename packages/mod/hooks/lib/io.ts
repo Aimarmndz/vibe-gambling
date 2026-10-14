@@ -53,5 +53,4 @@ export interface Io {
   env(name: EnvName): Promise<string | undefined>
   run(argv: readonly string[], timeoutMs: number): Promise<ProcessReply>
   exists(path: string): Promise<boolean>
-  configSet(key: string, value: string): Promise<{ readonly deny?: string | undefined }>
 }

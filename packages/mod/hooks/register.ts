@@ -66,7 +66,6 @@ function ioOf($: EngineInterface): Io {
     env,
     run: (argv, timeoutMs) => $.process.run(argv, { timeoutMs }),
     exists: path => $.fs.exists(path),
-    configSet: (key, value) => $.config.set({ key, value }),
   }
 }
 
@@ -438,8 +437,14 @@ export const register: Register = (on, options) => {
   on('command.run', { command: 'vibe-show' }, $ =>
     run(ioOf($), 'show', ctx => commands.setHidden(ctx, false)),
   )
+  // La única escritura de configuración del mod: la URL del servidor, con la clave escrita tal cual
+  // en el hook para que el directorio de plugins vea exactamente qué ajuste cambia.
   on('command.run', { command: 'vibe-server' }, ($, e) =>
-    run(ioOf($), 'server', ctx => commands.server(ctx, argsOf(e))),
+    run(ioOf($), 'server', ctx =>
+      commands.server(ctx, argsOf(e), value =>
+        $.config.set({ key: 'vibe-gambling.serverUrl', value }),
+      ),
+    ),
   )
   on('command.run', { command: 'vibe-delete-account' }, ($, e) =>
     run(ioOf($), 'deleteAccount', ctx => commands.deleteAccount(ctx, argsOf(e))),

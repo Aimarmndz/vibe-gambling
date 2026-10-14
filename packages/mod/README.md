@@ -30,6 +30,20 @@ The mod sends **only** a random turn id, the turn duration, two booleans (`gitPu
 
 Text that comes from the server (device code, login, server name, error messages) is stripped of control characters and escape sequences before it reaches your terminal, so a compromised self-hosted server cannot write to your clipboard or redraw your screen. Servers must use `https`; plain `http` is accepted only for this machine (`localhost`, `127.0.0.1`, `[::1]`), because your session token would otherwise travel in clear text.
 
+## What the mod does on your machine
+
+A plain list for the plugin directory reviewers and for anyone who wants to know before installing.
+
+- **Network: one host.** Every request goes to the vibe-gambling server set in the `serverUrl` option: `https://vibe.aimar.dev` by default, or the one you chose with `/vibe-server` (`https` only; `http` just for `localhost`). Nothing else is contacted: the GitHub login goes through that server (Device Flow) and the mod never talks to GitHub itself. What it sends is listed in [Privacy](#privacy): a random turn id, the turn duration, two booleans, the plugin version, the generic OS and your session token, plus what you type in the slash commands. Never prompts, answers, code, commands, paths or repo names.
+- **What it reads from the conversation.** It hooks `turn.start` and `turn.complete` to open and close the round, and `tool.call` for the `Bash` tool only, after the command has run, to compute those two booleans: whether a `git push` succeeded and whether a test command failed. The command and its output are inspected in memory and forgotten; the hook never changes, blocks or re-runs the call and always returns its result untouched.
+- **Programs it starts, and why.** Only two kinds, never anything that comes from the server:
+  - `uname -s`, once per session, to tell Linux from macOS (the generic OS above).
+  - A browser, to open the game window: a Chromium-based browser installed on your machine (Chrome, Chromium, Edge, Brave…) in app mode with `--app=<one-time link> --window-size=<W>,<H>`, or else the default browser with `xdg-open` (Linux, through `sh -c '"$@" &'` so it does not block), `open` (macOS) or `cmd /d /c start` (Windows). The link is a one-time URL of your own `serverUrl`, checked before launching. Turn it off with the `autoOpen` option and open the window yourself with `/roulette`.
+- **Local files and environment.** It checks whether those browser executables exist at their usual paths, and reads `HOME`, `OS`, `ProgramFiles`, `ProgramFiles(x86)`, `LOCALAPPDATA` (to find them) and `LC_ALL`, `LC_MESSAGES`, `LANG`, `LANGUAGE` (to pick the language). It reads no other files.
+- **Credentials.** The only secret is the vibe-gambling session token the server gives you after `/vibe-login`. It is kept in the plugin's own store in Claude Code, one per server, sent only to that server and deleted with `/vibe-logout`. The mod never reads your GitHub token, SSH keys, git credentials or any other credential on your machine.
+- **Settings it changes.** One: `/vibe-server <url>` writes the plugin's own `vibe-gambling.serverUrl` option, after you ask for it and after checking that the server answers. It never touches permission modes or any other setting.
+- **Commands it adds.** The slash commands in [Commands](#commands), with their Spanish aliases. It adds no tools, agents or MCP servers.
+
 ## Options
 
 Set them in `/config` (or `pluginConfigs["vibe-gambling"].options` in your settings). The defaults and the allowed ranges (`min`/`max`) live in `.claude-plugin/plugin.json`; Claude Code refuses to load the mod with a value outside them and says which one.
