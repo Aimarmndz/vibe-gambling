@@ -11,20 +11,22 @@ With no game window open and visible when the turn ends, the server keeps the sp
 
 ## Commands
 
-| Command                        | Alias      | What it does                                                        |
-| ------------------------------ | ---------- | ------------------------------------------------------------------- |
-| `/roulette`                    | `/ruleta`  | Open the window                                                     |
-| `/bet <amount> <square>`       | `/apostar` | Bet on the current or next spin (`/bet 200 red`, `/bet 100 1st12`)  |
-| `/all-in [square]`             |            | Your whole balance (red by default)                                 |
-| `/balance`                     | `/saldo`   | Balance, debt, net worth, rank and pending spins                    |
-| `/vibe-login`, `/vibe-logout`  |            | GitHub device-code login / log out                                  |
-| `/vibe-hide`, `/vibe-show`     |            | Hide from / show on the public leaderboard                          |
-| `/vibe-server [url\|default]`  |            | Show or change the server (self-hosting); checks `GET /api/meta`    |
-| `/vibe-delete-account <login>` |            | Delete your account and all its data (repeat your login to confirm) |
+| Command                        | Alias          | What it does                                                                                                                                              |
+| ------------------------------ | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/roulette`                    | `/ruleta`      | Open the window                                                                                                                                           |
+| `/bet <amount> <square>`       | `/apostar`     | Bet on the current or next spin (`/bet 200 red`, `/bet 100 1st12`)                                                                                        |
+| `/all-in [square]`             |                | Your whole balance (red by default)                                                                                                                       |
+| `/balance`                     | `/saldo`       | Balance, debt, net worth, rank and pending spins                                                                                                          |
+| `/vibe-login`, `/vibe-logout`  |                | GitHub device-code login / log out                                                                                                                        |
+| `/vibe-hide`, `/vibe-show`     |                | Hide from / show on the public leaderboard                                                                                                                |
+| `/vibe-server [url\|default]`  |                | Show or change the server (self-hosting); checks `GET /api/meta`                                                                                          |
+| `/vibe-delete-account <login>` |                | Delete your account and all its data (repeat your login to confirm)                                                                                       |
+| `/vibe-shop [buy <item>]`      | `/vibe-tienda` | The SHOP: prices, caps, the fine print with the real house edge, your pocket; buy with Spanish or English aliases (`pata`, `rabbit`, `seguro`, `ctrl+z`…) |
+| `/vibe-use <item> [off]`       | `/vibe-usar`   | Arm or disarm a pocket item for the next spin; armed items show as glyphs in the status line (`🎰 750 🪙 · 🐇🛡`)                                          |
 
 ## Privacy
 
-The mod sends **only** a random turn id, the turn duration, two booleans (`gitPushOk`, `testFailed`), the plugin version, the generic OS (`linux`/`darwin`/`win32`/`other`) and your session token — plus what you type in `/bet`. Never prompts, answers, code, commands, paths, file or repo names. Bash commands are inspected locally to compute the two booleans and then forgotten. `tests/privacy.test.ts` enforces it for turns, every command, the login and the error paths, and checks the debug log too.
+The mod sends **only** a random turn id, the turn duration, two booleans (`gitPushOk`, `testFailed`), the plugin version, the generic OS (`linux`/`darwin`/`win32`/`other`) and your session token — plus what you type in `/bet`, and for the SHOP only the item id, a random purchase id and the armed flag. Never prompts, answers, code, commands, paths, file or repo names. Bash commands are inspected locally to compute the two booleans and then forgotten. `tests/privacy.test.ts` enforces it for turns, every command, the login and the error paths, and checks the debug log too.
 
 Text that comes from the server (device code, login, server name, error messages) is stripped of control characters and escape sequences before it reaches your terminal, so a compromised self-hosted server cannot write to your clipboard or redraw your screen. Servers must use `https`; plain `http` is accepted only for this machine (`localhost`, `127.0.0.1`, `[::1]`), because your session token would otherwise travel in clear text.
 

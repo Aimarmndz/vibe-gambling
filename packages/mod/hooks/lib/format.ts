@@ -4,6 +4,8 @@ import { PHRASE_CATEGORIES, fillTemplate, pickPhrase } from '../generated/phrase
 import type { PhraseCatalog, PhraseCategory } from '../generated/phrases.ts'
 import { LOCALE_INFO, PHRASES } from '../generated/locales.ts'
 import type { Locale } from '../generated/protocol.ts'
+import { effectsOf } from './items.ts'
+import type { ItemEffectView } from './items.ts'
 import type { Messages } from './messages.ts'
 import type { PocketColor, ResolvedRoundView, WalletView } from './responses.ts'
 
@@ -22,13 +24,48 @@ export function formatCoins(amount: number, locale: Locale, signed = false): str
   return signed && amount > 0 ? `+${grouped}` : grouped
 }
 
-/** Status line: saldo y, si hay, deuda y tiradas pendientes. */
-export function statusText(wallet: WalletView, locale: Locale, messages: Messages): string {
+/** Status line: saldo y, si hay, deuda, tiradas pendientes y glifos de los objetos armados. */
+export function statusText(
+  wallet: WalletView,
+  locale: Locale,
+  messages: Messages,
+  armed = '',
+): string {
   const parts = [`🎰 ${formatCoins(wallet.balance, locale)} ${messages.coin}`]
   if (wallet.debt > 0) parts.push(`${messages.debtLabel} ${formatCoins(wallet.debt, locale)}`)
   const pending = wallet.pendingSpins ?? 0
   if (pending > 0) parts.push(messages.pendingCount(pending, formatCoins(pending, locale)))
+  if (armed !== '') parts.push(armed)
   return parts.join(' · ')
+}
+
+/** Líneas de los objetos de una ronda para el toast (seguro +X, turbo +X, la IA predijo N…). */
+export function effectLines(
+  effects: readonly ItemEffectView[],
+  locale: Locale,
+  messages: Messages,
+): string[] {
+  const m = messages.shop
+  return effects.flatMap(effect => {
+    switch (effect.kind) {
+      case 'placebo':
+        return [m.effectPlacebo]
+      case 'prediction':
+        return effect.prediction === undefined
+          ? []
+          : [m.effectPrediction(effect.prediction, effect.hit === true)]
+      case 'refund':
+        return [m.effectRefund(formatCoins(effect.amount, locale, true))]
+      case 'boost':
+        return effect.amount > 0
+          ? [m.effectBoost(formatCoins(effect.amount, locale, true))]
+          : [m.effectBoostMiss]
+      case 'shield':
+        return [m.effectShield]
+      case 'revert':
+        return []
+    }
+  })
 }
 
 /**
@@ -149,6 +186,7 @@ export function resultToast(
     parts.push(`${formatCoins(round.net, locale, true)} ${messages.coin}`)
   }
   if (round.jackpot) parts.push(messages.jackpotTag)
+  parts.push(...effectLines(effectsOf(round), locale, messages))
   const category = phraseCategory(round, wallet)
   const phrase =
     category === null

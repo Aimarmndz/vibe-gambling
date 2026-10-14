@@ -9,10 +9,12 @@ import {
   deleteAccountBody,
   devicePollBody,
   emptyBody,
+  itemArmBody,
   normalizeReferralCode,
   parseBetAmount,
   referralRedeemBody,
   settingsBody,
+  shopBuyBody,
   turnEndBody,
   turnStartBody,
 } from '../../mod/hooks/lib/payloads.ts'
@@ -30,6 +32,7 @@ import {
   turnStartRequestSchema,
 } from '../src/protocol/http.ts'
 import { OS_VALUES } from '../src/protocol/common.ts'
+import { itemArmRequestSchema, shopBuyRequestSchema } from '../src/protocol/shop.ts'
 import { staleModSharedFiles } from '../../../scripts/sync-mod-shared.ts'
 
 describe('copia de shared en el mod', () => {
@@ -39,6 +42,17 @@ describe('copia de shared en el mod', () => {
 })
 
 describe('cuerpos que construye el mod', () => {
+  it('compra y armado de la TIENDA pasan sus esquemas (solo itemId, requestId y armed)', () => {
+    const buy = shopBuyBody('rabbit_foot', crypto.randomUUID())
+    expect(shopBuyRequestSchema.parse(buy)).toEqual(buy)
+    expect(Object.keys(buy).sort()).toEqual(['itemId', 'requestId', 'v'])
+    expect(itemArmRequestSchema.parse(itemArmBody('insurance', false))).toEqual({
+      v: 1,
+      itemId: 'insurance',
+      armed: false,
+    })
+  })
+
   const turn = { turnId: crypto.randomUUID(), pluginVersion: '0.1.0' }
 
   it('turn/start y turn/end pasan los esquemas estrictos en todos los SO', () => {

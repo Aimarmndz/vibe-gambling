@@ -6,6 +6,7 @@ import type { Io } from './io.ts'
 import { callApi, debug, isUnauthorized } from './api.ts'
 import type { ModConfig } from './config.ts'
 import { dailyLimitToast, queuedToast, resultToast } from './format.ts'
+import { afterRound, effectsOf } from './items.ts'
 import { turnEndBody, turnStartBody } from './payloads.ts'
 import { isTurnEnd, isTurnStart } from './responses.ts'
 import type { TurnEndView } from './responses.ts'
@@ -137,6 +138,12 @@ function revealResult(io: Io, runtime: Runtime, config: ModConfig, response: Tur
   const spinLeft = Date.parse(round.revealAt) - Date.parse(round.resolvedAt)
   const delay = Math.min(config.revealMaxDelayMs, Math.max(0, spinLeft))
   const show = (): void => {
+    // Las cargas gastadas se descuentan al enseñar el resultado, no antes: que el casco se gaste
+    // (solo al perder) destriparía la tirada.
+    const effects = effectsOf(round)
+    if (runtime.inventory !== null && effects.length > 0) {
+      runtime.inventory = afterRound(runtime.inventory, effects)
+    }
     const shown = resultToast(round, wallet, runtime.locale, runtime.messages, runtime.lastPhrase)
     runtime.lastPhrase = shown.phrase
     toast(io, shown.text)

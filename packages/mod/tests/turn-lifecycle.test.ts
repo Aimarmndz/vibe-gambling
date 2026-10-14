@@ -34,6 +34,10 @@ test('registers every command with its Spanish alias', { options: TEST_OPTIONS }
       'vibe-redeem',
       'vibe-server',
       'vibe-show',
+      'vibe-shop',
+      'vibe-tienda',
+      'vibe-use',
+      'vibe-usar',
     ].sort(),
   )
 })
@@ -148,7 +152,7 @@ test(
       registerDeny: ['roulette', 'balance'],
     })
     await startSession($, w)
-    expect(w.registered).toHaveLength(15)
+    expect(w.registered).toHaveLength(19)
     expect(w.registered).toContain('saldo')
     expect(w.registered).toContain('vibe-delete-account')
     expect(w.lastStatus()).toBe('🎰 1,000 🪙')

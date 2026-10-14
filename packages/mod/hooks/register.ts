@@ -294,6 +294,46 @@ export const register: Register = (on, options) => {
           immediate: true,
         }),
       )
+      await registerSafely(
+        io,
+        'vibe-shop',
+        $.command.register({
+          name: 'vibe-shop',
+          description: describe('shop'),
+          argumentHint: hint('shop'),
+          immediate: true,
+        }),
+      )
+      await registerSafely(
+        io,
+        'vibe-tienda',
+        $.command.register({
+          name: 'vibe-tienda',
+          description: describe('shop'),
+          argumentHint: hint('shop'),
+          immediate: true,
+        }),
+      )
+      await registerSafely(
+        io,
+        'vibe-use',
+        $.command.register({
+          name: 'vibe-use',
+          description: describe('use'),
+          argumentHint: hint('use'),
+          immediate: true,
+        }),
+      )
+      await registerSafely(
+        io,
+        'vibe-usar',
+        $.command.register({
+          name: 'vibe-usar',
+          description: describe('use'),
+          argumentHint: hint('use'),
+          immediate: true,
+        }),
+      )
 
       const config = runtime.config
       if (config === null) {
@@ -411,5 +451,17 @@ export const register: Register = (on, options) => {
   )
   on('command.run', { command: 'vibe-canjear' }, ($, e) =>
     run(ioOf($), 'redeem', ctx => commands.redeem(ctx, argsOf(e))),
+  )
+  on('command.run', { command: 'vibe-shop' }, ($, e) =>
+    run(ioOf($), 'shop', ctx => commands.shop(ctx, argsOf(e))),
+  )
+  on('command.run', { command: 'vibe-tienda' }, ($, e) =>
+    run(ioOf($), 'shop', ctx => commands.shop(ctx, argsOf(e))),
+  )
+  on('command.run', { command: 'vibe-use' }, ($, e) =>
+    run(ioOf($), 'use', ctx => commands.use(ctx, argsOf(e))),
+  )
+  on('command.run', { command: 'vibe-usar' }, ($, e) =>
+    run(ioOf($), 'use', ctx => commands.use(ctx, argsOf(e))),
   )
 }

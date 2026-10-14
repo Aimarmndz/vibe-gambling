@@ -2,8 +2,9 @@
 // Comprobaciones de forma de las respuestas del servidor. El mod no puede usar zod, así que
 // comprueba a mano lo que lee (y nada más): una respuesta rara se trata como "offline".
 // Módulo puro.
-import { ERROR_CODES, REFERRAL_REJECTIONS } from '../generated/protocol.ts'
-import type { ErrorCode, ReferralRejection } from '../generated/protocol.ts'
+import { ERROR_CODES, ITEM_IDS, REFERRAL_REJECTIONS } from '../generated/protocol.ts'
+import type { ErrorCode, ItemId, ReferralRejection } from '../generated/protocol.ts'
+import { inventoryOf } from './items.ts'
 
 type Guard<T> = (value: unknown) => value is T
 
@@ -149,6 +150,8 @@ export interface MeView {
   readonly user: UserView
   readonly wallet: WalletView
   readonly brokeRank: number | null
+  /** Bolsillo de la TIENDA (opcional: un servidor sin tienda no lo manda). Se lee con `inventoryOf`. */
+  readonly inventory?: unknown
 }
 export const isMe: Guard<MeView> = (v): v is MeView =>
   isObj(v) && isUser(v.user) && isWallet(v.wallet) && (v.brokeRank === null || isInt(v.brokeRank))
@@ -290,6 +293,85 @@ export const isReferralRedeem: Guard<ReferralRedeemView> = (v): v is ReferralRed
     isWallet(v.wallet) &&
     (v.inviter === null || (isObj(v.inviter) && isStr(v.inviter.login)))) ||
     (v.status === 'rejected' && REFERRAL_REJECTIONS.some(reason => reason === v.reason)))
+
+// ------------------------------------------------------------------ TIENDA
+
+const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v) && v >= 0
+const isItemId = (v: unknown): v is ItemId => ITEM_IDS.some(id => id === v)
+
+export interface ShopItemView {
+  readonly id: ItemId
+  readonly kind: 'consumable' | 'service' | 'cosmetic'
+  readonly price: number
+  readonly charges: number
+  readonly maxPerSeason: number | null
+  readonly bought: number
+  readonly owned: boolean
+  readonly finePrint: {
+    readonly perCharge: number
+    readonly maxExpected: number
+    readonly minEdge: number
+  }
+}
+const isShopItem = (v: unknown): v is ShopItemView =>
+  isObj(v) &&
+  isItemId(v.id) &&
+  (v.kind === 'consumable' || v.kind === 'service' || v.kind === 'cosmetic') &&
+  isCount(v.price) &&
+  isCount(v.charges) &&
+  (v.maxPerSeason === null || isCount(v.maxPerSeason)) &&
+  isCount(v.bought) &&
+  isBool(v.owned) &&
+  isObj(v.finePrint) &&
+  isNum(v.finePrint.perCharge) &&
+  isNum(v.finePrint.maxExpected) &&
+  isNum(v.finePrint.minEdge)
+
+export interface ShopView {
+  readonly seasonId: string
+  readonly seasonEndsAt: string
+  readonly items: readonly ShopItemView[]
+  readonly inventory: unknown
+  readonly canBorrow: boolean
+}
+export const isShop: Guard<{ readonly shop: ShopView }> = (v): v is { readonly shop: ShopView } => {
+  if (!isObj(v) || !isObj(v.shop)) return false
+  const s = v.shop
+  const inventory = inventoryOf(s.inventory)
+  if (
+    !isStr(s.seasonId) ||
+    !/^\d{4}-\d{2}$/.test(s.seasonId) ||
+    !isIso(s.seasonEndsAt) ||
+    !Array.isArray(s.items) ||
+    !s.items.every(isShopItem) ||
+    inventory === null ||
+    !isBool(s.canBorrow)
+  ) {
+    return false
+  }
+  return true
+}
+
+export interface ShopBuyView {
+  readonly itemId: ItemId
+  readonly price: number
+  readonly refund: number
+  readonly fresh: boolean
+  readonly wallet: WalletView
+  readonly inventory: unknown
+}
+export const isShopBuy: Guard<ShopBuyView> = (v): v is ShopBuyView =>
+  isObj(v) &&
+  isItemId(v.itemId) &&
+  isCount(v.price) &&
+  isCount(v.refund) &&
+  isBool(v.fresh) &&
+  isWallet(v.wallet) &&
+  inventoryOf(v.inventory) !== null
+
+export const isItemArm: Guard<{ readonly inventory: unknown }> = (
+  v,
+): v is { readonly inventory: unknown } => isObj(v) && inventoryOf(v.inventory) !== null
 
 export const isOk: Guard<{ readonly ok: true }> = (v): v is { readonly ok: true } =>
   isObj(v) && v.ok === true

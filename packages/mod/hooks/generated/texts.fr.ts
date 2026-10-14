@@ -144,4 +144,94 @@ export const modTextsFr: ModTexts = {
     'Ton compte n’est plus tout neuf : le bonus de bienvenue, c’est pour tes premiers jours.',
   'redeemRejected.too_many_spins':
     'Tu as déjà joué trop de tours : le bonus de bienvenue, c’est pour les nouveaux.',
+  'command.shop.description':
+    'BOUTIQUE : des avantages qui n’existent pas, avec des petits caractères honnêtes. La maison gagne toujours',
+  'command.shop.argumentHint': '[buy <objet>]',
+  'command.use.description': 'Arme ou désarme un objet de ta poche pour le prochain tour',
+  'command.use.argumentHint': '<objet> [off]',
+  'item.rabbit_foot': 'Patte de Lapin™',
+  'item.oracle': 'VibeOracle (pronostic IA)',
+  'item.insurance': 'Assurance Tous Risques',
+  'item.turbo': 'Turbo Plein ×2',
+  'item.streak_helmet': 'Casque de Série',
+  'item.revert': 'git revert HEAD~1',
+  'item.felt_memory_blue': 'Tapis Memory Card',
+  'item.felt_montecarlo97': 'Tapis Monte-Carlo 97',
+  'item.felt_dark_mode': 'Tapis Mode Sombre',
+  'item.felt_vaporwave': 'Tapis Vaporwave',
+  'item.chips_floppy': 'Jetons Disquette 3½',
+  'item.chips_cinco_duros': 'Jetons Cinco Duros',
+  'item.chips_bottle_cap': 'Jetons Capsule',
+  'itemTag.rabbit_foot': 'ne fait rien, mais avec beaucoup de conviction',
+  'itemTag.oracle': 'un autre tour de roulette déguisé en IA',
+  'itemTag.insurance': 'rembourse une partie des pertes sur les chances simples (avec franchise)',
+  'itemTag.turbo': 'double ton unique plein (un numéro, une foi)',
+  'itemTag.streak_helmet': 'une défaite ne casse pas ta série (elle prend un astérisque)',
+  'itemTag.revert': 'l’assurance qu’on prend après l’accident',
+  'itemTag.felt_memory_blue': 'bleu carte mémoire',
+  'itemTag.felt_montecarlo97': 'luxe 32 bits',
+  'itemTag.felt_dark_mode': 'enfin la roulette en mode sombre',
+  'itemTag.felt_vaporwave': 'A E S T H E T I C',
+  'itemTag.chips_floppy': '1,44 Mo de pertes',
+  'itemTag.chips_cinco_duros': 'la nostalgie en pesetas',
+  'itemTag.chips_bottle_cap': 'la monnaie officielle de la récré',
+  shopHeader:
+    '🛒 BOUTIQUE · saison {season} · les consommables périment le {date}, comme les yaourts',
+  shopClosedNote:
+    'La boutique est fermée : cosmétiques seulement (le mauvais goût ne ferme jamais).',
+  shopCharges: '{count} charges',
+  'shopCharges.one': '{count} charge',
+  shopBought: '{bought}/{max} cette saison',
+  shopSoldOut: 'ÉPUISÉ cette saison',
+  shopOwned: 'à toi',
+  shopEdge: 'rend en moyenne ≤ {max} par charge : la maison gagne ≥ {edge}',
+  shopEdgePlacebo: 'rend 0 : la maison gagne {edge} par charge (c’est-à-dire tout)',
+  shopEdgeRevert: 'rend ≤ {max} : la maison gagne ≥ {edge}, toujours',
+  shopEdgeCosmetic: 'EV −{edge} ; la seule chose qui survit à la saison, c’est ton mauvais goût',
+  shopCosmetics: '🎨 Cosmétiques (pour toujours) :',
+  shopPocket: '🎒 Poche : {items}',
+  shopPocketEmpty: '🎒 Poche vide. Le truc le plus rentable que tu verras aujourd’hui.',
+  pocketArmed: 'armé',
+  shopRevert:
+    '↩ git revert disponible : il rembourserait {refund} 🪙 (coûte {price}) jusqu’à {time}.',
+  shopBorrow:
+    'Pas assez ? On finance ta patte de lapin ? Le Ludo-Crédit Express prête dans /roulette.',
+  shopFooter:
+    'Achète avec /vibe-shop buy <objet> · arme avec /vibe-use <objet> [off]. La maison gagne toujours ; ici, au moins, on te le dit.',
+  shopUsage: 'Utilisation : /vibe-shop [buy <objet>], p. ex. /vibe-shop buy lapin',
+  shopUnknownItem:
+    '« {raw} » n’est pas au catalogue. Essaie rabbit, oracle, insurance, turbo, helmet, revert, vaporwave ou floppy.',
+  bought:
+    '🛒 {name} ×{charges} pour {price} 🪙. Solde : {balance}. Arme-le avec /vibe-use {alias}.',
+  boughtCosmetic:
+    '🎨 {name} est à toi pour toujours pour {price} 🪙. Solde : {balance}. Mets-le dans la GARDE-ROBE de /roulette.',
+  boughtRevert:
+    '↩ git revert HEAD~1 : tu paies {price}, tu récupères {refund}. Solde : {balance}. Ni l’historique ni les intérêts ne s’annulent.',
+  buyNoFunds:
+    'Tu n’as pas de quoi payer {name}. On le finance ? Le Ludo-Crédit Express t’attend dans /roulette.',
+  buySoldOut:
+    'Tu as déjà acheté tous les {name} de cette saison. Même la maison a un stock limité (de honte, non).',
+  buyOwned: '{name} est déjà à toi. Le mauvais goût ne se cumule pas.',
+  buyNothingToRevert:
+    'Rien à annuler : ta dernière manche n’a pas perdu, la fenêtre est fermée ou tu as déjà utilisé le revert de la saison.',
+  shopClosed: 'La boutique est fermée. Pour une fois, la maison ne te vend rien.',
+  shopCooldown:
+    'Doucement : un achat à la fois. Même les vraies boutiques n’encaissent pas aussi vite.',
+  useUsage:
+    'Utilisation : /vibe-use <objet> [off], p. ex. /vibe-use lapin ou /vibe-use insurance off',
+  useNotConsumable:
+    '{name} ne s’arme pas : les cosmétiques se portent dans la GARDE-ROBE de /roulette et git revert agit à l’achat.',
+  armed: '🎒 {name} armé ({charges} charges). Il agit au prochain tour avec des jetons.',
+  disarmed: '🎒 {name} désarmé. Ses charges t’attendent jusqu’à la fin de la saison.',
+  armConflict:
+    'Impossible d’armer {name} : plus de charges, ou tu as déjà le maximum d’objets armés.',
+  balanceArmed: '🎒 Armé : {items}',
+  balancePocket: '🎒 Dans ta poche, non armé : {items} (/vibe-use <objet>)',
+  'effect.placebo': '🐇 +∞ % DE CHANCE',
+  'effect.predictionHit': '🔮 L’IA a prédit {n} : GAGNÉ ! (1/37, comme n’importe qui)',
+  'effect.predictionMiss': '🔮 L’IA a prédit {n} : raté (comme toujours)',
+  'effect.refund': '🛡 ASSURANCE {amount}',
+  'effect.boost': '⚡ TURBO ×2 {amount}',
+  'effect.boostMiss': '⚡ Turbo : le plein n’est pas sorti',
+  'effect.shield': '⛑ Casque : série sauvée (avec astérisque)',
 }

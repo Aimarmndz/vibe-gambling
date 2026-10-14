@@ -5,7 +5,7 @@ import { LOCALE_INFO, MOD_TEXTS, REFERENCE_LOCALE } from '../generated/locales.t
 import type { ModTextKey, ModTexts } from '../generated/locales.ts'
 import { fillTemplate } from '../generated/phrases.ts'
 import { LOCALES } from '../generated/protocol.ts'
-import type { Locale, ReferralRejection } from '../generated/protocol.ts'
+import type { ItemId, Locale, ReferralRejection } from '../generated/protocol.ts'
 import type { PocketColor } from './responses.ts'
 
 export interface Messages {
@@ -120,6 +120,62 @@ export interface Messages {
   readonly redeemBadCode: (raw: string) => string
   readonly redeemed: (bonus: string, balance: string, login: string | null) => string
   readonly redeemRejected: (reason: ReferralRejection) => string
+
+  /** TIENDA: `/vibe-shop`, `/vibe-use`, la línea de `/balance` y los efectos del toast. */
+  readonly shop: ShopMessages
+}
+
+export interface ShopMessages {
+  readonly itemName: (id: ItemId) => string
+  readonly itemTag: (id: ItemId) => string
+  readonly header: (season: string, endsAt: string) => string
+  readonly closedNote: string
+  readonly charges: (count: number, formatted: string) => string
+  readonly bought: (bought: string, max: string) => string
+  readonly soldOut: string
+  readonly owned: string
+  /** Letra pequeña: lo que devuelve como mucho (en una carga) y lo que gana la casa como mínimo. */
+  readonly edge: (max: string, edge: string) => string
+  readonly edgePlacebo: (edge: string) => string
+  readonly edgeRevert: (max: string, edge: string) => string
+  readonly edgeCosmetic: (edge: string) => string
+  readonly cosmetics: string
+  readonly pocket: (items: string) => string
+  readonly pocketEmpty: string
+  readonly pocketArmed: string
+  readonly revertAvailable: (refund: string, price: string, until: string) => string
+  readonly borrow: string
+  readonly footer: string
+  readonly usage: string
+  readonly unknownItem: (raw: string) => string
+  readonly boughtConsumable: (r: {
+    name: string
+    charges: string
+    price: string
+    balance: string
+    alias: string
+  }) => string
+  readonly boughtCosmetic: (name: string, price: string, balance: string) => string
+  readonly boughtRevert: (price: string, refund: string, balance: string) => string
+  readonly noFunds: (name: string) => string
+  readonly soldOutFor: (name: string) => string
+  readonly alreadyOwned: (name: string) => string
+  readonly nothingToRevert: string
+  readonly closed: string
+  readonly cooldown: string
+  readonly useUsage: string
+  readonly notConsumable: (name: string) => string
+  readonly armed: (name: string, charges: string) => string
+  readonly disarmed: (name: string) => string
+  readonly armConflict: (name: string) => string
+  readonly balanceArmed: (items: string) => string
+  readonly balancePocket: (items: string) => string
+  readonly effectPlacebo: string
+  readonly effectPrediction: (n: number, hit: boolean) => string
+  readonly effectRefund: (amount: string) => string
+  readonly effectBoost: (amount: string) => string
+  readonly effectBoostMiss: string
+  readonly effectShield: string
 }
 
 export type CommandId =
@@ -135,6 +191,8 @@ export type CommandId =
   | 'deleteAccount'
   | 'invite'
   | 'redeem'
+  | 'shop'
+  | 'use'
 
 const COMMAND_IDS: readonly CommandId[] = [
   'roulette',
@@ -149,6 +207,8 @@ const COMMAND_IDS: readonly CommandId[] = [
   'deleteAccount',
   'invite',
   'redeem',
+  'shop',
+  'use',
 ]
 
 /**
@@ -159,7 +219,7 @@ export function buildMessages(t: ModTexts, bcp47: string): Messages {
   const text = (key: ModTextKey) => t[key]
   const rules = new Intl.PluralRules(bcp47)
   const counted =
-    (key: 'pendingCount' | 'spinSaved' | 'spinDropped' | 'pendingHint') =>
+    (key: 'pendingCount' | 'spinSaved' | 'spinDropped' | 'pendingHint' | 'shopCharges') =>
     (count: number, formatted: string): string =>
       fillTemplate(t[rules.select(count) === 'one' ? (`${key}.one` as const) : key], {
         count: formatted,
@@ -291,6 +351,56 @@ export function buildMessages(t: ModTexts, bcp47: string): Messages {
         ? fillTemplate(t.redeemedAnon, { bonus, balance })
         : fillTemplate(t.redeemed, { bonus, balance, login }),
     redeemRejected: reason => t[`redeemRejected.${reason}`],
+
+    shop: {
+      itemName: id => t[`item.${id}`],
+      itemTag: id => t[`itemTag.${id}`],
+      header: (season, endsAt) => fillTemplate(t.shopHeader, { season, date: date(endsAt) }),
+      closedNote: t.shopClosedNote,
+      charges: counted('shopCharges'),
+      bought: (bought, max) => fillTemplate(t.shopBought, { bought, max }),
+      soldOut: t.shopSoldOut,
+      owned: t.shopOwned,
+      edge: (max, edge) => fillTemplate(t.shopEdge, { max, edge }),
+      edgePlacebo: edge => fillTemplate(t.shopEdgePlacebo, { edge }),
+      edgeRevert: (max, edge) => fillTemplate(t.shopEdgeRevert, { max, edge }),
+      edgeCosmetic: edge => fillTemplate(t.shopEdgeCosmetic, { edge }),
+      cosmetics: t.shopCosmetics,
+      pocket: items => fillTemplate(t.shopPocket, { items }),
+      pocketEmpty: t.shopPocketEmpty,
+      pocketArmed: t.pocketArmed,
+      revertAvailable: (refund, price, until) =>
+        fillTemplate(t.shopRevert, { refund, price, time: clock.format(new Date(until)) }),
+      borrow: t.shopBorrow,
+      footer: t.shopFooter,
+      usage: t.shopUsage,
+      unknownItem: raw => fillTemplate(t.shopUnknownItem, { raw }),
+      boughtConsumable: r => fillTemplate(t.bought, r),
+      boughtCosmetic: (name, price, balance) =>
+        fillTemplate(t.boughtCosmetic, { name, price, balance }),
+      boughtRevert: (price, refund, balance) =>
+        fillTemplate(t.boughtRevert, { price, refund, balance }),
+      noFunds: name => fillTemplate(t.buyNoFunds, { name }),
+      soldOutFor: name => fillTemplate(t.buySoldOut, { name }),
+      alreadyOwned: name => fillTemplate(t.buyOwned, { name }),
+      nothingToRevert: t.buyNothingToRevert,
+      closed: t.shopClosed,
+      cooldown: t.shopCooldown,
+      useUsage: t.useUsage,
+      notConsumable: name => fillTemplate(t.useNotConsumable, { name }),
+      armed: (name, charges) => fillTemplate(t.armed, { name, charges }),
+      disarmed: name => fillTemplate(t.disarmed, { name }),
+      armConflict: name => fillTemplate(t.armConflict, { name }),
+      balanceArmed: items => fillTemplate(t.balanceArmed, { items }),
+      balancePocket: items => fillTemplate(t.balancePocket, { items }),
+      effectPlacebo: t['effect.placebo'],
+      effectPrediction: (n, hit) =>
+        fillTemplate(hit ? t['effect.predictionHit'] : t['effect.predictionMiss'], { n }),
+      effectRefund: amount => fillTemplate(t['effect.refund'], { amount }),
+      effectBoost: amount => fillTemplate(t['effect.boost'], { amount }),
+      effectBoostMiss: t['effect.boostMiss'],
+      effectShield: t['effect.shield'],
+    },
   }
 }
 

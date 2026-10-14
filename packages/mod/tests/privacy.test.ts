@@ -39,9 +39,12 @@ const ALLOWED_BODY: Readonly<Record<string, readonly string[]>> = {
   '/api/me/delete': ['v', 'confirm'],
   '/api/referral': [],
   '/api/referral/redeem': ['v', 'code'],
+  '/api/shop': [],
+  '/api/shop/buy': ['v', 'itemId', 'requestId'],
+  '/api/items/arm': ['v', 'itemId', 'armed'],
 }
 /** Rutas que no llevan cuerpo (GET). */
-const NO_BODY = new Set(['/api/me', '/api/meta', '/api/referral'])
+const NO_BODY = new Set(['/api/me', '/api/meta', '/api/referral', '/api/shop'])
 const ALLOWED_HEADERS = new Set(['accept', 'content-type', 'authorization'])
 
 /** Marcadores únicos que no pueden salir del ordenador. */
@@ -417,5 +420,95 @@ test(
     for (const text of [...w.toasts, w.lastStatus() ?? '']) {
       expect(MARKERS.filter(marker => text.includes(marker))).toEqual([])
     }
+  },
+)
+test(
+  'the shop commands send only the item, a random request id and the armed flag',
+  { options: TEST_OPTIONS },
+  async ($, on) => {
+    bashTool(on)
+    const pocket = {
+      seasonId: '2026-10',
+      enabled: true,
+      maxArmed: 4,
+      items: [{ id: 'rabbit_foot', charges: 37, armed: true }],
+      cosmetics: {
+        felts: ['classic'],
+        chips: ['classic'],
+        felt: 'classic',
+        chipSkin: 'classic',
+      },
+      revert: null,
+    }
+    const w = world(on, {
+      routes: {
+        ...happyCasino(true),
+        '/api/shop': {
+          json: {
+            v: 1,
+            shop: {
+              seasonId: '2026-10',
+              seasonEndsAt: '2026-10-31T23:00:00.000Z',
+              items: [],
+              inventory: pocket,
+              placebometer: {
+                spent: 0,
+                recovered: 0,
+                net: 0,
+                rabbit: {
+                  with: { rounds: 0, won: 0 },
+                  without: { rounds: 0, won: 0 },
+                },
+                oracle: { predictions: 0, hits: 0 },
+              },
+              canBorrow: false,
+            },
+          },
+        },
+        '/api/shop/buy': request => ({
+          json: {
+            v: 1,
+            itemId: (request.body as { itemId: string }).itemId,
+            price: 77,
+            refund: 0,
+            fresh: true,
+            wallet: { balance: 923, debt: 0, netWorth: 923, spins: 3 },
+            inventory: pocket,
+          },
+        }),
+        '/api/items/arm': { json: { v: 1, inventory: pocket } },
+      },
+      store: LOGGED_IN,
+      env: { HOME: '/home/CWD-e5b6f0' },
+    })
+    await startSession($, w, { cwd: '/home/player/REPO-ff0942/CWD-e5b6f0' })
+    await playTurn($, w, {
+      prompt: 'PROMPT-7c1f3a buy me luck for FILE-31d2aa',
+      answer: 'ANSWER-92be0d',
+      bash: [{ command: 'git push origin BASHCMD-4d8e21', stderr: 'To REPO-ff0942' }],
+    })
+    for (const [name, args] of [
+      ['vibe-shop', ''],
+      ['vibe-tienda', ''],
+      ['vibe-shop', 'buy pata'],
+      ['vibe-shop', 'comprar git revert'],
+      ['vibe-shop', 'buy PROMPT-7c1f3a'],
+      ['vibe-use', 'rabbit'],
+      ['vibe-usar', 'seguro off'],
+      ['vibe-use', 'FILE-31d2aa'],
+    ] as const) {
+      await command($, name, args)
+    }
+    await w.clock.advance(10_000)
+    for (const request of w.requests) checkRequest(request)
+    expect(w.to('/api/shop')).toHaveLength(2)
+    const buys = w.to('/api/shop/buy').map(r => r.body as Record<string, unknown>)
+    expect(buys.map(b => b.itemId)).toEqual(['rabbit_foot', 'revert'])
+    for (const body of buys) expect(body.requestId).toMatch(/^[A-Za-z0-9_-]{8,64}$/)
+    expect(w.to('/api/items/arm').map(r => r.body)).toEqual([
+      { v: 1, itemId: 'rabbit_foot', armed: true },
+      { v: 1, itemId: 'insurance', armed: false },
+    ])
+    expect(logLeaks(w.logs)).toEqual([])
   },
 )

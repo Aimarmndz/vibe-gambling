@@ -3,6 +3,7 @@
 
 import type { Io } from './io.ts'
 import { PROTOCOL_VERSION, TEXT_LIMITS } from '../generated/protocol.ts'
+import type { ItemId } from '../generated/protocol.ts'
 import { callApi, debug, isUnauthorized } from './api.ts'
 import type { ApiFailure } from './api.ts'
 import { cancelLogin, startLogin } from './auth.ts'
@@ -10,31 +11,42 @@ import type { AuthState } from './auth.ts'
 import { isPlainHttpRemote, normalizeServerUrl } from './config.ts'
 import type { ModConfig } from './config.ts'
 import { formatCoins } from './format.ts'
+import { ITEM_GLYPHS, inventoryOf, isArmed, isConsumableId, resolveItem } from './items.ts'
+import type { InventoryView, PocketItem } from './items.ts'
 import {
   MAX_BET_TARGET_LENGTH,
   betBody,
   deleteAccountBody,
   emptyBody,
+  itemArmBody,
+  newRequestId,
   normalizeReferralCode,
   parseBetAmount,
   referralRedeemBody,
   settingsBody,
+  shopBuyBody,
 } from './payloads.ts'
 import type { BetAmount } from './payloads.ts'
 import {
   cleanText,
   isBet,
+  isItemArm,
   isMeta,
   isOk,
   isReferral,
   isReferralRedeem,
   isSettings,
+  isShop,
+  isShopBuy,
 } from './responses.ts'
+import type { ShopItemView } from './responses.ts'
 import {
   clearSession,
   loadSession,
   manifestDefault,
   refreshMe,
+  refreshStatus,
+  rememberInventory,
   setStatus,
   showWallet,
 } from './runtime.ts'
@@ -180,8 +192,42 @@ export async function balance(ctx: CommandContext): Promise<string> {
     coins(me.wallet.netWorth),
     rank,
   )
+  const lines = [text]
   const pending = me.wallet.pendingSpins ?? 0
-  return pending > 0 ? `${text}\n${m.pendingHint(pending, coins(pending))}` : text
+  if (pending > 0) lines.push(m.pendingHint(pending, coins(pending)))
+  const pocket = pocketLine(runtime, inventoryOf(me.inventory), 'balance')
+  if (pocket !== null) lines.push(pocket)
+  return lines.join('\n')
+}
+
+/** `🐇 Pata de Conejo™ ×36` (y "armado" en la tienda). */
+function pocketItemText(runtime: Runtime, item: PocketItem, markArmed: boolean): string {
+  const m = runtime.messages.shop
+  const count = formatCoins(item.charges, runtime.locale)
+  const text = `${ITEM_GLYPHS[item.id]} ${m.itemName(item.id)} ×${count}`
+  return markArmed && isArmed(item) ? `${text} (${m.pocketArmed})` : text
+}
+
+/**
+ * Línea del bolsillo: en `/balance`, lo armado (o lo que tienes sin armar); en `/vibe-shop`, todo
+ * con su marca de armado. null si no hay nada que contar.
+ */
+function pocketLine(
+  runtime: Runtime,
+  inventory: InventoryView | null,
+  where: 'balance' | 'shop',
+): string | null {
+  const m = runtime.messages.shop
+  const items = (inventory?.items ?? []).filter(item => item.charges > 0)
+  if (where === 'shop') {
+    if (items.length === 0) return m.pocketEmpty
+    return m.pocket(items.map(item => pocketItemText(runtime, item, true)).join(' · '))
+  }
+  if (items.length === 0) return null
+  const armed = items.filter(isArmed)
+  const list = (xs: readonly PocketItem[]) =>
+    xs.map(item => pocketItemText(runtime, item, false)).join(' · ')
+  return armed.length > 0 ? m.balanceArmed(list(armed)) : m.balancePocket(list(items))
 }
 
 // ------------------------------------------------------------------ /vibe-login, /vibe-logout
@@ -367,4 +413,203 @@ export async function redeem(ctx: CommandContext, raw: string): Promise<string> 
   const coins = (n: number): string => formatCoins(n, runtime.locale)
   const login = data.inviter === null ? null : cleanText(data.inviter.login, TEXT_LIMITS.login)
   return m.redeemed(coins(data.bonus), coins(data.wallet.balance), login)
+}
+// ------------------------------------------------------------------ /vibe-shop, /vibe-use
+
+/** Palabras que piden comprar en `/vibe-shop`. */
+const BUY_WORDS = new Set(['buy', 'comprar', 'compra', 'acheter', 'kaufen'])
+/** Palabras que desarman en `/vibe-use`. */
+const OFF_WORDS = new Set(['off', 'no', 'desarmar', 'disarm', 'aus'])
+
+/** Cifra con hasta dos decimales en el formato del idioma (la letra pequeña). */
+function decimal(runtime: Runtime, value: number): string {
+  return new Intl.NumberFormat(runtime.locale, {
+    maximumFractionDigits: 2,
+  }).format(value)
+}
+
+/** La letra pequeña de un artículo, con los números que manda el servidor. */
+function finePrintText(runtime: Runtime, item: ShopItemView): string {
+  const m = runtime.messages.shop
+  const edge = decimal(runtime, item.finePrint.minEdge)
+  if (item.kind === 'cosmetic') return m.edgeCosmetic(edge)
+  if (item.kind === 'service') {
+    return m.edgeRevert(decimal(runtime, item.finePrint.maxExpected), edge)
+  }
+  if (item.finePrint.maxExpected === 0) return m.edgePlacebo(edge)
+  return m.edge(decimal(runtime, item.finePrint.maxExpected), edge)
+}
+
+function shopLine(runtime: Runtime, item: ShopItemView): string {
+  const m = runtime.messages.shop
+  const coins = (n: number): string => formatCoins(n, runtime.locale)
+  const parts = [
+    `${ITEM_GLYPHS[item.id]} ${m.itemName(item.id)} — ${coins(item.price)} ${runtime.messages.coin}`,
+  ]
+  if (item.charges > 0) parts.push(m.charges(item.charges, coins(item.charges)))
+  if (item.kind === 'cosmetic') {
+    if (item.owned) parts.push(m.owned)
+  } else if (item.maxPerSeason !== null) {
+    parts.push(
+      item.bought >= item.maxPerSeason
+        ? m.soldOut
+        : m.bought(coins(item.bought), coins(item.maxPerSeason)),
+    )
+  }
+  parts.push(m.itemTag(item.id), finePrintText(runtime, item))
+  return parts.join(' · ')
+}
+
+/** `/vibe-shop`: catálogo, letra pequeña y bolsillo. `/vibe-shop buy <objeto>`: compra. */
+export async function shop(ctx: CommandContext, raw: string): Promise<string> {
+  const m = ctx.runtime.messages.shop
+  const [first, ...rest] = argsOf(raw)
+  if (first === undefined) return catalogue(ctx)
+  if (!BUY_WORDS.has(first.toLowerCase()) || rest.length === 0) return m.usage
+  const wanted = rest.join(' ')
+  const itemId = resolveItem(wanted)
+  if (itemId === null) return m.unknownItem(wanted.slice(0, 40))
+  return buy(ctx, itemId, rest.join(' '))
+}
+
+async function catalogue(ctx: CommandContext): Promise<string> {
+  const { io, runtime, config } = ctx
+  const m = runtime.messages.shop
+  const session = await requireSession(ctx)
+  if (session === null) return runtime.messages.notLoggedIn
+  const result = await callApi(io, {
+    baseUrl: config.serverUrl,
+    route: 'shop',
+    guard: isShop,
+    timeoutMs: config.commandTimeoutMs,
+    token: session.token,
+  })
+  if (!result.ok) return failureText(ctx, result)
+  const data = result.data.shop
+  const inventory = rememberInventory(runtime, data.inventory)
+  const lines = [m.header(cleanText(data.seasonId, 7), data.seasonEndsAt)]
+  if (inventory !== null && !inventory.enabled) lines.push(m.closedNote)
+  const goods = data.items.filter(item => item.kind !== 'cosmetic')
+  const cosmetics = data.items.filter(item => item.kind === 'cosmetic')
+  lines.push(...goods.map(item => shopLine(runtime, item)))
+  if (cosmetics.length > 0) {
+    lines.push(m.cosmetics, ...cosmetics.map(item => `  ${shopLine(runtime, item)}`))
+  }
+  lines.push(pocketLine(runtime, inventory, 'shop') ?? m.pocketEmpty)
+  const undo = inventory?.revert ?? null
+  const undoPrice = data.items.find(item => item.kind === 'service')?.price
+  if (undo !== null && undoPrice !== undefined) {
+    const coins = (n: number): string => formatCoins(n, runtime.locale)
+    lines.push(m.revertAvailable(coins(undo.refund), coins(undoPrice), undo.until))
+  }
+  if (data.canBorrow) lines.push(m.borrow)
+  lines.push(m.footer)
+  return lines.join('\n')
+}
+
+/** Motivo de un `conflict` al comprar, según lo que se compra. */
+function conflictText(runtime: Runtime, itemId: ItemId): string {
+  const m = runtime.messages.shop
+  const name = m.itemName(itemId)
+  if (isConsumableId(itemId)) return m.soldOutFor(name)
+  if (itemId.startsWith('felt_') || itemId.startsWith('chips_')) return m.alreadyOwned(name)
+  return m.nothingToRevert
+}
+
+async function buy(ctx: CommandContext, itemId: ItemId, alias: string): Promise<string> {
+  const { io, runtime, config } = ctx
+  const m = runtime.messages.shop
+  const session = await requireSession(ctx)
+  if (session === null) return runtime.messages.notLoggedIn
+  // Un id por compra: si la red falla y se reintenta, el servidor ve la misma compra y no cobra
+  // dos veces.
+  const body = shopBuyBody(itemId, newRequestId())
+  const send = () =>
+    callApi(io, {
+      baseUrl: config.serverUrl,
+      route: 'shopBuy',
+      guard: isShopBuy,
+      timeoutMs: config.commandTimeoutMs,
+      token: session.token,
+      body,
+    })
+  let result = await send()
+  if (!result.ok && (result.reason === 'timeout' || result.reason === 'offline')) {
+    debug(io, 'shop/buy: sin respuesta; reintento con el mismo requestId')
+    result = await send()
+  }
+  if (!result.ok) {
+    if (result.reason === 'http') {
+      const name = m.itemName(itemId)
+      switch (result.error) {
+        case 'insufficient_funds':
+          return m.noFunds(name)
+        case 'conflict':
+          return conflictText(runtime, itemId)
+        case 'not_found':
+          return m.closed
+        case 'rate_limited':
+          return m.cooldown
+        default:
+          break
+      }
+    }
+    return failureText(ctx, result)
+  }
+  const data = result.data
+  rememberInventory(runtime, data.inventory)
+  showWallet(io, runtime, data.wallet)
+  const coins = (n: number): string => formatCoins(n, runtime.locale)
+  const balance = coins(data.wallet.balance)
+  const name = m.itemName(data.itemId)
+  if (isConsumableId(data.itemId)) {
+    const charges = runtime.inventory?.items.find(item => item.id === data.itemId)?.charges ?? 0
+    return m.boughtConsumable({
+      name,
+      charges: coins(charges),
+      price: coins(data.price),
+      balance,
+      alias: cleanText(alias, 24),
+    })
+  }
+  if (data.itemId.startsWith('felt_') || data.itemId.startsWith('chips_')) {
+    return m.boughtCosmetic(name, coins(data.price), balance)
+  }
+  return m.boughtRevert(coins(data.price), coins(data.refund), balance)
+}
+
+/** `/vibe-use <objeto> [off]`: arma (o desarma) un consumible para la próxima tirada. */
+export async function use(ctx: CommandContext, raw: string): Promise<string> {
+  const { io, runtime, config } = ctx
+  const m = runtime.messages.shop
+  const words = argsOf(raw)
+  const last = words.at(-1)?.toLowerCase()
+  const off = last !== undefined && OFF_WORDS.has(last) && words.length > 1
+  const wanted = (off ? words.slice(0, -1) : words).join(' ')
+  if (wanted === '') return m.useUsage
+  const itemId = resolveItem(wanted)
+  if (itemId === null) return m.unknownItem(wanted.slice(0, 40))
+  const name = m.itemName(itemId)
+  if (!isConsumableId(itemId)) return m.notConsumable(name)
+  const session = await requireSession(ctx)
+  if (session === null) return runtime.messages.notLoggedIn
+  const result = await callApi(io, {
+    baseUrl: config.serverUrl,
+    route: 'itemArm',
+    guard: isItemArm,
+    timeoutMs: config.commandTimeoutMs,
+    token: session.token,
+    body: itemArmBody(itemId, !off),
+  })
+  if (!result.ok) {
+    if (result.reason === 'http' && result.error === 'conflict') return m.armConflict(name)
+    if (result.reason === 'http' && result.error === 'not_found') return m.closed
+    return failureText(ctx, result)
+  }
+  const inventory = rememberInventory(runtime, result.data.inventory)
+  // La status line enseña el glifo ya, sin esperar a la siguiente tirada.
+  refreshStatus(io, runtime)
+  if (off) return m.disarmed(name)
+  const charges = inventory?.items.find(item => item.id === itemId)?.charges ?? 0
+  return m.armed(name, formatCoins(charges, runtime.locale))
 }

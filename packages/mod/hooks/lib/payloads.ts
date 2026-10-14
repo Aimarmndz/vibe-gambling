@@ -7,7 +7,7 @@ import {
   REFERRAL_CODE_ALPHABET,
   REFERRAL_CODE_LENGTH,
 } from '../generated/protocol.ts'
-import type { Os } from '../generated/protocol.ts'
+import type { ConsumableId, ItemId, Os } from '../generated/protocol.ts'
 
 /** Tope de `durationMs` que acepta el servidor (`turnEndRequestSchema`): un día. */
 const MAX_DURATION_MS = 24 * 60 * 60 * 1000
@@ -80,6 +80,27 @@ export function deleteAccountBody(confirm: string): VersionedBody & { readonly c
 
 export function referralRedeemBody(code: string): VersionedBody & { readonly code: string } {
   return { v: PROTOCOL_VERSION, code }
+}
+
+/** Compra en la TIENDA: el objeto y el id de la compra (los reintentos repiten el mismo). */
+export function shopBuyBody(
+  itemId: ItemId,
+  requestId: string,
+): VersionedBody & { readonly itemId: ItemId; readonly requestId: string } {
+  return { v: PROTOCOL_VERSION, itemId, requestId }
+}
+
+/** Arma o desarma un consumible del bolsillo. */
+export function itemArmBody(
+  itemId: ConsumableId,
+  armed: boolean,
+): VersionedBody & { readonly itemId: ConsumableId; readonly armed: boolean } {
+  return { v: PROTOCOL_VERSION, itemId, armed: armed === true }
+}
+
+/** Id de una compra: aleatorio, del formato que pide el servidor (`[A-Za-z0-9_-]{8,64}`). */
+export function newRequestId(): string {
+  return crypto.randomUUID()
 }
 
 const REFERRAL_CODE = new RegExp(`^[${REFERRAL_CODE_ALPHABET}]{${REFERRAL_CODE_LENGTH}}$`)

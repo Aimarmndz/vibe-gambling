@@ -14,6 +14,8 @@ import { callApi, debug, isUnauthorized } from './api.ts'
 import { parseConfig } from './config.ts'
 import type { ModConfig } from './config.ts'
 import { statusText } from './format.ts'
+import { armedGlyphs, inventoryOf } from './items.ts'
+import type { InventoryView } from './items.ts'
 import { MESSAGES, localeFromEnv } from './messages.ts'
 import type { Messages } from './messages.ts'
 import { isMe } from './responses.ts'
@@ -40,6 +42,13 @@ export interface Runtime {
   lastPhrase: string | null
   /** El aviso de cómo entrar ya se enseñó en esta carga. */
   loginHintShown: boolean
+  /**
+   * Último bolsillo de la TIENDA que mandó el servidor (null: no lo sabemos o no hay tienda). Sale
+   * en la status line como glifos de lo armado.
+   */
+  inventory: InventoryView | null
+  /** Última cartera enseñada en la status line (para repintarla al armar un objeto). */
+  lastWallet: WalletView | null
 }
 
 export function createRuntime(options: PluginOptions): Runtime {
@@ -54,6 +63,8 @@ export function createRuntime(options: PluginOptions): Runtime {
     isInteractive: false,
     lastPhrase: null,
     loginHintShown: false,
+    inventory: null,
+    lastWallet: null,
   }
 }
 
@@ -149,7 +160,23 @@ export function setStatus(io: Io, text: string | undefined): void {
 }
 
 export function showWallet(io: Io, runtime: Runtime, wallet: WalletView): void {
-  setStatus(io, statusText(wallet, runtime.locale, runtime.messages))
+  runtime.lastWallet = wallet
+  setStatus(
+    io,
+    statusText(wallet, runtime.locale, runtime.messages, armedGlyphs(runtime.inventory)),
+  )
+}
+
+/** Repinta la status line con la última cartera (p. ej. tras armar un objeto). */
+export function refreshStatus(io: Io, runtime: Runtime): void {
+  if (runtime.lastWallet !== null) showWallet(io, runtime, runtime.lastWallet)
+}
+
+/** Guarda el bolsillo que manda el servidor (si lo manda y tiene la forma esperada). */
+export function rememberInventory(runtime: Runtime, raw: unknown): InventoryView | null {
+  const inventory = inventoryOf(raw)
+  if (inventory !== null) runtime.inventory = inventory
+  return inventory
 }
 
 export function toast(io: Io, text: string): void {
@@ -179,6 +206,8 @@ export async function refreshMe(
     token: session.token,
   })
   if (result.ok) {
+    // Un servidor sin tienda no manda el bolsillo: entonces no hay nada armado que enseñar.
+    runtime.inventory = inventoryOf(result.data.inventory)
     showWallet(io, runtime, result.data.wallet)
     return result.data
   }
