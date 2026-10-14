@@ -6,7 +6,9 @@
 import { expect, test } from '@playwright/test'
 import {
   API_ROUTES,
+  PROTOCOL_VERSION,
   meResponseSchema,
+  shopBuyResponseSchema,
   spinAllStopReason,
   forLocale,
   webConfigSchema,
@@ -353,4 +355,81 @@ test('landing con el ranking y página de privacidad', async ({ page }) => {
     instance.contact.url,
   )
   await shot(page, 'privacy', true)
+})
+test('TIENDA de verdad: comprar y armar el seguro, y que pague la mitad de lo perdido', async ({
+  page,
+  request,
+}) => {
+  const token = await freshLogin(request)
+  const headers = { authorization: `Bearer ${token}` }
+  const web = webConfigSchema.parse(await (await request.get('/config.json')).json())
+  const items = web.game.items!
+  const me = async () =>
+    meResponseSchema.parse(await (await request.get(API_ROUTES.me.path, { headers })).json())
+  const before = (await me()).wallet.balance
+
+  await page.addInitScript(() => localStorage.setItem('vibe-gambling:tip-seen', '1'))
+  await page.goto(`${await linkUrl(request, token)}&noboot&nogpuwarn`)
+  await page.waitForFunction(
+    () => ((window as unknown as { __vg?: Hooks }).__vg?.state().user ?? null) !== null,
+  )
+  if ((await screens(page)).includes('pendingNotice')) await page.keyboard.press('o')
+
+  // Comprar (idempotente: el reintento con el mismo requestId no cobra otra vez) y armar.
+  const requestId = `e2e-buy-${Date.now().toString(36)}`
+  const buy = async () =>
+    shopBuyResponseSchema.parse(
+      await (
+        await request.post(API_ROUTES.shopBuy.path, {
+          headers,
+          data: { v: PROTOCOL_VERSION, itemId: 'insurance', requestId },
+        })
+      ).json(),
+    )
+  const bought = await buy()
+  expect(bought).toMatchObject({ fresh: true, price: items.insurance.price })
+  expect((await buy()).fresh).toBe(false)
+  expect(bought.wallet.balance).toBe(before - items.insurance.price)
+  const armed = await request.post(API_ROUTES.itemArm.path, {
+    headers,
+    data: { v: PROTOCOL_VERSION, itemId: 'insurance', armed: true },
+  })
+  expect(armed.ok()).toBe(true)
+  // La ventana se entera (mensaje `inventory`): el seguro, armado, en el HUD.
+  await page.waitForFunction(
+    () =>
+      (window as unknown as { __vg: Hooks }).__vg
+        .state()
+        .shownInventory?.items.some(i => i.id === 'insurance' && i.armed) ?? false,
+  )
+
+  // 100 al rojo y una ronda de verdad: si pierde, el seguro devuelve r × 100 (aparte del neto).
+  const stake = 100
+  const bet = await request.post(API_ROUTES.bet.path, {
+    headers,
+    data: { v: PROTOCOL_VERSION, amount: stake, target: 'red' },
+  })
+  expect(bet.ok()).toBe(true)
+  const end = await round(page, request, token)
+  if (end.status !== 'resolved') throw new Error('sin ronda')
+  const refund = end.round.items?.find(i => i.itemId === 'insurance')
+  expect(refund?.kind).toBe('refund')
+  const lost = end.round.net < 0
+  expect(refund?.amount).toBe(
+    lost ? Math.floor(items.insurance.refundRate * Math.min(stake, items.insurance.coverCap)) : 0,
+  )
+  expect(end.round.itemNet).toBe(refund?.amount)
+  expect(end.wallet.balance).toBe(
+    before - items.insurance.price - stake + end.round.returned + (refund?.amount ?? 0),
+  )
+  // La ventana lo cuenta y gasta la carga.
+  if (lost) await expect(page.locator('#live')).toContainText(`SEGURO: +${refund?.amount}`)
+  await settle(page)
+  const left = await page.evaluate(
+    () =>
+      (window as unknown as { __vg: Hooks }).__vg
+        .state()
+        .shownInventory?.items.find(i => i.id === 'insurance')?.charges,
+  )
+  expect(left).toBe(items.insurance.charges - 1)
 })

@@ -188,11 +188,11 @@ test('capturas de cada pantalla del menú (demo, temporada de ejemplo)', async (
     'ArrowDown',
     'ArrowDown',
   ])
-  await capture(page, ['ArrowDown', 'ArrowLeft', 'ArrowLeft'], 'howTo', 'menu-help', [
+  await capture(page, ['ArrowDown', 'ArrowLeft', 'ArrowLeft', 'ArrowLeft'], 'howTo', 'menu-help', [
     'ArrowRight',
     'ArrowRight',
   ])
-  await capture(page, ['ArrowDown', 'ArrowLeft'], 'credits', 'menu-credits')
+  await capture(page, ['ArrowDown', 'ArrowLeft', 'ArrowLeft'], 'credits', 'menu-credits')
 
   // GIRAR TODAS con las pendientes de ejemplo: progreso y últimas sobre la ruleta.
   await openTile(page, ['ArrowRight'], 'pending')
