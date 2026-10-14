@@ -2,8 +2,10 @@
 // Sesiones propias, enlaces de un solo uso y login con GitHub (Device Flow).
 // Nunca se guarda un token en claro: solo su SHA-256. El token de GitHub ni siquiera se guarda.
 import type {
+  ChipSkinId,
   DevicePollResponse,
   DeviceStartResponse,
+  FeltId,
   Locale,
   SelfUser,
 } from '@vibe-gambling/shared'
@@ -290,13 +292,21 @@ export class AuthService {
 
   async updateSettings(
     userId: string,
-    changes: { hidden?: boolean | undefined; locale?: Locale | null | undefined },
+    changes: {
+      hidden?: boolean | undefined
+      locale?: Locale | null | undefined
+      /** Cosméticos: quien llama ya ha comprobado que los tiene (`ItemService.assertCanEquip`). */
+      felt?: FeltId | undefined
+      chipSkin?: ChipSkinId | undefined
+    },
   ): Promise<SelfUser> {
-    const set: Partial<Pick<UserRow, 'hidden' | 'locale' | 'updatedAt'>> = {
+    const set: Partial<Pick<UserRow, 'hidden' | 'locale' | 'felt' | 'chipSkin' | 'updatedAt'>> = {
       updatedAt: this.#d.clock.now(),
     }
     if (changes.hidden !== undefined) set.hidden = changes.hidden
     if (changes.locale !== undefined) set.locale = changes.locale
+    if (changes.felt !== undefined) set.felt = changes.felt
+    if (changes.chipSkin !== undefined) set.chipSkin = changes.chipSkin
     const [user] = await this.#d.db.update(users).set(set).where(eq(users.id, userId)).returning()
     if (!user) throw new AppError('unauthorized', 'This account no longer exists.')
     const view = this.#d.views.selfUser(user)

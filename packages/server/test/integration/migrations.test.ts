@@ -157,7 +157,7 @@ describe('migraciones de la v2 sobre datos de la v1', () => {
   let before: Record<string, number>
   let t: TestApp
 
-  it('0001 → 0005 se aplican sin perder ninguna fila ni ningún valor', async () => {
+  it('0001 → 0006 se aplican sin perder ninguna fila ni ningún valor', async () => {
     const sql = handle.sql
     before = await countAll(sql)
     const snapshot = await sql`
@@ -175,7 +175,7 @@ describe('migraciones de la v2 sobre datos de la v1', () => {
     ).toEqual(snapshot)
     const applied = await sql<{ n: number }[]>`
       select count(*)::int as n from drizzle.__drizzle_migrations`
-    expect(applied[0]!.n).toBe(6)
+    expect(applied[0]!.n).toBe(7)
 
     // Columnas nuevas vacías en las filas viejas; los idiomas guardados siguen ahí.
     const [cols] = await sql<{ n: number }[]>`
@@ -204,6 +204,15 @@ describe('migraciones de la v2 sobre datos de la v1', () => {
     expect(coded!.n).toBe(0)
     const [redeemed] = await sql<{ n: number }[]>`select count(*)::int as n from referrals`
     expect(redeemed!.n).toBe(0)
+    // 0006: sin compras ni bolsillo; las tiradas viejas no tienen objetos (item_net a null), las
+    // carteras empiezan sin asterisco y todos llevan el tapete y las fichas clásicos (null).
+    const [shop] = await sql<{ n: number }[]>`
+      select (select count(*) from item_purchases) + (select count(*) from inventory)
+        + (select count(*) from cosmetics_owned) + (select count(*) from round_item_effects)
+        + (select count(*) from rounds where item_net is not null)
+        + (select count(*) from wallets where streak_asterisk)
+        + (select count(*) from users where felt is not null or chip_skin is not null) as n`
+    expect(Number(shop!.n)).toBe(0)
 
     // Los checks nuevos están y funcionan.
     await expect(sql`update users set locale = 'xx_YY' where id = ${USER_C}`).rejects.toThrow(
@@ -218,6 +227,10 @@ describe('migraciones de la v2 sobre datos de la v1', () => {
     await expect(sql`update users set referral_code = 'abc' where id = ${USER_C}`).rejects.toThrow(
       /users_referral_code_check/,
     )
+    await expect(
+      sql`insert into inventory (user_id, season_id, item_id, charges, updated_at)
+          values (${USER_C}, '2026-09', 'oracle', -1, now())`,
+    ).rejects.toThrow(/inventory_charges_check/)
   })
 
   it('el servidor de la v2 trabaja con las filas de la v1', async () => {

@@ -6,7 +6,7 @@
 // - Monedas en `bigint` (modo number: siempre dentro de Number.MAX_SAFE_INTEGER por el tope de deuda).
 // - Todo lo que cuelga de un usuario se borra en cascada al borrar la cuenta.
 // - Los tokens (sesión, enlace, polling) solo se guardan como SHA-256 en hexadecimal.
-import type { Bet } from '@vibe-gambling/shared'
+import type { Bet, ConsumableId, ItemEffectKind } from '@vibe-gambling/shared'
 import { sql } from 'drizzle-orm'
 import {
   bigint,
@@ -53,6 +53,12 @@ export const users = pgTable(
      * nada del usuario. Formato en `game/referral.ts` de shared.
      */
     referralCode: text('referral_code'),
+    /**
+     * Tapete y fichas equipados (cosméticos de la TIENDA); null = los clásicos. Qué ids existen lo
+     * valida zod contra el catálogo de shared (un cosmético nuevo no necesita migración).
+     */
+    felt: text('felt'),
+    chipSkin: text('chip_skin'),
     createdAt: ts('created_at').notNull().defaultNow(),
     updatedAt: ts('updated_at').notNull().defaultNow(),
   },
@@ -173,6 +179,8 @@ export const wallets = pgTable(
      * Solo se enseña una vez por temporada; null si aún no ha pasado.
      */
     brokeAt: ts('broke_at'),
+    /** La racha ganadora sigue viva gracias al Casco de Racha (se enseña como `7*`). */
+    streakAsterisk: boolean('streak_asterisk').notNull().default(false),
     createdAt: ts('created_at').notNull().defaultNow(),
     updatedAt: ts('updated_at').notNull().defaultNow(),
   },
@@ -259,6 +267,11 @@ export const rounds = pgTable(
     netWorthAfter: coins('net_worth_after'),
     /** Si en esta tirada el patrimonio cayó a 0 o menos por primera vez en la temporada. */
     wentBroke: boolean('went_broke'),
+    /**
+     * Lo que pagaron los objetos de la TIENDA en esta tirada (seguro, turbo), aparte de `net` (que
+     * es siempre el neto oficial de la ruleta). null en las tiradas de antes de la tienda.
+     */
+    itemNet: coins('item_net'),
   },
   t => [
     // Una sola ronda abierta por usuario, garantizado por la base de datos.
@@ -400,6 +413,105 @@ export const referrals = pgTable(
   ],
 )
 
+// ---------------------------------------------------------------- TIENDA
+
+/**
+ * Compras de la TIENDA (consumibles, `git revert` y cosméticos). Se conservan al cerrar la
+ * temporada: alimentan el Placebómetro y los topes por temporada. `request_id` lo genera quien
+ * compra: un reintento con el mismo no compra dos veces.
+ */
+export const itemPurchases = pgTable(
+  'item_purchases',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    seasonId: text('season_id')
+      .notNull()
+      .references(() => seasons.id),
+    itemId: text('item_id').notNull(),
+    price: coins('price').notNull(),
+    /** Con qué se pagó: el saldo (la deuda queda para la refinanciación de la fase B). */
+    paidWith: text('paid_with').$type<'balance' | 'debt'>().notNull().default('balance'),
+    /** Solo `git revert`: lo que devolvió y la ronda que revirtió. */
+    refund: coins('refund').notNull().default(0),
+    roundId: uuid('round_id').references(() => rounds.id, { onDelete: 'set null' }),
+    requestId: text('request_id').notNull(),
+    createdAt: ts('created_at').notNull(),
+  },
+  t => [
+    uniqueIndex('item_purchases_request_key').on(t.userId, t.requestId),
+    index('item_purchases_user_season_item_idx').on(t.userId, t.seasonId, t.itemId),
+    index('item_purchases_user_created_idx').on(t.userId, t.createdAt),
+    check('item_purchases_price_check', sql`${t.price} > 0`),
+    check('item_purchases_refund_check', sql`${t.refund} >= 0`),
+    check('item_purchases_paid_with_check', sql`${t.paidWith} in ('balance', 'debt')`),
+  ],
+)
+
+/**
+ * Bolsillo: consumibles de un usuario en una temporada (caducan con ella: el cierre de temporada
+ * borra sus filas). `state` queda para los objetos con memoria de la fase B (martingala,
+ * refinanciación).
+ */
+export const inventory = pgTable(
+  'inventory',
+  {
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    seasonId: text('season_id')
+      .notNull()
+      .references(() => seasons.id),
+    itemId: text('item_id').$type<ConsumableId>().notNull(),
+    charges: integer('charges').notNull(),
+    armed: boolean('armed').notNull().default(false),
+    state: jsonb('state')
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    updatedAt: ts('updated_at').notNull(),
+  },
+  t => [
+    primaryKey({ columns: [t.userId, t.seasonId, t.itemId] }),
+    check('inventory_charges_check', sql`${t.charges} >= 0`),
+  ],
+)
+
+/** Cosméticos comprados: para siempre (sobreviven a las temporadas). */
+export const cosmeticsOwned = pgTable(
+  'cosmetics_owned',
+  {
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    itemId: text('item_id').notNull(),
+    acquiredAt: ts('acquired_at').notNull(),
+  },
+  t => [primaryKey({ columns: [t.userId, t.itemId] })],
+)
+
+/**
+ * Lo que hizo cada objeto en una tirada: una línea de la pantalla de resultado. Una por objeto y
+ * tirada (así tampoco se puede revertir dos veces la misma).
+ */
+export const roundItemEffects = pgTable(
+  'round_item_effects',
+  {
+    roundId: uuid('round_id')
+      .notNull()
+      .references(() => rounds.id, { onDelete: 'cascade' }),
+    itemId: text('item_id').notNull(),
+    kind: text('kind').$type<ItemEffectKind>().notNull(),
+    /** Monedas que pagó el objeto (con signo). */
+    amount: coins('amount').notNull(),
+    /** Solo el oráculo: su predicción y si acertó. */
+    detail: jsonb('detail').$type<{ prediction?: number; hit?: boolean }>(),
+  },
+  t => [primaryKey({ columns: [t.roundId, t.itemId] })],
+)
+
 // ---------------------------------------------------------------- Salón de la Ruina
 
 export const hallOfRuin = pgTable(
@@ -428,3 +540,6 @@ export type RoundRow = typeof rounds.$inferSelect
 export type TurnRow = typeof turns.$inferSelect
 export type AchievementRow = typeof achievements.$inferSelect
 export type ReferralRow = typeof referrals.$inferSelect
+export type ItemPurchaseRow = typeof itemPurchases.$inferSelect
+export type InventoryRow = typeof inventory.$inferSelect
+export type RoundItemEffectRow = typeof roundItemEffects.$inferSelect

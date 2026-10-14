@@ -16,10 +16,11 @@ import {
   dayAt,
   minBet,
   netWorth,
-  nextStreak,
+  planItems,
   queueOutcome,
   resolveBets,
   seasonAt,
+  settleItems,
   totalStake,
 } from '@vibe-gambling/shared'
 import type {
@@ -29,6 +30,8 @@ import type {
   ColorStreak,
   BetSelection,
   GameConfig,
+  Inventory,
+  ItemId,
   OpenRound,
   ResolvedRound,
   SeasonBounds,
@@ -42,12 +45,22 @@ import type {
 import { and, asc, count, desc, eq, gte, isNull, lt, max } from 'drizzle-orm'
 
 import type { Database, Executor, Tx } from '../db/client.ts'
-import { bets, loans, rounds, seasons, turns, users, wallets } from '../db/schema.ts'
+import {
+  bets,
+  loans,
+  roundItemEffects,
+  rounds,
+  seasons,
+  turns,
+  users,
+  wallets,
+} from '../db/schema.ts'
 import type { RoundRow, UserRow, WalletRow } from '../db/schema.ts'
 import type { Clock } from '../lib/clock.ts'
 import { AppError } from '../lib/errors.ts'
 import type { Rng } from '../lib/rng.ts'
 import type { AchievementService } from './achievements.ts'
+import type { ItemService } from './items.ts'
 import type { Notifier } from './notifier.ts'
 import type { Views } from './views.ts'
 
@@ -64,6 +77,8 @@ export interface GameDeps {
   views: Views
   notifier: Notifier
   achievements: AchievementService
+  /** TIENDA: el bolsillo que se lee y se gasta dentro de la tirada. */
+  items: ItemService
   logger: GameLogger
   /**
    * Después de cada tirada nueva (ya confirmada y anunciada): el programa de afiliados mira si el
@@ -79,6 +94,8 @@ export interface GameState {
   round: OpenRound | null
   lastRound: ResolvedRound | null
   achievements: Achievement[]
+  /** Bolsillo y armario de la TIENDA. */
+  inventory: Inventory
 }
 
 type Outbox = Array<{ userId: string; message: ServerMessage }>
@@ -124,6 +141,8 @@ interface Resolution {
   fresh: boolean
   /** Logros desbloqueados por esta tirada (se anuncian después de `round.resolved`). */
   unlocked: Achievement[]
+  /** Si se gastó alguna carga de la TIENDA (se anuncia `inventory` tras `round.resolved`). */
+  consumed: boolean
   /** Tiradas pendientes después de tirarla (null en un reintento: se cuentan aparte). */
   pending: number | null
   /** La ronda ya vista por el protocolo (null en un reintento: se lee de la base de datos). */
@@ -319,11 +338,10 @@ export class GameService {
       this.#flush(outbox)
       return { v: V, status: 'queued', dropped: outcome.dropped, wallet }
     }
-    const resolved =
-      outcome.view ??
-      this.#d.views.resolvedRound(outcome.round, await this.#betsOf(this.#d.db, outcome.round.id))
+    const resolved = outcome.view ?? (await this.#roundView(this.#d.db, outcome.round))
     if (outcome.fresh) {
       outbox.push({ userId, message: { v: V, type: 'round.resolved', round: resolved, wallet } })
+      await this.#pushConsumed(outbox, userId, outcome.consumed, wallet)
       pushUnlocked(outbox, userId, outcome.unlocked)
     }
     this.#flush(outbox)
@@ -365,6 +383,7 @@ export class GameService {
           fresh: false,
           pending: await pendingNow(),
           unlocked: [],
+          consumed: false,
         }
       }
 
@@ -418,6 +437,7 @@ export class GameService {
         fresh: true,
         pending: spun.pending ?? (await pendingNow()),
         unlocked: spun.unlocked,
+        consumed: spun.consumed,
       }
     })
 
@@ -432,9 +452,7 @@ export class GameService {
         `Daily spin limit reached. The table reopens at ${reopensAt}.`,
       )
     }
-    const round =
-      result.view ??
-      this.#d.views.resolvedRound(result.round, await this.#betsOf(this.#d.db, result.round.id))
+    const round = result.view ?? (await this.#roundView(this.#d.db, result.round))
     const wallet = this.#d.views.wallet(result.wallet, result.wallet.seasonId, result.pending)
     if (result.fresh) {
       outbox.push({
@@ -445,6 +463,7 @@ export class GameService {
         userId,
         message: { v: V, type: 'round.resolved', round, wallet, requestId: opts.requestId },
       })
+      await this.#pushConsumed(outbox, userId, result.consumed, wallet)
       pushUnlocked(outbox, userId, result.unlocked)
     }
     this.#flush(outbox)
@@ -607,7 +626,8 @@ export class GameService {
       wallet: this.#d.views.wallet(walletRow, season.id, pending),
       slip: this.#d.views.slip(walletRow?.slip),
       round: open && !this.#isStale(open, season.id, now) ? this.#d.views.openRound(open) : null,
-      lastRound: last ? this.#d.views.resolvedRound(last, await this.#betsOf(db, last.id)) : null,
+      lastRound: last ? await this.#roundView(db, last) : null,
+      inventory: await this.#d.items.inventoryView(db, userId, season.id),
     }
   }
 
@@ -814,6 +834,8 @@ export class GameService {
       wasBankrupt: boolean
       /** Cuándo terminó el turno de la tirada si no es ahora (tirada pendiente). */
       turnAt?: Date | null
+      /** La racha ganadora lleva asterisco (la salvó el Casco de Racha). */
+      streakAsterisk?: boolean
     },
   ): Promise<Achievement[]> {
     const ach = this.#d.achievements
@@ -838,6 +860,7 @@ export class GameService {
         previousColorStreak: ev.round?.previousColorStreak ?? null,
         // Solo se cuenta cuando sale un 0 (el único momento en que puede cambiar el logro).
         lifetimeZeros: zero ? await ach.lifetimeZeros(tx, wallet.userId) : 0,
+        streakAsterisk: ev.streakAsterisk ?? wallet.streakAsterisk,
       },
     })
   }
@@ -864,12 +887,34 @@ export class GameService {
       balance: wallet.balance,
       cfg,
     })
-    const result = this.#d.rng.pocket()
     const multiplier = req.gitPushOk ? cfg.jackpot.gitPushMultiplier : 1
+    // TIENDA, antes del número: qué objetos armados actúan (y gastan carga) se decide aquí, con el
+    // boleto final y el jackpot ya sabidos. El bolsillo se lee con la cartera ya bloqueada.
+    const inventory = cfg.items.enabled
+      ? await this.#d.items.entries(tx, wallet.userId, wallet.seasonId, true)
+      : []
+    const plan = planItems(inventory, choice.bets, multiplier, cfg.items)
+    // El oráculo "predice" con otra tirada independiente, justo antes de la del resultado. Las 37
+    // casillas siguen siendo uniformes: el número de verdad sale de su propia `pocket()`.
+    const prediction = plan.oracle ? this.#d.rng.pocket() : null
+    const result = this.#d.rng.pocket()
     const outcome = resolveBets(choice.bets, result, multiplier)
+    // Después del número: lo que pagan los objetos (aparte de la ruleta), la racha con el casco y
+    // las cargas gastadas.
+    const settled = settleItems(
+      {
+        plan,
+        outcome,
+        jackpotMultiplier: multiplier,
+        prediction,
+        current: wallet.currentStreak,
+        asterisk: wallet.streakAsterisk,
+      },
+      cfg.items,
+    )
     const debt = accrueInterest(wallet.debt, cfg)
-    const balance = wallet.balance - choice.charge + outcome.returned
-    const streak = nextStreak(wallet.currentStreak, choice.bets.length > 0 ? outcome.net : null)
+    const balance = wallet.balance - choice.charge + outcome.returned + settled.itemNet
+    const streak = settled.streak
 
     // Racha de color sobre las últimas tiradas del propio usuario (de la más antigua a la última).
     const history = await tx
@@ -919,9 +964,22 @@ export class GameService {
         streakAfter: streak,
         netWorthAfter: worth,
         wentBroke,
+        itemNet: settled.itemNet,
       })
       .where(eq(rounds.id, round.id))
       .returning()
+    if (settled.effects.length > 0) {
+      await tx.insert(roundItemEffects).values(
+        settled.effects.map(e => ({
+          roundId: round.id,
+          itemId: e.itemId,
+          kind: e.kind,
+          amount: e.amount,
+          detail: e.prediction === undefined ? null : { prediction: e.prediction, hit: e.hit },
+        })),
+      )
+    }
+    await this.#d.items.spend(tx, wallet.userId, wallet.seasonId, settled.spent, now)
     if (outcome.outcomes.length > 0) {
       await tx.insert(bets).values(
         outcome.outcomes.map((o, position) => ({
@@ -944,6 +1002,7 @@ export class GameService {
         spins: wallet.spins + 1,
         currentStreak: streak,
         bestStreak: bestStreak(wallet.bestStreak, streak),
+        streakAsterisk: settled.streakAsterisk,
         slip: choice.source === 'slip' ? [] : wallet.slip,
         brokeAt: wentBroke ? now : wallet.brokeAt,
         updatedAt: now,
@@ -962,6 +1021,7 @@ export class GameService {
         won: o.won,
         payout: o.payout,
       })),
+      settled.effects,
     )
     const pending = await this.#pendingCount(tx, wallet.userId, wallet.seasonId)
     const unlocked = await this.#unlock(tx, walletRow, now, {
@@ -969,15 +1029,18 @@ export class GameService {
       round: {
         round: {
           result,
-          net: outcome.net,
+          // Lo que siente el jugador: la ruleta más lo que pagan los objetos.
+          net: outcome.net + settled.itemNet,
           staked: outcome.staked,
           jackpot: outcome.jackpot,
           testFailed: req.testFailed,
           bets: view.bets,
           spectacle: must(view.spectacle),
+          items: settled.effects,
         },
         previousColorStreak,
       },
+      streakAsterisk: settled.streakAsterisk,
       pending,
       wasBankrupt: wallet.brokeAt !== null,
       // Una tirada pendiente se guardó al terminar su turno: "Push el viernes" mira ese día.
@@ -989,9 +1052,48 @@ export class GameService {
       wallet: walletRow,
       fresh: true,
       unlocked,
+      consumed: settled.spent.length > 0,
       pending,
       view,
     }
+  }
+
+  /** Ronda resuelta leída de la base de datos, con sus fichas y lo que hicieron los objetos. */
+  async #roundView(db: Executor, round: RoundRow): Promise<ResolvedRound> {
+    const effects = await db
+      .select()
+      .from(roundItemEffects)
+      .where(eq(roundItemEffects.roundId, round.id))
+    return this.#d.views.resolvedRound(
+      round,
+      await this.#betsOf(db, round.id),
+      effects.map(e => ({
+        itemId: e.itemId as ItemId,
+        kind: e.kind,
+        amount: e.amount,
+        ...(e.detail?.prediction === undefined
+          ? {}
+          : { prediction: e.detail.prediction, hit: e.detail.hit === true }),
+      })),
+    )
+  }
+
+  /**
+   * Tras una ronda que gastó cargas de la TIENDA, el bolsillo nuevo a todas las ventanas: va
+   * justo después de `round.resolved` y antes de los logros.
+   */
+  async #pushConsumed(
+    outbox: Outbox,
+    userId: string,
+    consumed: boolean,
+    wallet: Wallet,
+  ): Promise<void> {
+    if (!consumed) return
+    const inventory = await this.#d.items.inventoryView(this.#d.db, userId, wallet.seasonId)
+    outbox.push({
+      userId,
+      message: { v: V, type: 'inventory', event: 'consumed', inventory, wallet },
+    })
   }
 
   async #betsOf(db: Executor, roundId: string) {
@@ -1028,6 +1130,7 @@ export function replayTurnEnd(round: RoundRow, turnId: string, wallet: WalletRow
       wallet,
       fresh: false,
       unlocked: [],
+      consumed: false,
       pending: null,
       view: null,
     }

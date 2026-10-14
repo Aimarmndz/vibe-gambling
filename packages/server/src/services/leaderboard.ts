@@ -116,6 +116,7 @@ export class LeaderboardService {
         spins: r.wallet.spins,
         currentStreak: r.wallet.currentStreak,
         bestStreak: r.wallet.bestStreak,
+        streakAsterisk: r.wallet.streakAsterisk,
       })),
     }
   }

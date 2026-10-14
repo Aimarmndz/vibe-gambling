@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Construcción de todos los servicios a partir de la configuración y sus dependencias.
+import { seasonAt } from '@vibe-gambling/shared'
+
 import type { Config } from '../config.ts'
 import type { Database } from '../db/client.ts'
 import type { Clock } from '../lib/clock.ts'
@@ -10,6 +12,7 @@ import { AuthService } from './auth.ts'
 import { GameService } from './game.ts'
 import type { GameLogger } from './game.ts'
 import { GitHubClient } from './github.ts'
+import { ItemService } from './items.ts'
 import { LeaderboardService } from './leaderboard.ts'
 import { ReferralService } from './referrals.ts'
 import type { Notifier } from './notifier.ts'
@@ -26,6 +29,7 @@ export interface Services {
   seasons: SeasonService
   stats: StatsService
   referrals: ReferralService
+  items: ItemService
 }
 
 export interface ServiceDeps {
@@ -57,6 +61,15 @@ export function createServices(deps: ServiceDeps): Services {
   const settleReferral = async (userId: string): Promise<void> => {
     await referrals?.settle(userId)
   }
+  const items = new ItemService({
+    db,
+    game,
+    clock,
+    views,
+    notifier,
+    achievements,
+    currentSeason: now => seasonAt(now, game.season.timeZone, game.season.startDay),
+  })
   const gameService = new GameService({
     db,
     game,
@@ -65,6 +78,7 @@ export function createServices(deps: ServiceDeps): Services {
     views,
     notifier,
     achievements,
+    items,
     logger: deps.logger,
     afterSpin: settleReferral,
   })
@@ -97,6 +111,7 @@ export function createServices(deps: ServiceDeps): Services {
     clock,
     notifier,
     gameService,
+    items,
     auth,
     logger: deps.logger,
     intervalMs: env.SEASON_CHECK_INTERVAL_MS,
@@ -111,5 +126,5 @@ export function createServices(deps: ServiceDeps): Services {
     publicUrl: env.PUBLIC_URL,
     generateCode: deps.generateReferralCode ?? generateReferralCode,
   })
-  return { views, game: gameService, auth, leaderboard, seasons, stats, referrals }
+  return { views, game: gameService, auth, leaderboard, seasons, stats, referrals, items }
 }

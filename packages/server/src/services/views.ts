@@ -1,8 +1,19 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Traduce filas de la base de datos a los objetos del protocolo de `shared`.
-import { colorOf, localeSchema, netWorth, spectacleOf, totalStake } from '@vibe-gambling/shared'
+import {
+  DEFAULT_CHIP_SKIN,
+  DEFAULT_FELT,
+  chipSkinIdSchema,
+  colorOf,
+  feltIdSchema,
+  localeSchema,
+  netWorth,
+  spectacleOf,
+  totalStake,
+} from '@vibe-gambling/shared'
 import type {
   Bet,
+  ItemEffect,
   GameConfig,
   OpenRound,
   PublicUser,
@@ -57,6 +68,9 @@ export class Views {
       locale: localeSchema.safeParse(user.locale).data ?? null,
       createdAt: user.createdAt.toISOString(),
       newAccount: this.#newAccount(user),
+      // Un cosmético que ya no está en el catálogo se trata como el clásico.
+      felt: feltIdSchema.safeParse(user.felt).data ?? DEFAULT_FELT,
+      chipSkin: chipSkinIdSchema.safeParse(user.chipSkin).data ?? DEFAULT_CHIP_SKIN,
     }
   }
 
@@ -84,6 +98,7 @@ export class Views {
         currentStreak: 0,
         bestStreak: 0,
         pendingSpins,
+        streakAsterisk: false,
       }
     }
     return {
@@ -96,6 +111,7 @@ export class Views {
       currentStreak: row.currentStreak,
       bestStreak: row.bestStreak,
       pendingSpins,
+      streakAsterisk: row.streakAsterisk,
     }
   }
 
@@ -108,8 +124,15 @@ export class Views {
     return { roundId: round.id, openedAt: round.openedAt.toISOString() }
   }
 
-  /** Ronda resuelta. Lanza si la fila no está completa (sería un bug, no un caso esperado). */
-  resolvedRound(round: RoundRow, bets: readonly BetResultRow[]): ResolvedRound {
+  /**
+   * Ronda resuelta, con lo que hicieron los objetos de la TIENDA. Lanza si la fila no está completa
+   * (sería un bug, no un caso esperado).
+   */
+  resolvedRound(
+    round: RoundRow,
+    bets: readonly BetResultRow[],
+    items: readonly ItemEffect[] = [],
+  ): ResolvedRound {
     const {
       resolvedAt,
       result,
@@ -145,6 +168,8 @@ export class Views {
       won: b.won,
       payout: b.payout,
     }))
+    // Lo que siente el jugador (saldo, espectáculo): la ruleta más lo que pagan los objetos.
+    const itemNet = round.itemNet ?? 0
     const colorStreak =
       round.colorStreakColor !== null && round.colorStreakCount !== null
         ? { color: round.colorStreakColor, count: round.colorStreakCount }
@@ -168,10 +193,12 @@ export class Views {
       revealAt: revealAt.toISOString(),
       // Las rondas anteriores a la v2 no guardaron la racha ni la bancarrota: sin fuego ni aviso.
       spectacle: spectacleOf(
-        { result, net, staked, jackpot, colorStreak, bets: betViews },
+        { result, net: net + itemNet, staked, jackpot, colorStreak, bets: betViews },
         { streak: round.streakAfter ?? 0, bankrupt: round.wentBroke ?? false },
         this.#spectacle,
       ),
+      itemNet,
+      items: items.map(e => ({ ...e })),
     }
   }
 }

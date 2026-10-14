@@ -12,6 +12,8 @@ import {
   deviceStartRequestSchema,
   deviceStartResponseSchema,
   hallOfRuinResponseSchema,
+  itemArmRequestSchema,
+  itemArmResponseSchema,
   leaderboardQuerySchema,
   leaderboardResponseSchema,
   linkRequestSchema,
@@ -30,6 +32,9 @@ import {
   referralResponseSchema,
   settingsRequestSchema,
   settingsResponseSchema,
+  shopBuyRequestSchema,
+  shopBuyResponseSchema,
+  shopResponseSchema,
   turnEndRequestSchema,
   turnEndResponseSchema,
   turnStartRequestSchema,
@@ -218,6 +223,7 @@ export async function apiRoutes(parent: FastifyInstance, options: ApiOptions): P
         round: state.round,
         brokeRank,
         achievements: state.achievements,
+        inventory: state.inventory,
       }
     },
   })
@@ -231,10 +237,10 @@ export async function apiRoutes(parent: FastifyInstance, options: ApiOptions): P
       url: route.path,
       schema: { body: settingsRequestSchema, response: { 200: settingsResponseSchema } },
       handler: async request => {
-        const user = await services.auth.updateSettings(authOf(request).user.id, {
-          hidden: request.body.hidden,
-          locale: request.body.locale,
-        })
+        const userId = authOf(request).user.id
+        const { hidden, locale, felt, chipSkin } = request.body
+        await services.items.assertCanEquip(userId, { felt, chipSkin })
+        const user = await services.auth.updateSettings(userId, { hidden, locale, felt, chipSkin })
         return { v: V, user }
       },
     })
@@ -294,6 +300,40 @@ export async function apiRoutes(parent: FastifyInstance, options: ApiOptions): P
     ...at(API_ROUTES.referralRedeem),
     schema: { body: referralRedeemRequestSchema, response: { 200: referralRedeemResponseSchema } },
     handler: async request => services.referrals.redeem(authOf(request).user.id, request.body.code),
+  })
+
+  // ---------------------------------------------------------------- TIENDA
+
+  app.route({
+    ...at(API_ROUTES.shop),
+    schema: { response: { 200: shopResponseSchema } },
+    handler: async request => ({ v: V, shop: await services.items.shop(authOf(request).user.id) }),
+  })
+
+  app.route({
+    ...at(API_ROUTES.shopBuy),
+    schema: { body: shopBuyRequestSchema, response: { 200: shopBuyResponseSchema } },
+    handler: async request => {
+      const bought = await services.items.buy(
+        authOf(request).user.id,
+        request.body.itemId,
+        request.body.requestId,
+      )
+      return { v: V, ...bought }
+    },
+  })
+
+  app.route({
+    ...at(API_ROUTES.itemArm),
+    schema: { body: itemArmRequestSchema, response: { 200: itemArmResponseSchema } },
+    handler: async request => ({
+      v: V,
+      inventory: await services.items.arm(
+        authOf(request).user.id,
+        request.body.itemId,
+        request.body.armed,
+      ),
+    }),
   })
 
   app.route({

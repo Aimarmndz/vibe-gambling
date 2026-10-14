@@ -181,6 +181,7 @@ async function sendHello(services: Services, hub: Hub, connection: Connection): 
     lastRound: state.lastRound,
     serverTime: services.game.now().toISOString(),
     achievements: state.achievements,
+    inventory: state.inventory,
   })
   hub.ready(connection)
 }
@@ -218,16 +219,21 @@ async function handle(
       case 'loan.request':
         await services.game.requestLoan(userId)
         return
-      case 'settings.update':
-        if (message.hidden === undefined && message.locale === undefined) {
+      case 'settings.update': {
+        const { hidden, locale, felt, chipSkin } = message
+        if (
+          hidden === undefined &&
+          locale === undefined &&
+          felt === undefined &&
+          chipSkin === undefined
+        ) {
           hub.sendTo(connection, errorMessage('invalid_request', 'Nothing to change.'))
           return
         }
-        await services.auth.updateSettings(userId, {
-          hidden: message.hidden,
-          locale: message.locale,
-        })
+        await services.items.assertCanEquip(userId, { felt, chipSkin })
+        await services.auth.updateSettings(userId, { hidden, locale, felt, chipSkin })
         return
+      }
       case 'presence':
         // No toca la base de datos: solo decide si el próximo turno se juega en directo.
         hub.setVisible(connection, message.visible)
@@ -270,6 +276,16 @@ async function handle(
           type: 'referral',
           referral: await services.referrals.status(userId),
         })
+        return
+      case 'shop.request':
+        hub.sendTo(connection, { v: V, type: 'shop', shop: await services.items.shop(userId) })
+        return
+      case 'shop.buy':
+        // El resultado llega a todas las ventanas con el mensaje `inventory`.
+        await services.items.buy(userId, message.itemId, message.requestId)
+        return
+      case 'item.arm':
+        await services.items.arm(userId, message.itemId, message.armed)
         return
       case 'sync':
         await sendHello(services, hub, connection)

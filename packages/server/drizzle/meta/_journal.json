@@ -43,6 +43,13 @@
       "when": 1791932558928,
       "tag": "0005_referrals",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791935778125,
+      "tag": "0006_items",
+      "breakpoints": true
     }
   ]
 }

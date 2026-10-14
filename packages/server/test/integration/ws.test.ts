@@ -384,6 +384,41 @@ describe('WebSocket', () => {
     expect((await other.closed).code).toBe(WS_CLOSE_CODES.sessionEnded)
   })
 
+  it('TIENDA: hello trae el bolsillo; shop.request, shop.buy, item.arm y ajustes de cosméticos', async () => {
+    const { user } = await createUser(t)
+    const cookie = await webCookie(t, user.id)
+    const a = connect({ cookie })
+    const b = connect({ cookie })
+    const hello = await a.next('hello')
+    expect(hello.inventory).toMatchObject({ items: [], revert: null })
+    await b.next('hello')
+
+    a.send({ v: 1, type: 'shop.request' })
+    const shop = await a.next('shop')
+    expect(shop.shop.items.map(i => i.id)).toContain('rabbit_foot')
+    a.send({ v: 1, type: 'shop.buy', itemId: 'rabbit_foot', requestId: 'ws-buy-0001' })
+    // La compra llega a todas las ventanas del usuario.
+    for (const c of [a, b]) {
+      expect(await c.next('inventory')).toMatchObject({
+        event: 'bought',
+        inventory: { items: [{ id: 'rabbit_foot', charges: 37, armed: false }] },
+        wallet: { balance: 1000 - 77 },
+      })
+    }
+    a.send({ v: 1, type: 'item.arm', itemId: 'rabbit_foot', armed: true })
+    expect(await b.next('inventory')).toMatchObject({
+      event: 'armed',
+      inventory: { items: [{ id: 'rabbit_foot', armed: true }] },
+    })
+    // Errores con `re`: un tapete que no tiene y un consumible sin cargas.
+    a.send({ v: 1, type: 'settings.update', felt: 'vaporwave' })
+    expect(await a.next('error')).toMatchObject({ error: 'conflict', re: 'settings.update' })
+    a.send({ v: 1, type: 'item.arm', itemId: 'turbo', armed: true })
+    expect(await a.next('error')).toMatchObject({ error: 'conflict', re: 'item.arm' })
+    a.ws.close()
+    b.ws.close()
+  })
+
   it('al cambiar de temporada avisa con season.changed', async () => {
     const { user } = await createUser(t)
     const client = connect({ cookie: await webCookie(t, user.id) })

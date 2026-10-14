@@ -9,10 +9,11 @@ import { and, asc, eq, isNull, lte, sql } from 'drizzle-orm'
 
 import type { Database } from '../db/client.ts'
 import { SEASON_JOB_LOCK_KEY } from '../db/locks.ts'
-import { hallOfRuin, rounds, seasons, users, wallets } from '../db/schema.ts'
+import { hallOfRuin, inventory, rounds, seasons, users, wallets } from '../db/schema.ts'
 import type { Clock } from '../lib/clock.ts'
 import type { AuthService } from './auth.ts'
 import type { GameService } from './game.ts'
+import type { ItemService } from './items.ts'
 import { boardOrder, ranked } from './leaderboard.ts'
 import type { Notifier } from './notifier.ts'
 import { ensureSeason } from './game.ts'
@@ -28,6 +29,8 @@ export interface SeasonDeps {
   clock: Clock
   notifier: Notifier
   gameService: GameService
+  /** TIENDA: el bolsillo vacío de la temporada nueva se anuncia tras `season.changed`. */
+  items: ItemService
   auth: AuthService
   logger: SeasonJobLogger
   intervalMs: number
@@ -73,6 +76,8 @@ export class SeasonService {
     const now = this.#d.clock.now()
     const current = this.#d.gameService.currentSeason(now)
     const expired: Array<{ userId: string; roundId: string }> = []
+    // Quién tenía consumibles en la temporada cerrada (se le avisa con `inventory` `expired`).
+    const pocketsEmptied = new Set<string>()
 
     const outcome = await this.#d.db.transaction(async tx => {
       const [lock] = await tx.execute<{ locked: boolean }>(
@@ -119,6 +124,14 @@ export class SeasonService {
           .set({ status: 'expired', expiredAt: now })
           .where(and(eq(rounds.seasonId, season.id), eq(rounds.status, 'deferred')))
 
+        // Los consumibles de la TIENDA caducan con su temporada, sin devolución ("como los
+        // yogures"). Las compras se quedan (Placebómetro) y los cosméticos son para siempre.
+        const emptied = await tx
+          .delete(inventory)
+          .where(eq(inventory.seasonId, season.id))
+          .returning({ userId: inventory.userId })
+        for (const { userId } of emptied) pocketsEmptied.add(userId)
+
         const top = await tx
           .select({ userId: wallets.userId, netWorth: wallets.netWorth, spins: wallets.spins })
           .from(wallets)
@@ -152,6 +165,14 @@ export class SeasonService {
           v: V,
           type: 'season.changed',
           seasonId: current.id,
+          wallet,
+        })
+        if (!pocketsEmptied.has(userId)) continue
+        this.#d.notifier.send(userId, {
+          v: V,
+          type: 'inventory',
+          event: 'expired',
+          inventory: await this.#d.items.inventoryView(this.#d.db, userId, current.id),
           wallet,
         })
       }
