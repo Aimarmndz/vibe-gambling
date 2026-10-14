@@ -415,7 +415,16 @@ export class ItemService {
             set: { charges: sql`${inventory.charges} + ${add}`, updatedAt: now },
           })
       } else if (isCosmetic(itemId)) {
-        await tx.insert(cosmeticsOwned).values({ userId, itemId, acquiredAt: now })
+        // Dos compras a la vez en temporadas distintas (cerrojos distintos): solo una lo consigue.
+        const added = await tx
+          .insert(cosmeticsOwned)
+          .values({ userId, itemId, acquiredAt: now })
+          .onConflictDoNothing()
+          .returning({ itemId: cosmeticsOwned.itemId })
+        if (added.length === 0) {
+          const [code, message] = PURCHASE_ERRORS.owned
+          throw new AppError(code, message)
+        }
       } else if (target) {
         // `git revert`: una línea más en la ronda revertida (no la borra ni cambia su neto).
         await tx.insert(roundItemEffects).values({
