@@ -4,3 +4,7 @@
 docs/screenshots/** export-ignore
 docs/*.gif export-ignore
 docs/launch/** export-ignore
+
+# Los tests del mod no los carga Claude Code: fuera de la descarga, el plugin del directorio solo
+# lleva lo que se ejecuta y el escáner del directorio no confunde sus tokens de prueba con credenciales.
+packages/mod/tests export-ignore
