@@ -42,7 +42,7 @@ A plain list for the plugin directory reviewers and for anyone who wants to know
 - **Local files and environment.** It checks whether those browser executables exist at their usual paths, and reads `HOME`, `OS`, `ProgramFiles`, `ProgramFiles(x86)`, `LOCALAPPDATA` (to find them) and `LC_ALL`, `LC_MESSAGES`, `LANG`, `LANGUAGE` (to pick the language). It reads no other files.
 - **Credentials.** The only secret is the vibe-gambling session token the server gives you after `/vibe-login`. It is kept in the plugin's own store in Claude Code, one per server, sent only to that server and deleted with `/vibe-logout`. The mod never reads your GitHub token, SSH keys, git credentials or any other credential on your machine.
 - **Settings it changes.** One: `/vibe-server <url>` writes the plugin's own `vibe-gambling.serverUrl` option, after you ask for it and after checking that the server answers. It never touches permission modes or any other setting.
-- **Commands it adds.** The slash commands in [Commands](#commands), with their Spanish aliases. It adds no tools, agents or MCP servers.
+- **Commands it adds.** The slash commands in [Commands](#commands), with their Spanish aliases. Each one is registered and answered by its own `command.run` hook, with the command name written as fixed text, so those hooks only ever see the mod's own commands, never anyone else's, and only reply to them. It adds no tools, agents or MCP servers.
 
 ## Options
 
