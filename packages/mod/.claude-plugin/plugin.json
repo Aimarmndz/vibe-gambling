@@ -9,9 +9,6 @@
   "homepage": "https://vibe.aimar.dev",
   "repository": "https://github.com/Aimarmndz/vibe-gambling",
   "license": "AGPL-3.0-or-later",
-  "documentationUrl": "https://github.com/Aimarmndz/vibe-gambling#readme",
-  "supportUrl": "https://github.com/Aimarmndz/vibe-gambling/issues",
-  "privacyPolicyUrl": "https://vibe.aimar.dev/privacy",
   "keywords": ["roulette", "game", "parody", "psx", "fake-coins"],
   "userConfig": {
     "serverUrl": {
