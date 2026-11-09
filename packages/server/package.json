@@ -32,12 +32,12 @@
   "dependencies": {
     "@fastify/cookie": "^11.1.5",
     "@fastify/helmet": "^13.2.0",
-    "@fastify/rate-limit": "^11.2.1",
-    "@fastify/static": "^10.1.8",
-    "@fastify/websocket": "^11.3.4",
+    "@fastify/rate-limit": "^11.2.2",
+    "@fastify/static": "^10.1.10",
+    "@fastify/websocket": "^11.3.7",
     "@vibe-gambling/shared": "workspace:*",
     "drizzle-orm": "~0.45.4",
-    "fastify": "^5.12.7",
+    "fastify": "^5.12.8",
     "fastify-type-provider-zod": "^7.0.0",
     "postgres": "^3.4.9",
     "zod": "^4.6.7"
@@ -45,13 +45,13 @@
   "devDependencies": {
     "@testcontainers/postgresql": "^12.2.1",
     "@types/ws": "^8.18.2",
-    "@vitest/coverage-v8": "^5.0.5",
+    "@vitest/coverage-v8": "^5.1.0",
     "drizzle-kit": "~0.31.11",
     "esbuild": "^0.28.2",
     "msw": "^3.0.3",
     "testcontainers": "^12.2.1",
     "tsx": "^4.23.15",
-    "vitest": "^5.0.5",
-    "ws": "^8.22.0"
+    "vitest": "^5.1.0",
+    "ws": "^8.22.1"
   }
 }
